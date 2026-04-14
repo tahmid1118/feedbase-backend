@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "yourdeals-server",
+      name: "feedbase-server",
       script: "app.js",
       instances: 1,
       exec_mode: "fork",

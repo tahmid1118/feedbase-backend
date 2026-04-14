@@ -1,26 +1,29 @@
 const jwt = require("jsonwebtoken");
 const { pool } = require("../../../database/dbPool");
 
-const checkUserId = async (email) => {
+const getActiveUser = async (id, email) => {
   const query = `
     SELECT
-        *
+        id,
+        email,
+        tenant_id,
+        role
     FROM
-        user
+        users
     WHERE
-        email = ?;
+        id = ? AND
+        email = ? AND
+        is_active = 1
+    LIMIT 1;
 `;
 
-  const values = [email];
+  const values = [id, email];
 
   try {
     const [result] = await pool.query(query, values);
-    if (result.length > 0) {
-      return true;
-    }
-    return false;
+    return result.length > 0 ? result[0] : null;
   } catch (error) {
-    return error;
+    return Promise.reject(error);
   }
 };
 
@@ -28,9 +31,14 @@ const authenticateToken = async (req, res, next) => {
   const token = req.header("Authorization");
 
   if (!token) return res.status(400).send("Access denied");
-  let authToken = token.split(" ");
+  const authToken = token.split(" ");
 
-  if (authToken[1] === "undefined" || authToken[1] === "null") {
+  if (
+    authToken[0] !== "Bearer" ||
+    !authToken[1] ||
+    authToken[1] === "undefined" ||
+    authToken[1] === "null"
+  ) {
     return res.status(400).send("Invalid token");
   }
 
@@ -43,12 +51,18 @@ const authenticateToken = async (req, res, next) => {
         return res.status(400).send("Invalid token");
       }
       const { id, email } = user;
+      if (!id || !email) {
+        return res.status(400).send("Invalid token");
+      }
+
       try {
-        const isUserExist = await checkUserId(email);
-        if (isUserExist === true) {
+        const userInfo = await getActiveUser(id, email);
+        if (userInfo) {
           req.auth = {
-            id,
-            email,
+            id: userInfo.id,
+            email: userInfo.email,
+            tenantId: userInfo.tenant_id,
+            role: userInfo.role,
           };
           next();
         } else {

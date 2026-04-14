@@ -19,17 +19,19 @@ const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const insertImageDataQuery = async (authData, bodyData) => {
     const _query = `
         UPDATE 
-            user
+            users
         SET
-            image_url = ?,
+            avatar_url = ?,
             updated_at = ?
         WHERE
-            user_id = ?;
+            id = ? AND
+            tenant_id = ?;
     `;
     const _values = [
         bodyData.filePath,
         bodyData.updatedAt,
-        authData.id
+        authData.id,
+        authData.tenantId
     ]
 
     try {

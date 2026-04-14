@@ -8,15 +8,17 @@ const { pool } = require("../../../database/dbPool");
 const getUserInfo = async (authData) => {
   const _query = `
         SELECT
-            user_id,
-            password
+            id,
+            password_hash
         FROM
-           user
+           users
         WHERE
-            user_id = ?
+            id = ? AND
+            tenant_id = ? AND
+            is_active = 1
     `;
   try {
-    const [row] = await pool.query(_query, [authData.id]);
+    const [row] = await pool.query(_query, [authData.id, authData.tenantId]);
     if (row.length > 0) {
       return row[0];
     }
@@ -27,21 +29,22 @@ const getUserInfo = async (authData) => {
   }
 };
 
-const updateUserPasswordQuery = async (userId, hashPassword, updatedAt) => {
+const updateUserPasswordQuery = async (userId, tenantId, hashPassword, updatedAt) => {
   const _query = `
         UPDATE
-            user
+            users
         SET
-            password = ?,
+            password_hash = ?,
             updated_at = ?
         WHERE
-            user_id = ?;
+            id = ? AND tenant_id = ?;
     `;
   try {
     const [result] = await pool.query(_query, [
       hashPassword,
       updatedAt,
       userId,
+      tenantId,
     ]);
     return result.affectedRows > 0 ? true : false;
   } catch (error) {
@@ -76,7 +79,7 @@ const changeUserPassword = async (oldPassword, newPassword, authData) => {
     }
     const isPasswordCorrect = await bcrypt.compare(
       oldPassword,
-      userInfo.password
+      userInfo.password_hash
     );
     if (isPasswordCorrect === true) {
       hashPassword = await bcrypt.hash(newPassword, 10);
@@ -91,6 +94,7 @@ const changeUserPassword = async (oldPassword, newPassword, authData) => {
     }
     const isUpdated = await updateUserPasswordQuery(
       authData.id,
+      authData.tenantId,
       hashPassword,
       updatedAt
     );

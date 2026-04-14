@@ -1,0 +1,74 @@
+SOFTWARE REQUIREMENTS SPECIFICATION (SRS)
+Multi-Tenant Feedback & Roadmap Platform
+
+1. Introduction
+Purpose: Build a SaaS platform for collecting feedback, managing feature requests, roadmaps, and changelogs.
+
+2. System Overview
+- Multi-tenant SaaS
+- Roles: Visitor, User, Moderator, Admin, Owner
+
+3. Multi-Tenant System
+- Subdomain per tenant (e.g., tenant.app.com)
+- Tenant isolation via tenant_id
+- Custom domain support
+
+4. Functional Requirements
+- Authentication (JWT, OAuth)
+- Feedback posts (CRUD)
+- Voting system
+- Comments with threads
+- Roadmap (Kanban)
+- Changelog publishing
+- Notifications (email + in-app)
+- Search & filtering
+- Duplicate detection
+- Admin dashboard
+- Analytics
+- Branding
+- API access
+- Rate limiting
+- File uploads
+- Audit logs
+- Integrations
+
+5. Non-Functional Requirements
+- Performance <2s load
+- Secure (HTTPS, validation)
+- Scalable (10k+ tenants)
+- 99.9% uptime
+
+6. Database Design
+Tables:
+- Tenants
+- Users
+- Posts
+- Votes
+- Comments
+- Tags
+- Changelog
+- Notifications
+- API Keys
+- Audit Logs
+
+7. API Design
+- Auth endpoints
+- Posts endpoints
+- Comments, votes
+- Roadmap & changelog
+
+8. UI Pages
+- Feedback board
+- Post details
+- Roadmap
+- Changelog
+- Admin dashboard
+
+9. Deployment
+- Wildcard DNS (*.app.com)
+- Cloud hosting
+
+10. Future Enhancements
+- AI prioritization
+- Slack/Discord integration
+

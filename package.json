@@ -1,16 +1,16 @@
 {
-  "name": "yourdeals-backend",
+  "name": "feedbase-backend",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "dev": "nodemon app.js",
     "staging": "pm2 start ecosystem.config.js --env staging",
     "start": "pm2 start ecosystem.config.js --env production",
-    "restart": "pm2 restart yourdeals-server --env production",
-    "restart:staging": "pm2 restart yourdeals-server --env staging",
-    "logs": "pm2 logs yourdeals-server",
-    "stop": "pm2 stop yourdeals-server",
-    "delete": "pm2 delete yourdeals-server",
+    "restart": "pm2 restart feedbase-server --env production",
+    "restart:staging": "pm2 restart feedbase-server --env staging",
+    "logs": "pm2 logs feedbase-server",
+    "stop": "pm2 stop feedbase-server",
+    "delete": "pm2 delete feedbase-server",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

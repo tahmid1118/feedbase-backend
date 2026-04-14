@@ -1,27 +1,23 @@
 const express = require("express");
 const userRouter = express.Router();
-
-const {
-  userLoginDataValidator,
-} = require("../../middlewares/users/userLoginDataValidator");
-const { userLogin } = require("../../main/users/userLogin");
-const {
-  userDataValidator,
-} = require("../../middlewares/users/userRegisterDataValidator");
-const { languageValidator } = require("../../middlewares/common/languageValidator");
-const { registerNewUser } = require("../../main/users/registerNewUser");
 const { authenticateToken } = require("../../middlewares/jwt/jwt");
+const { languageValidator } = require("../../middlewares/common/languageValidator");
+const { paginationData } = require("../../middlewares/pagination/paginationData");
+const { userLogin } = require("../../main/users/userLogin");
+const { registerNewUser } = require("../../main/users/registerNewUser");
 const { getPersonalData } = require("../../main/users/gerUserPersonalData");
 const { getUserTableData } = require("../../main/users/getUserTableData");
-const {
-  paginationData,
-} = require("../../middlewares/pagination/paginationData");
 const { getUserListData } = require("../../main/users/getUserListData");
 const { updatePersonalInfo } = require("../../main/users/updateUserData");
 const { changeUserPassword } = require("../../main/users/changeUserPassword");
+const { updateUserRole } = require("../../main/users/updateUserRole");
 
-userRouter.post("/login", userLoginDataValidator, async (req, res) => {
-  userLogin(req.body.userData)
+/**
+ * @description User login
+ */
+userRouter.post("/login", languageValidator, async (req, res) => {
+  const { userData = {}, lg } = req.body;
+  userLogin(userData, lg)
     .then((data) => {
       const { statusCode, status, message, result } = data;
       return res.status(statusCode).send({
@@ -40,8 +36,12 @@ userRouter.post("/login", userLoginDataValidator, async (req, res) => {
     });
 });
 
-userRouter.post("/register", userDataValidator, async (req, res) => {
-  registerNewUser(req.body.userData)
+/**
+ * @description Register new user
+ */
+userRouter.post("/register", languageValidator, async (req, res) => {
+  const { userData = {}, lg } = req.body;
+  registerNewUser(userData, lg)
     .then((data) => {
       const { statusCode, status, message } = data;
       return res.status(statusCode).send({
@@ -64,7 +64,8 @@ userRouter.post("/register", userDataValidator, async (req, res) => {
  * It requires the user to be authenticated.
  */
 userRouter.get("/personal-data", authenticateToken, async (req, res) => {
-  getPersonalData(req.auth)
+  const lg = req.query.lg || req.body.lg || 'en';
+  getPersonalData({ ...req.auth, lg })
     .then((data) => {
       const { statusCode, status, message, result } = data;
       return res.status(statusCode).send({
@@ -83,30 +84,51 @@ userRouter.get("/personal-data", authenticateToken, async (req, res) => {
 });
 
 /**
- * @description This route is used to update user data.
+ * @description Update user data
  */
-userRouter.post(
-  "/update",
-  authenticateToken,
-  userDataValidator,
-  async (req, res) => {
-    updatePersonalInfo(req.body.userData, req.auth)
-      .then((data) => {
-        const { statusCode, status, message } = data;
-        return res.status(statusCode).send({
-          status: status,
-          message: message,
-        });
-      })
-      .catch((error) => {
-        const { statusCode, status, message } = error;
-        return res.status(statusCode).send({
-          status: status,
-          message: message,
-        });
+userRouter.post("/update", authenticateToken, languageValidator, async (req, res) => {
+  const { userData, lg } = req.body;
+  const authData = { ...req.auth, lg };
+  updatePersonalInfo(userData, authData)
+    .then((data) => {
+      const { statusCode, status, message } = data;
+      return res.status(statusCode).send({
+        status: status,
+        message: message,
       });
-  }
-);
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({
+        status: status,
+        message: message,
+      });
+    });
+});
+
+/**
+ * @description Update user role (admin only)
+ */
+userRouter.patch("/role/:userId", authenticateToken, languageValidator, async (req, res) => {
+  const { userId } = req.params;
+  const { role, lg } = req.body;
+  const authData = { ...req.auth, lg };
+  updateUserRole(userId, role, authData)
+    .then((data) => {
+      const { statusCode, status, message } = data;
+      return res.status(statusCode).send({
+        status: status,
+        message: message,
+      });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({
+        status: status,
+        message: message,
+      });
+    });
+});
 
 /**
  * @description This route is used to get the user table data.
@@ -117,8 +139,9 @@ userRouter.post(
   paginationData,
   async (req, res) => {
     const { paginationData } = req.body;
+    const authData = { ...req.auth, lg: paginationData.lg || 'en' };
 
-    getUserTableData(paginationData)
+    getUserTableData(paginationData, authData)
       .then((data) => {
         const { statusCode, status, message, result } = data;
         return res.status(statusCode).send({
@@ -143,7 +166,7 @@ userRouter.post(
  */
 userRouter.post("/user-list", authenticateToken, languageValidator, async (req, res) => {
   const { lg } = req.body;
-  getUserListData(lg)
+  getUserListData({ ...req.auth, lg })
     .then((data) => {
       const { statusCode, status, message, result } = data;
       return res.status(statusCode).send({

@@ -2,16 +2,31 @@ const { setServerResponse } = require("../../common/setServerResponse");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { pool } = require("../../../database/dbPool");
 
-const totalUserTableRowCount = async () => {
-  const _query = `
-        SELECT 
+const totalUserTableRowCount = async (tenantId, filterBy) => {
+  const searchText = (filterBy || '').trim();
+  let _query = `
+        SELECT
             COUNT(*) AS totalRows
-        FROM 
-            user;
+        FROM
+            users
+        WHERE
+            tenant_id = ?
     `;
+  const _values = [tenantId];
+
+  if (searchText) {
+    _query += `
+        AND (
+            full_name LIKE ? OR
+            email LIKE ?
+        )
+    `;
+    const likeValue = `%${searchText}%`;
+    _values.push(likeValue, likeValue);
+  }
 
   try {
-    const [rows] = await pool.query(_query);
+    const [rows] = await pool.query(_query, _values);
     if (rows.length > 0) {
       return Promise.resolve(rows[0].totalRows);
     }
@@ -23,20 +38,42 @@ const totalUserTableRowCount = async () => {
 };
 
 const getUserTableDataQuery = async (paginationData) => {
-  const _query = `
-        SELECT
-            user_id,
-           full_name,
-            email,
-            created_at,
-            updated_at
-        FROM
-            user
-        ORDER BY
-            created_at DESC
-        LIMIT ? OFFSET ?;
-    `;
-  const _values = [paginationData.itemsPerPage, paginationData.offset];
+  const sortOrder = paginationData.sortOrder === 'asc' ? 'ASC' : 'DESC';
+  const searchText = (paginationData.filterBy || '').trim();
+
+  let _query = `
+    SELECT
+      id AS user_id,
+      full_name,
+      email,
+      role,
+      avatar_url,
+      created_at,
+      updated_at
+    FROM
+      users
+    WHERE
+      tenant_id = ?
+  `;
+  const _values = [paginationData.tenantId];
+
+  if (searchText) {
+  _query += `
+    AND (
+      full_name LIKE ? OR
+      email LIKE ?
+    )
+  `;
+  const likeValue = `%${searchText}%`;
+  _values.push(likeValue, likeValue);
+  }
+
+  _query += `
+    ORDER BY
+      created_at ${sortOrder}
+    LIMIT ? OFFSET ?;
+  `;
+  _values.push(paginationData.itemsPerPage, paginationData.offset);
 
   try {
     const [rows] = await pool.query(_query, _values);
@@ -47,11 +84,27 @@ const getUserTableDataQuery = async (paginationData) => {
   }
 };
 
-const getUserTableData = async (paginationData) => {
-  const language = paginationData.lg || 'en';
+const getUserTableData = async (paginationData, authData) => {
+  const language = paginationData.lg || authData?.lg || 'en';
+  const tenantId = authData?.tenantId;
+
+  if (!tenantId) {
+    return Promise.reject(
+      setServerResponse(
+        API_STATUS_CODE.BAD_REQUEST,
+        'user_not_found',
+        language
+      )
+    );
+  }
+
   try {
-    const totalRows = await totalUserTableRowCount();
-    const userData = await getUserTableDataQuery(paginationData);
+    const _paginationData = {
+      ...paginationData,
+      tenantId,
+    };
+    const totalRows = await totalUserTableRowCount(tenantId, _paginationData.filterBy);
+    const userData = await getUserTableDataQuery(_paginationData);
 
     const result = {
       metadata: {

@@ -7,7 +7,7 @@ const { setServerResponse } = require("../../common/setServerResponse");
  * Checks if language (lg) is provided in the request body or query
  */
 const languageValidator = (req, res, next) => {
-  const lg = req.body.lg || req.query.lg;
+  const lg = req.body?.lg || req.query?.lg;
 
   // Check if language is provided
   if (_.isEmpty(lg)) {

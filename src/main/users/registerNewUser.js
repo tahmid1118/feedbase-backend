@@ -4,18 +4,32 @@ const { setServerResponse } = require("../../common/setServerResponse");
 const bcrypt = require("bcrypt");
 const { placeholderImagePath } = require("../../consts/staticValues");
 
-const checkDuplicateEmail = async (email) => {
+const resolveTenantId = (tenantId) => {
+  if (tenantId === undefined || tenantId === null || tenantId === '') {
+    return 1;
+  }
+
+  const parsedTenantId = Number(tenantId);
+  if (!Number.isInteger(parsedTenantId) || parsedTenantId <= 0) {
+    return 1;
+  }
+
+  return parsedTenantId;
+};
+
+const checkDuplicateEmail = async (email, tenantId) => {
   const _query = `
     SELECT 
         email
     FROM
-        user
+        users
     WHERE
-        email = ?;
+        email = ? AND
+        tenant_id = ?;
 `;
 
   try {
-    const [result] = await pool.query(_query, email);
+    const [result] = await pool.query(_query, [email, tenantId]);
     if (result.length > 0) {
       return true;
     }
@@ -27,20 +41,28 @@ const checkDuplicateEmail = async (email) => {
 };
 const insertUserDataQuery = async (userData) => {
   const _query = `
-    INSERT INTO user (
+    INSERT INTO users (
+        tenant_id,
         full_name,
         email,
         contact_no,
-        password
+        password_hash,
+        role,
+        avatar_url,
+        is_active
     )
-    VALUES (?, ?, ?, ?);
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 `;
 
   const _values = [
+    userData.tenantId,
     userData.fullName,
     userData.email,
     userData.contact || null,
     userData.password,
+    'user',
+    placeholderImagePath,
+    1,
   ];
 
   try {
@@ -55,15 +77,18 @@ const insertUserDataQuery = async (userData) => {
   }
 };
 
-const registerNewUser = async (userData) => {
+const registerNewUser = async (userData, lg) => {
+  const language = userData?.lg || lg || 'en';
+  const tenantId = resolveTenantId(userData?.tenantId);
+
   try {
-    const isDuplicateEmail = await checkDuplicateEmail(userData.email);
+    const isDuplicateEmail = await checkDuplicateEmail(userData.email, tenantId);
     if (isDuplicateEmail) {
       return Promise.reject(
         setServerResponse(
           API_STATUS_CODE.BAD_REQUEST,
           'email_has_already_exist',
-          userData.lg
+          language
         )
       );
     }
@@ -71,7 +96,11 @@ const registerNewUser = async (userData) => {
     // Hash the password from userData
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(userData.password, saltRounds);
-    userData = { ...userData, password: hashedPassword };
+    userData = {
+      ...userData,
+      tenantId,
+      password: hashedPassword,
+    };
 
     const insertedData = await insertUserDataQuery(userData);
     if (insertedData === true) {
@@ -79,7 +108,7 @@ const registerNewUser = async (userData) => {
         setServerResponse(
           API_STATUS_CODE.OK,
           'sign_up_is_successful',
-          userData.lg
+          language
         )
       );
     }
@@ -89,7 +118,7 @@ const registerNewUser = async (userData) => {
       setServerResponse(
         API_STATUS_CODE.INTERNAL_SERVER_ERROR,
         'internal_server_error',
-        userData.lg
+        language
       )
     );
   }

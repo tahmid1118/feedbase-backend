@@ -6,11 +6,18 @@ const app = express();
 const cors = require("cors");
 const morgan = require("morgan");
 const bodyParser = require("body-parser");
+const { tenantRouter } = require("./src/routes/tenant/tenantRoute");
 const { userRouter } = require("./src/routes/users/usersRoute");
-const { categoryRouter } = require("./src/routes/category/categoryRoute");
-const { shopRouter } = require("./src/routes/shop/shopRoute");
-const { branchRouter } = require("./src/routes/branch/branchRoute");
-const { dealRouter } = require("./src/routes/deal/dealRoute");
+const { postRouter } = require("./src/routes/post/postRoute");
+const { voteRouter } = require("./src/routes/vote/voteRoute");
+const { commentRouter } = require("./src/routes/comment/commentRoute");
+const { tagRouter } = require("./src/routes/tag/tagRoute");
+const { roadmapRouter } = require("./src/routes/roadmap/roadmapRoute");
+const { changelogRouter } = require("./src/routes/changelog/changelogRoute");
+const { notificationRouter } = require("./src/routes/notification/notificationRoute");
+const { apiKeyRouter } = require("./src/routes/apikey/apiKeyRoute");
+const { auditLogRouter } = require("./src/routes/auditlog/auditLogRoute");
+const { integrationRouter } = require("./src/routes/integration/integrationRoute");
 const { fileUploadRouter } = require("./src/routes/file-uploader/file-upload-route");
 // --- Middleware ---
 app.use(bodyParser.json());
@@ -27,11 +34,18 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 
 // --- Routes ---
+app.use("/tenants", tenantRouter);
 app.use("/users", userRouter);
-app.use("/category", categoryRouter);
-app.use("/shop", shopRouter);
-app.use("/deal", dealRouter);
-app.use("/branch", branchRouter);
+app.use("/posts", postRouter);
+app.use("/votes", voteRouter);
+app.use("/comments", commentRouter);
+app.use("/tags", tagRouter);
+app.use("/roadmap", roadmapRouter);
+app.use("/changelog", changelogRouter);
+app.use("/notifications", notificationRouter);
+app.use("/api-keys", apiKeyRouter);
+app.use("/audit-logs", auditLogRouter);
+app.use("/integrations", integrationRouter);
 app.use("/uploader", fileUploadRouter);
 
 

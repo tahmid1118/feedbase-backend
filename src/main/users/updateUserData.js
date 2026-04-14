@@ -3,17 +3,19 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 
-const checkUserExists = async (userId) => {
+const checkUserExists = async (userId, tenantId) => {
   const _query = `
-        SELECT * 
+        SELECT id
         FROM 
-            user
+            users
         WHERE 
-            user_id = ?;
+            id = ? AND
+            tenant_id = ? AND
+            is_active = 1;
     `;
 
   try {
-    const [rows] = await pool.query(_query, [userId]);
+    const [rows] = await pool.query(_query, [userId, tenantId]);
     return rows.length > 0 ? true : false;
   } catch (error) {
     console.error('Error checking user exists:', error);
@@ -22,7 +24,7 @@ const checkUserExists = async (userId) => {
 };
 
 const updateUserDataQuery = async (userData) => {
-  let _query = `UPDATE user SET `;
+  let _query = `UPDATE users SET `;
   const _values = [];
 
   if (userData.fullName) {
@@ -36,15 +38,25 @@ const updateUserDataQuery = async (userData) => {
     _values.push(userData.contact);
   }
 
+  if (userData.imageUrl) {
+    if (_values.length > 0) _query += ", ";
+    _query += `avatar_url = ? `;
+    _values.push(userData.imageUrl);
+  }
+
   if (_values.length > 0) {
     _query += ", ";
     _query += `updated_at = ? `;
     _values.push(userData.updatedAt);
   }
 
+  if (_values.length === 0) {
+    return false;
+  }
+
   // Final WHERE condition
-  _query += ` WHERE user_id = ?`;
-  _values.push(userData.userId);
+  _query += ` WHERE id = ? AND tenant_id = ?`;
+  _values.push(userData.userId, userData.tenantId);
 
   try {
     const [rows] = await pool.query(_query, _values);
@@ -58,12 +70,30 @@ const updateUserDataQuery = async (userData) => {
   }
 };
 
-const updatePersonalInfo = async (userData) => {
+const updatePersonalInfo = async (userData, authData) => {
   const updatedAt = format(new Date(), "yyyy-MM-dd HH:mm:ss");
-  userData = { ...userData, updatedAt: updatedAt };
-  const language = userData.lg || 'en';
+  const language = authData?.lg || userData?.lg || 'en';
+  const preparedData = {
+    fullName: userData?.fullName,
+    contact: userData?.contact,
+    imageUrl: userData?.imageUrl,
+    updatedAt,
+    userId: userData?.userId || authData?.id,
+    tenantId: authData?.tenantId,
+  };
+
+  if (!preparedData.fullName && !preparedData.contact && !preparedData.imageUrl) {
+    return Promise.reject(
+      setServerResponse(
+        API_STATUS_CODE.BAD_REQUEST,
+        'string_data_is_required',
+        language
+      )
+    );
+  }
+
   try {
-    const isExist = await checkUserExists(userData.userId);
+    const isExist = await checkUserExists(preparedData.userId, preparedData.tenantId);
     if (isExist === false) {
       return Promise.resolve(
         setServerResponse(
@@ -73,7 +103,7 @@ const updatePersonalInfo = async (userData) => {
         )
       );
     }
-    const isUpdated = await updateUserDataQuery(userData);
+    const isUpdated = await updateUserDataQuery(preparedData);
     if (isUpdated) {
       return Promise.resolve(
         setServerResponse(
@@ -83,6 +113,14 @@ const updatePersonalInfo = async (userData) => {
         )
       );
     }
+
+    return Promise.reject(
+      setServerResponse(
+        API_STATUS_CODE.BAD_REQUEST,
+        'user_not_found',
+        language
+      )
+    );
   } catch (error) {
     console.error('Update personal info error:', error);
     return Promise.reject(

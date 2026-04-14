@@ -5,20 +5,20 @@ const { pool } = require("../../../database/dbPool");
 const getUserPersonalData = async (authData) => {
   const _query = `
     SELECT
-        user_id,
+        id AS user_id,
         full_name,
         email,
-        contact_no,
-        created_at,
-        updated_at
+        contact_no
     FROM
-        user
+        users
     WHERE
-        user_id = ? AND
-        email = ?
+        id = ? AND
+        email = ? AND
+        tenant_id = ? AND
+        is_active = 1
 `;
 
-  const _values = [authData.id, authData.email];
+  const _values = [authData.id, authData.email, authData.tenantId];
   try {
     const [rows] = await pool.query(_query, _values);
     return rows[0];
