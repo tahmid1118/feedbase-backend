@@ -5,7 +5,7 @@ const path = require("path");
 const app = express();
 const cors = require("cors");
 const morgan = require("morgan");
-const bodyParser = require("body-parser");
+const compression = require("compression");
 const { tenantRouter } = require("./src/routes/tenant/tenantRoute");
 const { userRouter } = require("./src/routes/users/usersRoute");
 const { postRouter } = require("./src/routes/post/postRoute");
@@ -22,10 +22,14 @@ const { fileUploadRouter } = require("./src/routes/file-uploader/file-upload-rou
 const { analyticsRouter } = require("./src/routes/analytics/analyticsRoute");
 const { publicRouter } = require("./src/routes/public/publicRoute");
 // --- Middleware ---
-app.use(bodyParser.json());
-app.use(morgan("combined"));
+// gzip/deflate all compressible responses (JSON, text). Binary uploads under
+// /uploads are skipped automatically by compression's content-type filter.
+app.use(compression());
 app.use(cors());
+app.use(morgan("combined"));
 
+// Single JSON body parser (express.json IS body-parser.json — no need for both).
+app.use(express.json({ limit: "10mb" }));
 app.use(
   express.urlencoded({
     extended: true,
@@ -33,7 +37,6 @@ app.use(
     parameterLimit: 10000,
   })
 );
-app.use(express.json({ limit: "10mb" }));
 
 // Bodyless requests (GET/DELETE without a payload) leave req.body undefined,
 // which crashes handlers that read req.body.lg. Guarantee an object instead.
@@ -62,7 +65,27 @@ app.use("/public", publicRouter);
 
 // --- Static Files ---
 const staticFilePath = path.join(__dirname, "uploads");
-app.use("/uploads", express.static(staticFilePath));
+app.use(
+  "/uploads",
+  express.static(staticFilePath, {
+    maxAge: "7d", // uploaded assets are immutable enough to cache at the edge
+    immutable: true,
+  })
+);
+
+// --- 404 + central error handler (keep last) ---
+app.use((req, res) => {
+  res.status(404).json({ status: "failed", message: "Route not found" });
+});
+
+// Never leak stack traces; always respond with JSON.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err);
+  res
+    .status(err.status || 500)
+    .json({ status: "failed", message: "Internal server error" });
+});
 
 // --- Server Start ---
 const APP_PORT = process.env.APP_PORT;

@@ -16,9 +16,18 @@ const pool = mysql.createPool({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   waitForConnections: true,
-  connectionLimit: 10,
+  // Tunable via env so prod can scale without a code change.
+  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT) || 15,
   queueLimit: 0,
   timezone: "+00:00",
+  // Recycle idle connections instead of holding them open forever.
+  maxIdle: Number(process.env.DB_MAX_IDLE) || 10,
+  idleTimeout: 60000,
+  // Keep-alive stops the DB/load balancer from silently dropping pooled
+  // sockets, which otherwise surfaces as random ECONNRESET on the next query.
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
+  connectTimeout: 10000,
 });
 
 module.exports = {
