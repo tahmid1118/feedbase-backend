@@ -3,19 +3,18 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 
-const checkUserExists = async (userId, tenantId) => {
+const checkUserExists = async (userId) => {
   const _query = `
         SELECT id
-        FROM 
+        FROM
             users
-        WHERE 
+        WHERE
             id = ? AND
-            tenant_id = ? AND
             is_active = 1;
     `;
 
   try {
-    const [rows] = await pool.query(_query, [userId, tenantId]);
+    const [rows] = await pool.query(_query, [userId]);
     return rows.length > 0 ? true : false;
   } catch (error) {
     console.error('Error checking user exists:', error);
@@ -55,8 +54,8 @@ const updateUserDataQuery = async (userData) => {
   }
 
   // Final WHERE condition
-  _query += ` WHERE id = ? AND tenant_id = ?`;
-  _values.push(userData.userId, userData.tenantId);
+  _query += ` WHERE id = ?`;
+  _values.push(userData.userId);
 
   try {
     const [rows] = await pool.query(_query, _values);
@@ -76,10 +75,11 @@ const updatePersonalInfo = async (userData, authData) => {
   const preparedData = {
     fullName: userData?.fullName,
     contact: userData?.contact,
-    imageUrl: userData?.imageUrl,
+    imageUrl: userData?.imageUrl || userData?.avatarUrl,
     updatedAt,
-    userId: userData?.userId || authData?.id,
-    tenantId: authData?.tenantId,
+    // Always the authenticated user from the verified JWT — never trust a
+    // client-supplied userId, which would allow editing another account.
+    userId: authData?.id,
   };
 
   if (!preparedData.fullName && !preparedData.contact && !preparedData.imageUrl) {
@@ -93,7 +93,7 @@ const updatePersonalInfo = async (userData, authData) => {
   }
 
   try {
-    const isExist = await checkUserExists(preparedData.userId, preparedData.tenantId);
+    const isExist = await checkUserExists(preparedData.userId);
     if (isExist === false) {
       return Promise.resolve(
         setServerResponse(

@@ -9,6 +9,9 @@ const { updatePost } = require("../../main/post/updatePost");
 const { deletePost } = require("../../main/post/deletePost");
 const { getPostList } = require("../../main/post/getPostList");
 const { updatePostStatus } = require("../../main/post/updatePostStatus");
+const { updatePostPin } = require("../../main/post/updatePostPin");
+const { setPostDuplicate } = require("../../main/post/setPostDuplicate");
+const { getDuplicateSuggestions } = require("../../main/post/getDuplicateSuggestions");
 
 /**
  * @description Create a new post (feedback/feature request/bug report)
@@ -144,6 +147,80 @@ postRouter.patch("/status/:id", authenticateToken, languageValidator, async (req
       return res.status(statusCode).send({
         status: status,
         message: message,
+      });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({
+        status: status,
+        message: message,
+      });
+    });
+});
+
+/**
+ * @description Pin or unpin a post (toggles when isPinned omitted)
+ */
+postRouter.patch("/pin/:id", authenticateToken, languageValidator, async (req, res) => {
+  const { id } = req.params;
+  const { isPinned, lg } = req.body;
+  const authData = { ...req.auth, lg };
+  updatePostPin(id, isPinned, authData)
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({
+        status: status,
+        message: message,
+        data: result,
+      });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({
+        status: status,
+        message: message,
+      });
+    });
+});
+
+/**
+ * @description Mark a post as duplicate of another (or clear with duplicateOfPostId: null)
+ */
+postRouter.patch("/duplicate/:id", authenticateToken, languageValidator, async (req, res) => {
+  const { id } = req.params;
+  const { duplicateOfPostId, lg } = req.body;
+  const authData = { ...req.auth, lg };
+  setPostDuplicate(id, duplicateOfPostId, authData)
+    .then((data) => {
+      const { statusCode, status, message } = data;
+      return res.status(statusCode).send({
+        status: status,
+        message: message,
+      });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({
+        status: status,
+        message: message,
+      });
+    });
+});
+
+/**
+ * @description Get suggested duplicate posts for a given post
+ */
+postRouter.post("/:id/duplicate-suggestions", authenticateToken, languageValidator, async (req, res) => {
+  const { id } = req.params;
+  const lg = req.body.lg || 'en';
+  const authData = { ...req.auth, lg };
+  getDuplicateSuggestions(id, authData)
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({
+        status: status,
+        message: message,
+        data: result,
       });
     })
     .catch((error) => {

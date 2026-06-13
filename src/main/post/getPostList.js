@@ -1,32 +1,76 @@
-﻿const { pool } = require('../../../database/dbPool');
+const { pool } = require('../../../database/dbPool');
 const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
 
 const getPostList = async (paginationData, filters, authData) => {
-  const { tenantId, lg } = authData;
+  const { id: userId, tenantId, lg } = authData;
   const sortOrder = paginationData?.sortOrder === 'asc' ? 'ASC' : 'DESC';
-  const filterBy = (paginationData?.filterBy || '').trim();
   const itemsPerPage = Number(paginationData?.itemsPerPage) || 10;
   const offset = Number(paginationData?.offset) || 0;
-  
-  let _query = 'SELECT p.*, u.full_name as author_name, (SELECT COUNT(*) FROM votes WHERE post_id = p.id) as vote_count FROM posts p LEFT JOIN users u ON p.author_id = u.id WHERE p.tenant_id = ?';
-  const params = [tenantId];
-  
-  if (filters?.status) { _query += ' AND p.status = ?'; params.push(filters.status); }
-  if (filters?.postType) { _query += ' AND p.post_type = ?'; params.push(filters.postType); }
-  if (filterBy) {
-    _query += ' AND (p.title LIKE ? OR p.description LIKE ?)';
-    const likeText = `%${filterBy}%`;
-    params.push(likeText, likeText);
+
+  // Search term can come from paginationData.filterBy (legacy) or filters.search (preferred).
+  const searchText = (filters?.search || paginationData?.filterBy || '').trim();
+
+  // Build the shared WHERE clause + params so the list and count queries stay in sync.
+  let whereClause = ' WHERE p.tenant_id = ?';
+  const whereParams = [tenantId];
+
+  if (filters?.status) { whereClause += ' AND p.status = ?'; whereParams.push(filters.status); }
+  if (filters?.postType) { whereClause += ' AND p.post_type = ?'; whereParams.push(filters.postType); }
+  if (filters?.isPinned !== undefined && filters?.isPinned !== null && filters?.isPinned !== '') {
+    whereClause += ' AND p.is_pinned = ?';
+    whereParams.push(filters.isPinned ? 1 : 0);
   }
-  
-  _query += ` ORDER BY p.created_at ${sortOrder} LIMIT ? OFFSET ?`;
-  params.push(itemsPerPage, offset);
-  
+  if (filters?.tagId) {
+    whereClause += ' AND p.id IN (SELECT post_id FROM post_tags WHERE tag_id = ? AND tenant_id = ?)';
+    whereParams.push(filters.tagId, tenantId);
+  }
+  if (searchText) {
+    whereClause += ' AND (p.title LIKE ? OR p.description LIKE ?)';
+    const likeText = `%${searchText}%`;
+    whereParams.push(likeText, likeText);
+  }
+
+  const _query =
+    `SELECT p.*, u.full_name as author_name,
+            (SELECT COUNT(*) FROM votes WHERE post_id = p.id) as vote_count,
+            EXISTS(SELECT 1 FROM votes WHERE post_id = p.id AND user_id = ?) as has_voted
+     FROM posts p
+     LEFT JOIN users u ON p.author_id = u.id` +
+    whereClause +
+    ` ORDER BY p.is_pinned DESC, p.created_at ${sortOrder} LIMIT ? OFFSET ?`;
+  const listParams = [userId, ...whereParams, itemsPerPage, offset];
+
+  const _countQuery = 'SELECT COUNT(*) as total FROM posts p' + whereClause;
+
   try {
-    const [rows] = await pool.query(_query, params);
-    const [countResult] = await pool.query('SELECT COUNT(*) as total FROM posts WHERE tenant_id = ?', [tenantId]);
-    return Promise.resolve(setServerResponse(API_STATUS_CODE.OK, 'posts_retrieved_successfully', lg, { posts: rows, total: countResult[0].total }));
+    const [rows] = await pool.query(_query, listParams);
+    const [countResult] = await pool.query(_countQuery, whereParams);
+
+    // Attach tags to each post in a single round-trip.
+    let posts = rows.map((row) => ({ ...row, has_voted: row.has_voted === 1, tags: [] }));
+    if (posts.length > 0) {
+      const postIds = posts.map((p) => p.id);
+      const [tagRows] = await pool.query(
+        `SELECT pt.post_id, t.id, t.name, t.color_hex
+         FROM post_tags pt
+         JOIN tags t ON pt.tag_id = t.id
+         WHERE pt.tenant_id = ? AND pt.post_id IN (?)`,
+        [tenantId, postIds]
+      );
+      const tagsByPost = tagRows.reduce((acc, t) => {
+        (acc[t.post_id] = acc[t.post_id] || []).push({ id: t.id, name: t.name, color_hex: t.color_hex });
+        return acc;
+      }, {});
+      posts = posts.map((p) => ({ ...p, tags: tagsByPost[p.id] || [] }));
+    }
+
+    return Promise.resolve(
+      setServerResponse(API_STATUS_CODE.OK, 'posts_retrieved_successfully', lg, {
+        posts,
+        total: countResult[0].total,
+      })
+    );
   } catch (error) {
     console.error('Error getting posts:', error);
     return Promise.reject(setServerResponse(API_STATUS_CODE.INTERNAL_SERVER_ERROR, 'failed_to_get_posts', lg));

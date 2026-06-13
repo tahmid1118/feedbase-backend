@@ -5,9 +5,34 @@ const { setServerResponse } = require('../../common/setServerResponse');
 const updateRoadmapItem = async (id, itemData, authData) => {
   const { roadmapColumnId, sortOrder, targetReleaseDate } = itemData;
   const { tenantId, lg } = authData;
-  const _query = 'UPDATE roadmap_items SET roadmap_column_id = ?, sort_order = ?, target_release_date = ? WHERE id = ? AND tenant_id = ?';
+
+  // Only update the fields that were actually supplied. A move sends just the
+  // column/order, so we must not overwrite target_release_date with null.
+  const sets = [];
+  const values = [];
+  if (roadmapColumnId !== undefined) {
+    sets.push('roadmap_column_id = ?');
+    values.push(roadmapColumnId);
+  }
+  if (sortOrder !== undefined) {
+    sets.push('sort_order = ?');
+    values.push(sortOrder);
+  }
+  if (targetReleaseDate !== undefined) {
+    sets.push('target_release_date = ?');
+    values.push(targetReleaseDate);
+  }
+
+  if (sets.length === 0) {
+    return Promise.reject(
+      setServerResponse(API_STATUS_CODE.BAD_REQUEST, 'failed_to_update_roadmap_item', lg)
+    );
+  }
+
+  const _query = `UPDATE roadmap_items SET ${sets.join(', ')} WHERE id = ? AND tenant_id = ?`;
+  values.push(id, tenantId);
   try {
-    const [result] = await pool.query(_query, [roadmapColumnId, sortOrder, targetReleaseDate, id, tenantId]);
+    const [result] = await pool.query(_query, values);
     if (result.affectedRows === 0) {
       return Promise.reject(setServerResponse(API_STATUS_CODE.NOT_FOUND, 'roadmap_item_not_found', lg));
     }

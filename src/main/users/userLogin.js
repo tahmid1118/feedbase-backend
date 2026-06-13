@@ -144,8 +144,10 @@ const userLogin = async (userData, lg) => {
     const user = {
         token: token,
         id: userInfo.id,
+        tenantId: userInfo.tenant_id,
         fullName: userInfo.full_name,
         email: userInfo.email,
+        role: userInfo.role,
         imageUrl: userInfo.avatar_url,
     }
 

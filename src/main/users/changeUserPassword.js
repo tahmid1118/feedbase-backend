@@ -14,11 +14,10 @@ const getUserInfo = async (authData) => {
            users
         WHERE
             id = ? AND
-            tenant_id = ? AND
             is_active = 1
     `;
   try {
-    const [row] = await pool.query(_query, [authData.id, authData.tenantId]);
+    const [row] = await pool.query(_query, [authData.id]);
     if (row.length > 0) {
       return row[0];
     }
@@ -29,7 +28,7 @@ const getUserInfo = async (authData) => {
   }
 };
 
-const updateUserPasswordQuery = async (userId, tenantId, hashPassword, updatedAt) => {
+const updateUserPasswordQuery = async (userId, hashPassword, updatedAt) => {
   const _query = `
         UPDATE
             users
@@ -37,14 +36,13 @@ const updateUserPasswordQuery = async (userId, tenantId, hashPassword, updatedAt
             password_hash = ?,
             updated_at = ?
         WHERE
-            id = ? AND tenant_id = ?;
+            id = ?;
     `;
   try {
     const [result] = await pool.query(_query, [
       hashPassword,
       updatedAt,
       userId,
-      tenantId,
     ]);
     return result.affectedRows > 0 ? true : false;
   } catch (error) {
@@ -94,7 +92,6 @@ const changeUserPassword = async (oldPassword, newPassword, authData) => {
     }
     const isUpdated = await updateUserPasswordQuery(
       authData.id,
-      authData.tenantId,
       hashPassword,
       updatedAt
     );

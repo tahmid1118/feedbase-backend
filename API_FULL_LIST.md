@@ -62,6 +62,13 @@ Sample Response:
 {"status":"success","message":"Tenants retrieved successfully","data":[{"id":1,"name":"Acme Labs","slug":"acme-labs","subdomain":"acme","plan_name":"pro","is_active":1}]}
 ```
 
+### GET /tenants/me
+Returns the tenant of the currently authenticated user. `lg` may be passed as a query param (`?lg=en`).
+Sample Response:
+```json
+{"status":"success","message":"Tenant retrieved successfully","data":{"id":1,"name":"Acme Labs","slug":"acme-labs","subdomain":"acme","custom_domain":"feedback.acme.test","plan_name":"pro","branding_logo_url":"https://cdn.example.com/acme/logo.png","branding_primary_color":"#0A7CFF","is_active":1}}
+```
+
 ---
 
 ## 2) User APIs
@@ -73,7 +80,18 @@ Sample Body:
 ```
 Sample Response:
 ```json
-{"status":"success","message":"User logged in successfully","user":{"token":"eyJ...","id":1,"fullName":"Acme Owner","email":"owner@acme.test","imageUrl":"uploads/profile-images/image-1712901234567.jpeg"}}
+{"status":"success","message":"User logged in successfully","user":{"token":"eyJ...","id":1,"tenantId":1,"fullName":"Acme Owner","email":"owner@acme.test","role":"owner","imageUrl":"uploads/profile-images/image-1712901234567.jpeg"}}
+```
+
+### POST /users/oauth/login
+The frontend completes the provider handshake (Google/GitHub/Microsoft) and posts the verified identity here. The user is matched by an existing oauth link, then by email within the tenant; otherwise a new user is provisioned. Returns a JWT in the same shape as password login.
+Sample Body:
+```json
+{"lg":"en","userData":{"provider":"google","providerUserId":"google-owner-001","email":"owner@acme.test","fullName":"Acme Owner","avatarUrl":"https://lh3.googleusercontent.com/a/abc","tenantId":1}}
+```
+Sample Response:
+```json
+{"status":"success","message":"OAuth login successful","user":{"token":"eyJ...","id":1,"tenantId":1,"fullName":"Acme Owner","email":"owner@acme.test","role":"owner","imageUrl":"https://lh3.googleusercontent.com/a/abc"}}
 ```
 
 ### POST /users/register
@@ -93,13 +111,14 @@ Sample Body:
 ```
 Sample Response:
 ```json
-{"status":"success","message":"Data fetched successfully","data":{"user_id":1,"full_name":"Acme Owner","email":"owner@acme.test","contact_no":"+8801712345678"}}
+{"status":"success","message":"Data fetched successfully","data":{"user_id":1,"tenant_id":1,"full_name":"Acme Owner","email":"owner@acme.test","contact_no":"+8801712345678","role":"owner","avatar_url":"uploads/profile-images/image-1712901234567.jpeg"}}
 ```
 
 ### POST /users/update
+`userData` accepts `fullName`, `contact`, and an avatar (`avatarUrl` or `imageUrl`, both persisted to `avatar_url`).
 Sample Body:
 ```json
-{"lg":"en","userData":{"userId":1,"fullName":"Acme Owner Updated","contact":"+8801711111111"}}
+{"lg":"en","userData":{"userId":1,"fullName":"Acme Owner Updated","contact":"+8801711111111","avatarUrl":"uploads/profile-images/image-1712901234567.jpeg"}}
 ```
 Sample Response:
 ```json
@@ -167,7 +186,7 @@ Sample Body:
 ```
 Sample Response:
 ```json
-{"status":"success","message":"Post retrieved successfully","data":{"id":101,"title":"Add dark mode","description":"Please add dark mode support for the dashboard.","post_type":"feature_request","status":"open","priority":2,"author_name":"Jane Product","author_email":"jane@acme.test","vote_count":12,"comment_count":4}}
+{"status":"success","message":"Post retrieved successfully","data":{"id":101,"title":"Add dark mode","description":"Please add dark mode support for the dashboard.","post_type":"feature_request","status":"open","priority":2,"is_pinned":1,"duplicate_of_post_id":null,"author_name":"Jane Product","author_email":"jane@acme.test","vote_count":12,"comment_count":4,"has_voted":true,"tags":[{"id":1,"name":"ui","color_hex":"#3B82F6"}]}}
 ```
 
 ### PUT /posts/update/:id
@@ -191,13 +210,14 @@ Sample Response:
 ```
 
 ### POST /posts/list
+Supported `filters`: `status`, `postType`, `tagId`, `isPinned`, and `search` (full-text-ish match on title/description). `search` may also be passed as `paginationData.filterBy` (legacy). Pinned posts are returned first. Each post includes its `tags` array, `has_voted` (for the current user), and `is_pinned`. `total` respects the active filters.
 Sample Body:
 ```json
-{"lg":"en","paginationData":{"itemsPerPage":10,"currentPageNumber":0,"sortOrder":"desc","filterBy":""},"filters":{"status":"open","postType":"feature_request"}}
+{"lg":"en","paginationData":{"itemsPerPage":10,"currentPageNumber":0,"sortOrder":"desc","filterBy":""},"filters":{"status":"open","postType":"feature_request","tagId":1,"search":"dark mode"}}
 ```
 Sample Response:
 ```json
-{"status":"success","message":"Posts retrieved successfully","data":{"posts":[{"id":101,"title":"Add dark mode","post_type":"feature_request","status":"open","priority":2,"author_name":"Jane Product","vote_count":12}],"total":38}}
+{"status":"success","message":"Posts retrieved successfully","data":{"posts":[{"id":101,"title":"Add dark mode","post_type":"feature_request","status":"open","priority":2,"is_pinned":1,"duplicate_of_post_id":null,"author_name":"Jane Product","vote_count":12,"has_voted":true,"tags":[{"id":1,"name":"ui","color_hex":"#3B82F6"}]}],"total":38}}
 ```
 
 ### PATCH /posts/status/:id
@@ -208,6 +228,39 @@ Sample Body:
 Sample Response:
 ```json
 {"status":"success","message":"Post status updated successfully"}
+```
+
+### PATCH /posts/pin/:id
+Pins or unpins a post. Omit `isPinned` to toggle the current value.
+Sample Body:
+```json
+{"lg":"en","isPinned":true}
+```
+Sample Response:
+```json
+{"status":"success","message":"Post pinned successfully","data":{"id":101,"isPinned":true}}
+```
+
+### PATCH /posts/duplicate/:id
+Marks a post as a duplicate of another post, or clears the mark when `duplicateOfPostId` is `null`. The target must exist in the same tenant and cannot be the post itself.
+Sample Body:
+```json
+{"lg":"en","duplicateOfPostId":1}
+```
+Sample Response:
+```json
+{"status":"success","message":"Post marked as duplicate successfully"}
+```
+
+### POST /posts/:id/duplicate-suggestions
+Suggests possible duplicate posts by matching significant title keywords within the tenant. Excludes the post itself and posts already flagged as duplicates.
+Sample Body:
+```json
+{"lg":"en"}
+```
+Sample Response:
+```json
+{"status":"success","message":"Duplicate suggestions retrieved successfully","data":[{"id":4,"title":"Dark mode toggle missing","status":"open","post_type":"feedback","created_at":"2026-04-10T09:00:00.000Z","vote_count":3}]}
 ```
 
 ---
@@ -509,9 +562,10 @@ Sample Body:
 ```json
 {"lg":"en","paginationData":{"itemsPerPage":20,"currentPageNumber":0,"sortOrder":"desc","filterBy":""}}
 ```
+Each notification includes `reference_type` and `reference_id` for deep-linking to the related post/comment/changelog.
 Sample Response:
 ```json
-{"status":"success","message":"Notifications retrieved successfully","data":{"notifications":[{"id":901,"notification_type":"post_status","title":"Post moved to planned","message":"Add dark mode is now planned.","is_read":0}],"total":4}}
+{"status":"success","message":"Notifications retrieved successfully","data":{"notifications":[{"id":901,"notification_type":"post_status","title":"Post moved to planned","message":"Add dark mode is now planned.","reference_type":"post","reference_id":1,"is_read":0}],"total":4}}
 ```
 
 ### PATCH /notifications/mark-read/:id
@@ -689,6 +743,21 @@ lg: en
 Sample Response:
 ```json
 {"status":"success","message":"Image uploaded successfully","filePath":"uploads/profile-images/image-1712901234567.jpeg"}
+```
+
+---
+
+## 14) Analytics API
+
+### POST /analytics/overview
+Aggregate dashboard metrics for the current tenant: totals, status/type breakdowns, and a daily posts trend for the last 30 days.
+Sample Body:
+```json
+{"lg":"en"}
+```
+Sample Response:
+```json
+{"status":"success","message":"Analytics retrieved successfully","data":{"totals":{"totalPosts":38,"pinnedPosts":2,"totalVotes":156,"totalComments":74,"totalUsers":12},"statusCounts":{"open":18,"planned":6,"in_progress":5,"completed":7,"closed":2},"typeCounts":{"feedback":12,"feature_request":20,"bug_report":6},"trends":[{"date":"2026-06-01","count":3},{"date":"2026-06-02","count":5}]}}
 ```
 
 ---

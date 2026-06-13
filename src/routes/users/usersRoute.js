@@ -4,6 +4,7 @@ const { authenticateToken } = require("../../middlewares/jwt/jwt");
 const { languageValidator } = require("../../middlewares/common/languageValidator");
 const { paginationData } = require("../../middlewares/pagination/paginationData");
 const { userLogin } = require("../../main/users/userLogin");
+const { oauthLogin } = require("../../main/users/oauthLogin");
 const { registerNewUser } = require("../../main/users/registerNewUser");
 const { getPersonalData } = require("../../main/users/gerUserPersonalData");
 const { getUserTableData } = require("../../main/users/getUserTableData");
@@ -28,6 +29,31 @@ userRouter.post("/login", languageValidator, async (req, res) => {
     })
     .catch((error) => {
       console.error("Login error:", error);
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({
+        status: status,
+        message: message,
+      });
+    });
+});
+
+/**
+ * @description OAuth login (google/github/microsoft). The frontend completes the
+ * provider handshake and posts the verified identity here.
+ */
+userRouter.post("/oauth/login", languageValidator, async (req, res) => {
+  const { userData = {}, lg } = req.body;
+  oauthLogin(userData, lg)
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({
+        status: status,
+        message: message,
+        user: result,
+      });
+    })
+    .catch((error) => {
+      console.error("OAuth login error:", error);
       const { statusCode, status, message } = error;
       return res.status(statusCode).send({
         status: status,

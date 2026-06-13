@@ -19,6 +19,8 @@ const { apiKeyRouter } = require("./src/routes/apikey/apiKeyRoute");
 const { auditLogRouter } = require("./src/routes/auditlog/auditLogRoute");
 const { integrationRouter } = require("./src/routes/integration/integrationRoute");
 const { fileUploadRouter } = require("./src/routes/file-uploader/file-upload-route");
+const { analyticsRouter } = require("./src/routes/analytics/analyticsRoute");
+const { publicRouter } = require("./src/routes/public/publicRoute");
 // --- Middleware ---
 app.use(bodyParser.json());
 app.use(morgan("combined"));
@@ -32,6 +34,13 @@ app.use(
   })
 );
 app.use(express.json({ limit: "10mb" }));
+
+// Bodyless requests (GET/DELETE without a payload) leave req.body undefined,
+// which crashes handlers that read req.body.lg. Guarantee an object instead.
+app.use((req, _res, next) => {
+  if (req.body == null) req.body = {};
+  next();
+});
 
 // --- Routes ---
 app.use("/tenants", tenantRouter);
@@ -47,6 +56,8 @@ app.use("/api-keys", apiKeyRouter);
 app.use("/audit-logs", auditLogRouter);
 app.use("/integrations", integrationRouter);
 app.use("/uploader", fileUploadRouter);
+app.use("/analytics", analyticsRouter);
+app.use("/public", publicRouter);
 
 
 // --- Static Files ---

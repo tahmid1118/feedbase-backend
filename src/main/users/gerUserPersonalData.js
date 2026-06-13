@@ -6,19 +6,21 @@ const getUserPersonalData = async (authData) => {
   const _query = `
     SELECT
         id AS user_id,
+        tenant_id,
         full_name,
         email,
-        contact_no
+        contact_no,
+        role,
+        avatar_url
     FROM
         users
     WHERE
         id = ? AND
         email = ? AND
-        tenant_id = ? AND
         is_active = 1
 `;
 
-  const _values = [authData.id, authData.email, authData.tenantId];
+  const _values = [authData.id, authData.email];
   try {
     const [rows] = await pool.query(_query, _values);
     return rows[0];

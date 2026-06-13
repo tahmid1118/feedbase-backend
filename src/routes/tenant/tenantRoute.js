@@ -6,6 +6,7 @@ const { createTenant } = require("../../main/tenant/createTenant");
 const { getTenantById } = require("../../main/tenant/getTenantById");
 const { updateTenant } = require("../../main/tenant/updateTenant");
 const { getTenantList } = require("../../main/tenant/getTenantList");
+const { getMyTenant } = require("../../main/tenant/getMyTenant");
 
 /**
  * @description Create a new tenant
@@ -13,6 +14,30 @@ const { getTenantList } = require("../../main/tenant/getTenantList");
 tenantRouter.post("/create", languageValidator, async (req, res) => {
   const { tenantData, lg } = req.body;
   createTenant(tenantData, lg)
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({
+        status: status,
+        message: message,
+        data: result,
+      });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({
+        status: status,
+        message: message,
+      });
+    });
+});
+
+/**
+ * @description Get the current authenticated user's tenant
+ */
+tenantRouter.get("/me", authenticateToken, async (req, res) => {
+  const lg = req.query.lg || req.body.lg || 'en';
+  const authData = { ...req.auth, lg };
+  getMyTenant(authData)
     .then((data) => {
       const { statusCode, status, message, result } = data;
       return res.status(statusCode).send({
