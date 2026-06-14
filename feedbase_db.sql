@@ -61,7 +61,11 @@ CREATE TABLE IF NOT EXISTS oauth_accounts (
 CREATE TABLE IF NOT EXISTS posts (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   tenant_id BIGINT UNSIGNED NOT NULL,
-  author_id BIGINT UNSIGNED NOT NULL,
+  -- author_id is NULL for guest submissions from the public portal; those carry
+  -- submitter_name/email instead.
+  author_id BIGINT UNSIGNED NULL,
+  submitter_name VARCHAR(120) NULL,
+  submitter_email VARCHAR(255) NULL,
   title VARCHAR(200) NOT NULL,
   description TEXT NOT NULL,
   post_type ENUM('feedback', 'feature_request', 'bug_report') NOT NULL DEFAULT 'feedback',
@@ -84,11 +88,15 @@ CREATE TABLE IF NOT EXISTS votes (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   tenant_id BIGINT UNSIGNED NOT NULL,
   post_id BIGINT UNSIGNED NOT NULL,
-  user_id BIGINT UNSIGNED NOT NULL,
+  -- Authenticated votes set user_id; anonymous portal votes set guest_id (a
+  -- persistent per-browser cookie value) instead. Exactly one is non-null.
+  user_id BIGINT UNSIGNED NULL,
+  guest_id VARCHAR(64) NULL,
   vote_type ENUM('upvote') NOT NULL DEFAULT 'upvote',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_votes_unique (tenant_id, post_id, user_id),
+  UNIQUE KEY uq_votes_guest (tenant_id, post_id, guest_id),
   KEY idx_votes_post (tenant_id, post_id),
   CONSTRAINT fk_votes_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
   CONSTRAINT fk_votes_post FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
@@ -276,7 +284,7 @@ CREATE TABLE IF NOT EXISTS file_uploads (
 INSERT IGNORE INTO tenants (
   id, name, slug, subdomain, custom_domain, plan_name, branding_logo_url, branding_primary_color, is_active
 ) VALUES
-  (1, 'Acme Labs', 'acme-labs', 'acme', 'feedback.acme.test', 'pro', 'https://cdn.example.com/acme/logo.png', '#0A7CFF', 1),
+  (1, 'Acme Labs', 'acme-labs', 'acme', 'feedback.acme.test', 'pro', 'https://cdn.example.com/acme/logo.png', '#c74959', 1),
   (2, 'Beta Works', 'beta-works', 'beta', NULL, 'free', NULL, '#10B981', 1);
 
 INSERT IGNORE INTO users (

@@ -7,6 +7,8 @@ const { setServerResponse } = require("../../common/setServerResponse");
 
 const { resolvePublicTenant } = require("../../main/public/resolvePublicTenant");
 const { getPublicBoard } = require("../../main/public/getPublicBoard");
+const { createPublicPost } = require("../../main/public/createPublicPost");
+const { togglePublicVote } = require("../../main/public/togglePublicVote");
 const { getPublicPostDetail } = require("../../main/public/getPublicPostDetail");
 const { getPublicRoadmap } = require("../../main/public/getPublicRoadmap");
 const {
@@ -87,6 +89,21 @@ publicRouter.post("/:subdomain/posts", attachPublicTenant, async (req, res) => {
 });
 
 /**
+ * @description Submit feedback from the public portal (no auth). The author is a
+ * guest; name/email are optional.
+ * POST /public/:subdomain/feedback  { title, description, postType, submitterName?, submitterEmail? }
+ */
+publicRouter.post(
+  "/:subdomain/feedback",
+  attachPublicTenant,
+  async (req, res) => {
+    createPublicPost(req.publicTenant.id, req.body, req.lg)
+      .then((data) => send(res, data))
+      .catch((error) => send(res, error));
+  }
+);
+
+/**
  * @description Public post detail with its comment thread.
  * POST /public/:subdomain/posts/:postId
  */
@@ -95,6 +112,25 @@ publicRouter.post(
   attachPublicTenant,
   async (req, res) => {
     getPublicPostDetail(req.publicTenant.id, req.params.postId, req.lg)
+      .then((data) => send(res, data))
+      .catch((error) => send(res, error));
+  }
+);
+
+/**
+ * @description Toggle an anonymous upvote (spam-limited per browser via guestId).
+ * POST /public/:subdomain/posts/:postId/vote  { guestId }
+ */
+publicRouter.post(
+  "/:subdomain/posts/:postId/vote",
+  attachPublicTenant,
+  async (req, res) => {
+    togglePublicVote(
+      req.publicTenant.id,
+      req.params.postId,
+      req.body?.guestId,
+      req.lg
+    )
       .then((data) => send(res, data))
       .catch((error) => send(res, error));
   }

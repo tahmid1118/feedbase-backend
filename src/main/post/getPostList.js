@@ -32,7 +32,7 @@ const getPostList = async (paginationData, filters, authData) => {
   }
 
   const _query =
-    `SELECT p.*, u.full_name as author_name,
+    `SELECT p.*, COALESCE(u.full_name, p.submitter_name, 'Anonymous') as author_name,
             (SELECT COUNT(*) FROM votes WHERE post_id = p.id) as vote_count,
             EXISTS(SELECT 1 FROM votes WHERE post_id = p.id AND user_id = ?) as has_voted
      FROM posts p

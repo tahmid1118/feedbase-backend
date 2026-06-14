@@ -126,7 +126,15 @@
     "failed_to_get_changelogs": "Failed to retrieve changelogs",
     "changelog_not_found": "Changelog not found",
     "changelog_retrieved_successfully": "Changelog retrieved successfully",
-    "failed_to_get_changelog": "Failed to retrieve changelog"
+    "failed_to_get_changelog": "Failed to retrieve changelog",
+    "post_created_successfully": "Post created successfully",
+    "failed_to_create_post": "Failed to create post",
+    "title_and_description_required": "Title and description are required",
+    "title_too_long": "Title is too long (max 200 characters)",
+    "invalid_email": "Invalid email address",
+    "vote_updated_successfully": "Vote updated successfully",
+    "failed_to_update_vote": "Failed to update vote",
+    "guest_id_required": "A guest identifier is required"
   },
   "bn": {
     "success": "সফল",
@@ -255,6 +263,14 @@
     "failed_to_get_changelogs": "Failed to retrieve changelogs",
     "changelog_not_found": "Changelog not found",
     "changelog_retrieved_successfully": "Changelog retrieved successfully",
-    "failed_to_get_changelog": "Failed to retrieve changelog"
+    "failed_to_get_changelog": "Failed to retrieve changelog",
+    "post_created_successfully": "পোস্ট সফলভাবে তৈরি হয়েছে",
+    "failed_to_create_post": "পোস্ট তৈরি করতে ব্যর্থ হয়েছে",
+    "title_and_description_required": "শিরোনাম এবং বিবরণ আবশ্যক",
+    "title_too_long": "শিরোনাম খুব দীর্ঘ (সর্বোচ্চ ২০০ অক্ষর)",
+    "invalid_email": "অবৈধ ইমেইল ঠিকানা",
+    "vote_updated_successfully": "ভোট সফলভাবে আপডেট হয়েছে",
+    "failed_to_update_vote": "ভোট আপডেট করতে ব্যর্থ হয়েছে",
+    "guest_id_required": "একটি গেস্ট আইডেন্টিফায়ার আবশ্যক"
   }
 }

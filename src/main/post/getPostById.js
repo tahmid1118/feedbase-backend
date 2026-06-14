@@ -6,7 +6,9 @@ const getPostById = async (id, authData) => {
   const { id: userId, tenantId, lg } = authData;
 
   const _query = `
-    SELECT p.*, u.full_name as author_name, u.email as author_email,
+    SELECT p.*,
+           COALESCE(u.full_name, p.submitter_name, 'Anonymous') as author_name,
+           COALESCE(u.email, p.submitter_email) as author_email,
            (SELECT COUNT(*) FROM votes WHERE post_id = p.id) as vote_count,
            (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
            EXISTS(SELECT 1 FROM votes WHERE post_id = p.id AND user_id = ?) as has_voted

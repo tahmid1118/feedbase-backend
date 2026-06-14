@@ -13,7 +13,7 @@ const getPublicPostDetail = async (tenantId, postId, lg) => {
   const _postQuery = `
     SELECT p.id, p.title, p.description, p.post_type, p.status, p.priority,
            p.is_pinned, p.duplicate_of_post_id, p.created_at,
-           u.full_name AS author_name,
+           COALESCE(u.full_name, p.submitter_name, 'Anonymous') AS author_name,
            (SELECT COUNT(*) FROM votes WHERE post_id = p.id) AS vote_count,
            (SELECT COUNT(*) FROM comments WHERE post_id = p.id) AS comment_count
     FROM posts p
