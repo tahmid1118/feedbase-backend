@@ -284,7 +284,7 @@ CREATE TABLE IF NOT EXISTS file_uploads (
 INSERT IGNORE INTO tenants (
   id, name, slug, subdomain, custom_domain, plan_name, branding_logo_url, branding_primary_color, is_active
 ) VALUES
-  (1, 'Acme Labs', 'acme-labs', 'acme', 'feedback.acme.test', 'pro', 'https://cdn.example.com/acme/logo.png', '#c74959', 1),
+  (1, 'Acme Labs', 'acme-labs', 'acme', 'feedback.acme.test', 'pro', NULL, '#c74959', 1),
   (2, 'Beta Works', 'beta-works', 'beta', NULL, 'free', NULL, '#10B981', 1);
 
 INSERT IGNORE INTO users (

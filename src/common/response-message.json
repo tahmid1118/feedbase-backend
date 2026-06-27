@@ -134,7 +134,13 @@
     "invalid_email": "Invalid email address",
     "vote_updated_successfully": "Vote updated successfully",
     "failed_to_update_vote": "Failed to update vote",
-    "guest_id_required": "A guest identifier is required"
+    "guest_id_required": "A guest identifier is required",
+    "workspace_name_required": "Workspace name is required",
+    "invalid_subdomain": "Invalid subdomain",
+    "subdomain_taken": "That subdomain is already taken",
+    "workspace_created_successfully": "Workspace created successfully",
+    "workspace_switched_successfully": "Workspace switched successfully",
+    "workspace_not_found": "Workspace not found"
   },
   "bn": {
     "success": "সফল",
@@ -271,6 +277,12 @@
     "invalid_email": "অবৈধ ইমেইল ঠিকানা",
     "vote_updated_successfully": "ভোট সফলভাবে আপডেট হয়েছে",
     "failed_to_update_vote": "ভোট আপডেট করতে ব্যর্থ হয়েছে",
-    "guest_id_required": "একটি গেস্ট আইডেন্টিফায়ার আবশ্যক"
+    "guest_id_required": "একটি গেস্ট আইডেন্টিফায়ার আবশ্যক",
+    "workspace_name_required": "ওয়ার্কস্পেসের নাম আবশ্যক",
+    "invalid_subdomain": "অবৈধ সাবডোমেইন",
+    "subdomain_taken": "সেই সাবডোমেইনটি ইতিমধ্যে নেওয়া হয়েছে",
+    "workspace_created_successfully": "ওয়ার্কস্পেস সফলভাবে তৈরি হয়েছে",
+    "workspace_switched_successfully": "ওয়ার্কস্পেস সফলভাবে পরিবর্তন হয়েছে",
+    "workspace_not_found": "ওয়ার্কস্পেস খুঁজে পাওয়া যায়নি"
   }
 }

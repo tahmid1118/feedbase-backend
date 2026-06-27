@@ -12,6 +12,11 @@ const { getUserListData } = require("../../main/users/getUserListData");
 const { updatePersonalInfo } = require("../../main/users/updateUserData");
 const { changeUserPassword } = require("../../main/users/changeUserPassword");
 const { updateUserRole } = require("../../main/users/updateUserRole");
+const {
+  getWorkspaces,
+  createWorkspace,
+  switchWorkspace,
+} = require("../../main/users/workspaces");
 
 /**
  * @description User login
@@ -234,6 +239,63 @@ userRouter.post("/change-password", authenticateToken, languageValidator, async 
       });
     });
 });
+
+/**
+ * @description List the workspaces (tenants) the authenticated account belongs to.
+ */
+userRouter.get("/workspaces", authenticateToken, async (req, res) => {
+  getWorkspaces({ ...req.auth, lg: req.query.lg || "en" })
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({ status, message, data: result });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
+    });
+});
+
+/**
+ * @description Create a new workspace owned by the authenticated account.
+ */
+userRouter.post(
+  "/workspaces/create",
+  authenticateToken,
+  languageValidator,
+  async (req, res) => {
+    const { workspaceData, lg } = req.body;
+    createWorkspace(workspaceData, { ...req.auth, lg })
+      .then((data) => {
+        const { statusCode, status, message, result } = data;
+        return res.status(statusCode).send({ status, message, data: result });
+      })
+      .catch((error) => {
+        const { statusCode, status, message } = error;
+        return res.status(statusCode).send({ status, message });
+      });
+  }
+);
+
+/**
+ * @description Switch the active workspace; returns a fresh token for the target.
+ */
+userRouter.post(
+  "/workspaces/switch",
+  authenticateToken,
+  languageValidator,
+  async (req, res) => {
+    const { tenantId, lg } = req.body;
+    switchWorkspace(tenantId, { ...req.auth, lg })
+      .then((data) => {
+        const { statusCode, status, message, result } = data;
+        return res.status(statusCode).send({ status, message, data: result });
+      })
+      .catch((error) => {
+        const { statusCode, status, message } = error;
+        return res.status(statusCode).send({ status, message });
+      });
+  }
+);
 
 module.exports = {
   userRouter,

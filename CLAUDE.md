@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **Keep this file current.** Whenever you change the request flow, response format, auth, multi-tenancy rules, the route surface (e.g. adding a router or public endpoint), env vars, or the DB schema, update the relevant section here *in the same change*. A drifted CLAUDE.md is a bug.
 
+> **Keep the SRS current.** A feature change here (new endpoint, or schema that backs a user-facing feature) must also be reflected in the product SRS at `D:\Development\Frontend\feedbase\feedbase_srs.txt`, *in the same change*. Keep it clean and professional — a structured requirements spec, not a changelog.
+
 ## Commands
 
 ```bash
@@ -48,6 +50,8 @@ Messages are looked up from **`src/common/response-message.json`** by key + lang
 ### Multi-tenancy
 
 Every authenticated request has `req.auth = { id, email, tenantId, role }` (set by `authenticateToken` from the JWT plus a DB re-check that the user is still active). Tenant-scoped data queries filter by `tenant_id`. Roles: `owner`, `admin`, `moderator`, `user`.
+
+**Multiple workspaces per account:** an email can have a `users` row in several tenants — each is one of that account's "workspaces". `src/main/users/workspaces.js` (routes `GET /users/workspaces`, `POST /users/workspaces/create`, `POST /users/workspaces/switch`) lists them, creates a new tenant + cloned-credential owner (seeding default `planned`/`in_progress`/`completed` roadmap columns), and re-issues a JWT scoped to a chosen workspace. Login by email (unscoped) returns the first matching row, so it picks a default workspace.
 
 User self-service handlers (personal data, profile/password update) key off the authenticated `req.auth.id` **only** — never a client-supplied `userId` — to prevent cross-account writes.
 
