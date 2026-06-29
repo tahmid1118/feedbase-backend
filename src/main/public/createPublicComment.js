@@ -42,10 +42,13 @@ const createPublicComment = async (tenantId, postId, data, lg) => {
       );
     }
 
-    // A reply must target a comment on this same post/tenant.
+    // A reply must target a comment on this same post/tenant. Comments are kept
+    // two levels deep: a reply always attaches to the TOP-LEVEL comment, so
+    // replying to a reply joins that comment's flat thread (never nests deeper).
+    let rootParentId = null;
     if (parentCommentId) {
       const [parent] = await pool.query(
-        "SELECT id FROM comments WHERE id = ? AND post_id = ? AND tenant_id = ?",
+        "SELECT id, parent_comment_id FROM comments WHERE id = ? AND post_id = ? AND tenant_id = ?",
         [parentCommentId, postId, tenantId]
       );
       if (parent.length === 0) {
@@ -53,13 +56,25 @@ const createPublicComment = async (tenantId, postId, data, lg) => {
           setServerResponse(API_STATUS_CODE.BAD_REQUEST, "comment_not_found", lg)
         );
       }
+      let current = parent[0];
+      const seen = new Set();
+      while (current.parent_comment_id && !seen.has(current.id)) {
+        seen.add(current.id);
+        const [up] = await pool.query(
+          "SELECT id, parent_comment_id FROM comments WHERE id = ? AND tenant_id = ?",
+          [current.parent_comment_id, tenantId]
+        );
+        if (up.length === 0) break;
+        current = up[0];
+      }
+      rootParentId = current.id;
     }
 
     const [result] = await pool.query(
       `INSERT INTO comments
          (tenant_id, post_id, author_id, submitter_name, submitter_email, parent_comment_id, body)
        VALUES (?, ?, NULL, ?, ?, ?, ?)`,
-      [tenantId, postId, submitterName, submitterEmail, parentCommentId, body]
+      [tenantId, postId, submitterName, submitterEmail, rootParentId, body]
     );
 
     return Promise.resolve(
