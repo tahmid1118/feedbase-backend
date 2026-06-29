@@ -94,7 +94,7 @@ const createWorkspace = async (data, authData) => {
     }
 
     const [me] = await conn.query(
-      "SELECT email, password_hash, full_name, avatar_url FROM users WHERE id = ? LIMIT 1",
+      "SELECT email, password_hash, full_name, avatar_url, tenant_id FROM users WHERE id = ? LIMIT 1",
       [userId]
     );
     if (me.length === 0) {
@@ -112,11 +112,23 @@ const createWorkspace = async (data, authData) => {
     );
     const newTenantId = tenant.insertId;
 
-    const [owner] = await conn.query(
-      `INSERT INTO users (tenant_id, email, password_hash, full_name, role, avatar_url, is_active)
-       VALUES (?, ?, ?, ?, 'owner', ?, 1)`,
-      [newTenantId, account.email, account.password_hash, account.full_name, account.avatar_url]
-    );
+    // A pending account (no workspace yet) claims its existing row as the owner
+    // of its first workspace; an existing member gets a fresh owner row.
+    let ownerUserId;
+    if (account.tenant_id === null) {
+      await conn.query(
+        "UPDATE users SET tenant_id = ?, role = 'owner' WHERE id = ?",
+        [newTenantId, userId]
+      );
+      ownerUserId = userId;
+    } else {
+      const [owner] = await conn.query(
+        `INSERT INTO users (tenant_id, email, password_hash, full_name, role, avatar_url, is_active)
+         VALUES (?, ?, ?, ?, 'owner', ?, 1)`,
+        [newTenantId, account.email, account.password_hash, account.full_name, account.avatar_url]
+      );
+      ownerUserId = owner.insertId;
+    }
 
     // Seed the default status-linked roadmap columns.
     await conn.query(
@@ -130,7 +142,7 @@ const createWorkspace = async (data, authData) => {
     await conn.commit();
 
     const token = signToken({
-      id: owner.insertId,
+      id: ownerUserId,
       email: account.email,
       tenant_id: newTenantId,
       role: "owner",
@@ -140,7 +152,7 @@ const createWorkspace = async (data, authData) => {
       setServerResponse(API_STATUS_CODE.CREATED, "workspace_created_successfully", lg, {
         token,
         user: {
-          id: owner.insertId,
+          id: ownerUserId,
           tenantId: newTenantId,
           role: "owner",
           fullName: account.full_name,

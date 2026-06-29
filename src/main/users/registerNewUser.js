@@ -4,41 +4,20 @@ const { setServerResponse } = require("../../common/setServerResponse");
 const bcrypt = require("bcrypt");
 const { placeholderImagePath } = require("../../consts/staticValues");
 
-const resolveTenantId = (tenantId) => {
-  if (tenantId === undefined || tenantId === null || tenantId === '') {
-    return 1;
-  }
-
-  const parsedTenantId = Number(tenantId);
-  if (!Number.isInteger(parsedTenantId) || parsedTenantId <= 0) {
-    return 1;
-  }
-
-  return parsedTenantId;
-};
-
-const checkDuplicateEmail = async (email, tenantId) => {
-  const _query = `
-    SELECT 
-        email
-    FROM
-        users
-    WHERE
-        email = ? AND
-        tenant_id = ?;
-`;
-
+// Identity is the email, so a signup is a duplicate if the email exists in ANY
+// workspace (or as a pending account).
+const checkDuplicateEmail = async (email) => {
+  const _query = `SELECT id FROM users WHERE email = ? LIMIT 1;`;
   try {
-    const [result] = await pool.query(_query, [email, tenantId]);
-    if (result.length > 0) {
-      return true;
-    }
-    return false;
+    const [result] = await pool.query(_query, [email]);
+    return result.length > 0;
   } catch (error) {
     console.error('Error checking duplicate email:', error);
     return Promise.reject(error);
   }
 };
+// New signups have NO workspace yet (tenant_id NULL); they create their first
+// workspace during onboarding, which claims this row as the owner.
 const insertUserDataQuery = async (userData) => {
   const _query = `
     INSERT INTO users (
@@ -51,18 +30,15 @@ const insertUserDataQuery = async (userData) => {
         avatar_url,
         is_active
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+    VALUES (NULL, ?, ?, ?, ?, 'user', ?, 1);
 `;
 
   const _values = [
-    userData.tenantId,
     userData.fullName,
     userData.email,
     userData.contact || null,
     userData.password,
-    'user',
     placeholderImagePath,
-    1,
   ];
 
   try {
@@ -79,10 +55,9 @@ const insertUserDataQuery = async (userData) => {
 
 const registerNewUser = async (userData, lg) => {
   const language = userData?.lg || lg || 'en';
-  const tenantId = resolveTenantId(userData?.tenantId);
 
   try {
-    const isDuplicateEmail = await checkDuplicateEmail(userData.email, tenantId);
+    const isDuplicateEmail = await checkDuplicateEmail(userData.email);
     if (isDuplicateEmail) {
       return Promise.reject(
         setServerResponse(
@@ -98,7 +73,6 @@ const registerNewUser = async (userData, lg) => {
     const hashedPassword = await bcrypt.hash(userData.password, saltRounds);
     userData = {
       ...userData,
-      tenantId,
       password: hashedPassword,
     };
 

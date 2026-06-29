@@ -51,7 +51,9 @@ Messages are looked up from **`src/common/response-message.json`** by key + lang
 
 Every authenticated request has `req.auth = { id, email, tenantId, role }` (set by `authenticateToken` from the JWT plus a DB re-check that the user is still active). Tenant-scoped data queries filter by `tenant_id`. Roles: `owner`, `admin`, `moderator`, `user`.
 
-**Multiple workspaces per account:** an email can have a `users` row in several tenants — each is one of that account's "workspaces". `src/main/users/workspaces.js` (routes `GET /users/workspaces`, `POST /users/workspaces/create`, `POST /users/workspaces/switch`) lists them, creates a new tenant + cloned-credential owner (seeding default `planned`/`in_progress`/`completed` roadmap columns), and re-issues a JWT scoped to a chosen workspace. Login by email (unscoped) returns the first matching row, so it picks a default workspace.
+**Multiple workspaces per account:** an email can have a `users` row in several tenants — each is one of that account's "workspaces". `src/main/users/workspaces.js` (routes `GET /users/workspaces`, `POST /users/workspaces/create`, `POST /users/workspaces/switch`) lists them, creates a new tenant + owner (seeding default `planned`/`in_progress`/`completed` roadmap columns), and re-issues a JWT scoped to a chosen workspace. Login by email (unscoped) returns the first matching row, so it picks a default workspace.
+
+**Pending accounts / onboarding:** `users.tenant_id` is **nullable**. Registration (`registerNewUser`) creates a *pending* account with `tenant_id = NULL` and a global email-uniqueness check — it does **not** default into tenant 1. A pending account has zero workspaces (so it can't see another tenant's data); its first `createWorkspace` **claims that row** (sets `tenant_id` + `role='owner'`) rather than inserting a new one. Subsequent workspaces insert a fresh owner row.
 
 User self-service handlers (personal data, profile/password update) key off the authenticated `req.auth.id` **only** — never a client-supplied `userId` — to prevent cross-account writes.
 

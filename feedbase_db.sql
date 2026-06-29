@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS tenants (
 
 CREATE TABLE IF NOT EXISTS users (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  tenant_id BIGINT UNSIGNED NOT NULL,
+  -- NULL until the account creates/joins its first workspace (onboarding).
+  tenant_id BIGINT UNSIGNED NULL,
   email VARCHAR(190) NOT NULL,
   password_hash VARCHAR(255) NULL,
   full_name VARCHAR(150) NOT NULL,
