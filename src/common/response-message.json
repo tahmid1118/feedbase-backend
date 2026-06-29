@@ -140,7 +140,11 @@
     "subdomain_taken": "That subdomain is already taken",
     "workspace_created_successfully": "Workspace created successfully",
     "workspace_switched_successfully": "Workspace switched successfully",
-    "workspace_not_found": "Workspace not found"
+    "workspace_not_found": "Workspace not found",
+    "comment_body_required": "Comment cannot be empty",
+    "comment_created_successfully": "Comment added successfully",
+    "failed_to_create_comment": "Failed to add comment",
+    "comment_not_found": "Comment not found"
   },
   "bn": {
     "success": "সফল",
@@ -283,6 +287,10 @@
     "subdomain_taken": "সেই সাবডোমেইনটি ইতিমধ্যে নেওয়া হয়েছে",
     "workspace_created_successfully": "ওয়ার্কস্পেস সফলভাবে তৈরি হয়েছে",
     "workspace_switched_successfully": "ওয়ার্কস্পেস সফলভাবে পরিবর্তন হয়েছে",
-    "workspace_not_found": "ওয়ার্কস্পেস খুঁজে পাওয়া যায়নি"
+    "workspace_not_found": "ওয়ার্কস্পেস খুঁজে পাওয়া যায়নি",
+    "comment_body_required": "মন্তব্য খালি রাখা যাবে না",
+    "comment_created_successfully": "মন্তব্য সফলভাবে যোগ করা হয়েছে",
+    "failed_to_create_comment": "মন্তব্য যোগ করতে ব্যর্থ হয়েছে",
+    "comment_not_found": "মন্তব্য খুঁজে পাওয়া যায়নি"
   }
 }

@@ -108,7 +108,11 @@ CREATE TABLE IF NOT EXISTS comments (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   tenant_id BIGINT UNSIGNED NOT NULL,
   post_id BIGINT UNSIGNED NOT NULL,
-  author_id BIGINT UNSIGNED NOT NULL,
+  -- author_id is NULL for anonymous public-portal comments; those carry
+  -- submitter_name/email instead.
+  author_id BIGINT UNSIGNED NULL,
+  submitter_name VARCHAR(120) NULL,
+  submitter_email VARCHAR(255) NULL,
   parent_comment_id BIGINT UNSIGNED NULL,
   body TEXT NOT NULL,
   is_edited TINYINT(1) NOT NULL DEFAULT 0,

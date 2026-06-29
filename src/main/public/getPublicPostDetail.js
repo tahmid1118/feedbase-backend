@@ -30,7 +30,8 @@ const getPublicPostDetail = async (tenantId, postId, lg) => {
 
   const _commentQuery = `
     SELECT c.id, c.post_id, c.parent_comment_id, c.body, c.is_edited,
-           c.created_at, u.full_name AS author_name
+           c.created_at,
+           COALESCE(u.full_name, c.submitter_name, 'Anonymous') AS author_name
     FROM comments c
     LEFT JOIN users u ON c.author_id = u.id
     WHERE c.tenant_id = ? AND c.post_id = ?

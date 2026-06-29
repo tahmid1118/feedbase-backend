@@ -9,6 +9,7 @@ const { resolvePublicTenant } = require("../../main/public/resolvePublicTenant")
 const { getPublicBoard } = require("../../main/public/getPublicBoard");
 const { createPublicPost } = require("../../main/public/createPublicPost");
 const { togglePublicVote } = require("../../main/public/togglePublicVote");
+const { createPublicComment } = require("../../main/public/createPublicComment");
 const { getPublicPostDetail } = require("../../main/public/getPublicPostDetail");
 const { getPublicRoadmap } = require("../../main/public/getPublicRoadmap");
 const {
@@ -129,6 +130,25 @@ publicRouter.post(
       req.publicTenant.id,
       req.params.postId,
       req.body?.guestId,
+      req.lg
+    )
+      .then((data) => send(res, data))
+      .catch((error) => send(res, error));
+  }
+);
+
+/**
+ * @description Add an anonymous comment/reply to a post.
+ * POST /public/:subdomain/posts/:postId/comments  { body, parentCommentId?, submitterName?, submitterEmail? }
+ */
+publicRouter.post(
+  "/:subdomain/posts/:postId/comments",
+  attachPublicTenant,
+  async (req, res) => {
+    createPublicComment(
+      req.publicTenant.id,
+      req.params.postId,
+      req.body,
       req.lg
     )
       .then((data) => send(res, data))
