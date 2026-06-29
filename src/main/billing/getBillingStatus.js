@@ -2,6 +2,7 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { getPlanLimits } = require("../../consts/plans");
+const { reconcileTenantSubscription } = require("./applySubscription");
 
 /**
  * @description Return the authenticated tenant's current subscription state for
@@ -11,6 +12,15 @@ const { getPlanLimits } = require("../../consts/plans");
 const getBillingStatus = async (authData) => {
   const { tenantId, lg } = authData;
   try {
+    // Reconcile from Stripe first so the plan reflects a just-completed checkout
+    // or cancellation even when webhooks aren't delivered (e.g. local dev). A
+    // Stripe failure here is non-fatal — we fall back to the stored values.
+    try {
+      await reconcileTenantSubscription(tenantId);
+    } catch (reconcileErr) {
+      console.error("Billing reconcile failed (non-fatal):", reconcileErr.message);
+    }
+
     const [rows] = await pool.query(
       `SELECT plan_name, subscription_status, current_period_end,
               stripe_subscription_id

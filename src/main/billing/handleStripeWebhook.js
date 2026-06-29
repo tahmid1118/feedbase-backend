@@ -1,55 +1,7 @@
-const { pool } = require("../../../database/dbPool");
 const { stripe } = require("../../common/stripe");
-const { planByPriceId } = require("../../consts/plans");
+const { applySubscription, resetToFree } = require("./applySubscription");
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
-
-const customerIdOf = (sub) =>
-  typeof sub.customer === "string" ? sub.customer : sub.customer?.id || null;
-
-/** Apply a Stripe Subscription's state onto the matching tenant row. */
-const applySubscription = async (sub) => {
-  const tenantId = sub.metadata?.tenantId || null;
-  const customerId = customerIdOf(sub);
-  const priceId = sub.items?.data?.[0]?.price?.id || null;
-  const status = sub.status; // active | trialing | past_due | canceled | ...
-  const isActive = ["active", "trialing", "past_due"].includes(status);
-  const planName = isActive ? planByPriceId(priceId) || "free" : "free";
-  const periodEnd = sub.current_period_end
-    ? new Date(sub.current_period_end * 1000)
-    : null;
-
-  const sets =
-    "plan_name = ?, subscription_status = ?, stripe_subscription_id = ?, current_period_end = ?";
-  const vals = [planName, status, sub.id, periodEnd];
-
-  if (tenantId) {
-    await pool.query(`UPDATE tenants SET ${sets} WHERE id = ?`, [...vals, tenantId]);
-  } else if (customerId) {
-    await pool.query(`UPDATE tenants SET ${sets} WHERE stripe_customer_id = ?`, [
-      ...vals,
-      customerId,
-    ]);
-  }
-};
-
-/** Reset a tenant to the free tier when its subscription is deleted. */
-const resetToFree = async (sub) => {
-  const tenantId = sub.metadata?.tenantId || null;
-  const customerId = customerIdOf(sub);
-  const sets =
-    "plan_name = 'free', subscription_status = ?, stripe_subscription_id = NULL, current_period_end = NULL";
-  const vals = [sub.status || "canceled"];
-
-  if (tenantId) {
-    await pool.query(`UPDATE tenants SET ${sets} WHERE id = ?`, [...vals, tenantId]);
-  } else if (customerId) {
-    await pool.query(`UPDATE tenants SET ${sets} WHERE stripe_customer_id = ?`, [
-      ...vals,
-      customerId,
-    ]);
-  }
-};
 
 /**
  * @description Verify and process a Stripe webhook. Throws (statusCode 400) on a
