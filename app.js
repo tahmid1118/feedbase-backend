@@ -21,12 +21,22 @@ const { integrationRouter } = require("./src/routes/integration/integrationRoute
 const { fileUploadRouter } = require("./src/routes/file-uploader/file-upload-route");
 const { analyticsRouter } = require("./src/routes/analytics/analyticsRoute");
 const { publicRouter } = require("./src/routes/public/publicRoute");
+const { billingRouter } = require("./src/routes/billing/billingRoute");
+const { stripeWebhookRouter } = require("./src/routes/webhooks/stripeWebhookRoute");
 // --- Middleware ---
 // gzip/deflate all compressible responses (JSON, text). Binary uploads under
 // /uploads are skipped automatically by compression's content-type filter.
 app.use(compression());
 app.use(cors());
 app.use(morgan("combined"));
+
+// Stripe webhooks need the RAW body for signature verification, so this route
+// is mounted BEFORE express.json and parses the body as a Buffer instead.
+app.use(
+  "/webhooks/stripe",
+  express.raw({ type: "application/json" }),
+  stripeWebhookRouter
+);
 
 // Single JSON body parser (express.json IS body-parser.json — no need for both).
 app.use(express.json({ limit: "10mb" }));
@@ -61,6 +71,7 @@ app.use("/integrations", integrationRouter);
 app.use("/uploader", fileUploadRouter);
 app.use("/analytics", analyticsRouter);
 app.use("/public", publicRouter);
+app.use("/billing", billingRouter);
 
 
 // --- Static Files ---

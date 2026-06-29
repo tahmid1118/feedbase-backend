@@ -144,7 +144,20 @@
     "comment_body_required": "Comment cannot be empty",
     "comment_created_successfully": "Comment added successfully",
     "failed_to_create_comment": "Failed to add comment",
-    "comment_not_found": "Comment not found"
+    "comment_not_found": "Comment not found",
+    "billing_status_retrieved": "Billing status retrieved",
+    "failed_to_get_billing_status": "Failed to get billing status",
+    "checkout_session_created": "Checkout session created",
+    "failed_to_create_checkout": "Failed to start checkout",
+    "portal_session_created": "Billing portal opened",
+    "failed_to_create_portal": "Failed to open billing portal",
+    "invalid_plan": "Invalid plan selected",
+    "billing_forbidden": "Only workspace owners and admins can manage billing",
+    "stripe_not_configured": "Billing is not configured",
+    "no_active_subscription": "No active subscription to manage",
+    "plan_limit_integrations": "Integrations require the Pro plan or higher. Please upgrade.",
+    "plan_limit_custom_domain": "A custom domain requires the Pro plan or higher. Please upgrade.",
+    "plan_limit_seats": "You have reached your plan's team member limit. Please upgrade."
   },
   "bn": {
     "success": "সফল",
@@ -291,6 +304,19 @@
     "comment_body_required": "মন্তব্য খালি রাখা যাবে না",
     "comment_created_successfully": "মন্তব্য সফলভাবে যোগ করা হয়েছে",
     "failed_to_create_comment": "মন্তব্য যোগ করতে ব্যর্থ হয়েছে",
-    "comment_not_found": "মন্তব্য খুঁজে পাওয়া যায়নি"
+    "comment_not_found": "মন্তব্য খুঁজে পাওয়া যায়নি",
+    "billing_status_retrieved": "বিলিং স্ট্যাটাস পাওয়া গেছে",
+    "failed_to_get_billing_status": "বিলিং স্ট্যাটাস পেতে ব্যর্থ হয়েছে",
+    "checkout_session_created": "চেকআউট সেশন তৈরি হয়েছে",
+    "failed_to_create_checkout": "চেকআউট শুরু করতে ব্যর্থ হয়েছে",
+    "portal_session_created": "বিলিং পোর্টাল খোলা হয়েছে",
+    "failed_to_create_portal": "বিলিং পোর্টাল খুলতে ব্যর্থ হয়েছে",
+    "invalid_plan": "অবৈধ প্ল্যান নির্বাচিত হয়েছে",
+    "billing_forbidden": "শুধুমাত্র ওয়ার্কস্পেস মালিক ও অ্যাডমিন বিলিং পরিচালনা করতে পারেন",
+    "stripe_not_configured": "বিলিং কনফিগার করা হয়নি",
+    "no_active_subscription": "পরিচালনা করার জন্য কোনো সক্রিয় সাবস্ক্রিপশন নেই",
+    "plan_limit_integrations": "ইন্টিগ্রেশনের জন্য প্রো প্ল্যান বা উচ্চতর প্রয়োজন। অনুগ্রহ করে আপগ্রেড করুন।",
+    "plan_limit_custom_domain": "কাস্টম ডোমেইনের জন্য প্রো প্ল্যান বা উচ্চতর প্রয়োজন। অনুগ্রহ করে আপগ্রেড করুন।",
+    "plan_limit_seats": "আপনি আপনার প্ল্যানের টিম সদস্য সীমায় পৌঁছেছেন। অনুগ্রহ করে আপগ্রেড করুন।"
   }
 }

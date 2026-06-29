@@ -74,6 +74,15 @@ User self-service handlers (personal data, profile/password update) key off the 
 
 **Guest voting:** `POST /public/:subdomain/posts/:postId/vote { guestId }` toggles an anonymous upvote. The `votes` table now allows guest rows (`user_id` nullable, added `guest_id`, unique `(tenant_id, post_id, guest_id)`), so guest votes land in the same table and the existing `COUNT(*)` vote counts include them unchanged. Spam is limited to one vote per browser per post via the unique `guest_id` (a persistent client cookie).
 
+### Billing & subscriptions (Stripe)
+
+- Tiers — **Free / Pro / Business** (monthly), defined in **`src/consts/plans.js`** (`PLANS`, `planByPriceId`, `getPlanLimits`). Pro/Business Stripe Price IDs come from env (`STRIPE_PRICE_PRO`, `STRIPE_PRICE_BUSINESS`); Free has none. `scripts/stripe-setup.js` creates the Products/Prices and prints the IDs.
+- **Hosted Checkout + Customer Portal.** Authenticated routes at `/billing` (`src/routes/billing/billingRoute.js`, owner/admin only): `POST /billing/status`, `POST /billing/checkout {plan}` (→ Stripe Checkout URL), `POST /billing/portal` (→ Customer Portal URL). Handlers in `src/main/billing/`. The shared client is `src/common/stripe.js` (constructed with a placeholder key when unset so the server still boots; real calls gated by `isStripeConfigured()`).
+- **Webhook needs the raw body.** `/webhooks/stripe` is mounted in `app.js` with `express.raw({ type: "application/json" })` **before** the global `express.json` so signature verification works. `handleStripeWebhook` updates the tenant on `checkout.session.completed` / `customer.subscription.updated|deleted` — resolving the tenant by `metadata.tenantId` or `stripe_customer_id`, and writing `plan_name` (via `planByPriceId`), `subscription_status`, `stripe_subscription_id`, `current_period_end`. Deletion resets to `free`.
+- **Tenant billing columns** (on `tenants`): `plan_name` (existing), `stripe_customer_id`, `stripe_subscription_id`, `subscription_status`, `current_period_end`. **`plan_name` is set only by Stripe** — `updateTenant` no longer accepts it (bypass closed).
+- **Enforcement** via `src/common/planGuard.js` (`planAllows(tenantId, capability)`): `createIntegration` and `updateTenant` (when setting `custom_domain`) reject with `402 PAYMENT_REQUIRED` + a `plan_limit_*` message on Free. (Custom domain is now persisted by `updateTenant`; it previously wasn't.) `seats` is a displayed limit only — there's no team-invite flow to gate yet.
+- Env: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_BUSINESS`. For local webhooks: `stripe listen --forward-to localhost:4560/webhooks/stripe`.
+
 ### Conventions & gotchas
 
 - **Bodyless requests:** a global middleware in `app.js` defaults `req.body` to `{}`. Without it, GET/DELETE routes that read `req.body.lg` (or any body field) crash with `Cannot read properties of undefined`. Keep that middleware, and prefer `req.body?.x` in handlers.
@@ -105,6 +114,6 @@ Post fields of note: `type` (feedback/feature/bug), `status` (open/in-progress/c
 
 ## Environment
 
-Copy `.env.example` to `.env`. Required variables include: `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SECRET_ACCESS_TOKEN`, `ACCESS_TOKEN_EXPIRE`, `FILE_UPLOAD_MAX_SIZE`, SMTP config, and OAuth credentials. Optional pool tuning: `DB_CONNECTION_LIMIT` (default 15), `DB_MAX_IDLE` (default 10).
+Copy `.env.example` to `.env`. Required variables include: `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SECRET_ACCESS_TOKEN`, `ACCESS_TOKEN_EXPIRE`, `FILE_UPLOAD_MAX_SIZE`, `FRONTEND_URL` (Stripe success/return URLs), SMTP config, and OAuth credentials. Stripe billing: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_BUSINESS` (the server boots without them; billing endpoints just return "not configured"). Optional pool tuning: `DB_CONNECTION_LIMIT` (default 15), `DB_MAX_IDLE` (default 10).
 
 Production/staging processes are managed by PM2 via `ecosystem.config.js`.

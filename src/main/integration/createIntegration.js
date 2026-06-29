@@ -1,10 +1,19 @@
 const { pool } = require('../../../database/dbPool');
 const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
+const { planAllows } = require('../../common/planGuard');
 
 const createIntegration = async (integrationData, authData) => {
   const { integrationType, config } = integrationData;
   const { tenantId, lg } = authData;
+
+  // Integrations are a paid capability.
+  if (!(await planAllows(tenantId, 'integrations'))) {
+    return Promise.reject(
+      setServerResponse(API_STATUS_CODE.PAYMENT_REQUIRED, 'plan_limit_integrations', lg)
+    );
+  }
+
   const _query = 'INSERT INTO integrations (tenant_id, integration_type, config) VALUES (?, ?, ?)';
   try {
     const [result] = await pool.query(_query, [tenantId, integrationType, JSON.stringify(config)]);

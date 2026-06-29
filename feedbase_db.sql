@@ -14,6 +14,11 @@ CREATE TABLE IF NOT EXISTS tenants (
   subdomain VARCHAR(120) NOT NULL,
   custom_domain VARCHAR(255) NULL,
   plan_name VARCHAR(50) NOT NULL DEFAULT 'free',
+  -- Stripe billing state (set by checkout + the webhook; never by clients).
+  stripe_customer_id VARCHAR(255) NULL,
+  stripe_subscription_id VARCHAR(255) NULL,
+  subscription_status VARCHAR(50) NULL,
+  current_period_end DATETIME NULL,
   branding_logo_url VARCHAR(500) NULL,
   branding_primary_color VARCHAR(20) NULL,
   is_active TINYINT(1) NOT NULL DEFAULT 1,

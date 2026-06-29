@@ -61,6 +61,14 @@ const API_STATUS_CODE = {
   FORBIDDEN: 403,
 
   /**
+   * 402 Payment Required
+   *
+   * Reserved for future use; we use it to signal that the tenant's current
+   * subscription plan does not include the requested capability (upgrade needed).
+   */
+  PAYMENT_REQUIRED: 402,
+
+  /**
    * 404 Not Found
    *
    * The server can not find the requested resource. In the browser, this means the URL is not recognized. In an API,

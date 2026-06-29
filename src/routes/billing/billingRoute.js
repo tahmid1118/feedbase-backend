@@ -1,0 +1,56 @@
+const express = require("express");
+const billingRouter = express.Router();
+const { authenticateToken } = require("../../middlewares/jwt/jwt");
+const { languageValidator } = require("../../middlewares/common/languageValidator");
+const { getBillingStatus } = require("../../main/billing/getBillingStatus");
+const { createCheckoutSession } = require("../../main/billing/createCheckoutSession");
+const { createPortalSession } = require("../../main/billing/createPortalSession");
+
+/**
+ * @description Current subscription status for the authenticated tenant.
+ */
+billingRouter.post("/status", authenticateToken, languageValidator, async (req, res) => {
+  getBillingStatus({ ...req.auth, lg: req.body.lg })
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({ status, message, data: result });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
+    });
+});
+
+/**
+ * @description Start a Stripe Checkout session for a paid plan.
+ * Body: { plan: "pro" | "business" }
+ */
+billingRouter.post("/checkout", authenticateToken, languageValidator, async (req, res) => {
+  const { plan, lg } = req.body;
+  createCheckoutSession(plan, { ...req.auth, lg })
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({ status, message, data: result });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
+    });
+});
+
+/**
+ * @description Open the Stripe Billing Portal to manage the subscription.
+ */
+billingRouter.post("/portal", authenticateToken, languageValidator, async (req, res) => {
+  createPortalSession({ ...req.auth, lg: req.body.lg })
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({ status, message, data: result });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
+    });
+});
+
+module.exports = { billingRouter };
