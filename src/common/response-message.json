@@ -158,7 +158,9 @@
     "plan_limit_integrations": "Integrations require the Pro plan or higher. Please upgrade.",
     "plan_limit_custom_domain": "A custom domain requires the Pro plan or higher. Please upgrade.",
     "plan_limit_seats": "You have reached your plan's team member limit. Please upgrade.",
-    "custom_domain_taken": "That custom domain is already in use"
+    "custom_domain_taken": "That custom domain is already in use",
+    "tenant_updated_successfully": "Workspace updated successfully",
+    "failed_to_update_tenant": "Failed to update workspace"
   },
   "bn": {
     "success": "সফল",
@@ -319,6 +321,8 @@
     "plan_limit_integrations": "ইন্টিগ্রেশনের জন্য প্রো প্ল্যান বা উচ্চতর প্রয়োজন। অনুগ্রহ করে আপগ্রেড করুন।",
     "plan_limit_custom_domain": "কাস্টম ডোমেইনের জন্য প্রো প্ল্যান বা উচ্চতর প্রয়োজন। অনুগ্রহ করে আপগ্রেড করুন।",
     "plan_limit_seats": "আপনি আপনার প্ল্যানের টিম সদস্য সীমায় পৌঁছেছেন। অনুগ্রহ করে আপগ্রেড করুন।",
-    "custom_domain_taken": "সেই কাস্টম ডোমেইন ইতিমধ্যে ব্যবহৃত হচ্ছে"
+    "custom_domain_taken": "সেই কাস্টম ডোমেইন ইতিমধ্যে ব্যবহৃত হচ্ছে",
+    "tenant_updated_successfully": "ওয়ার্কস্পেস সফলভাবে আপডেট হয়েছে",
+    "failed_to_update_tenant": "ওয়ার্কস্পেস আপডেট করতে ব্যর্থ হয়েছে"
   }
 }

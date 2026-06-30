@@ -19,34 +19,44 @@ const updateTenant = async (id, tenantData, lg) => {
     );
   }
 
-  // custom_domain is only touched when the field is present (an explicit empty
-  // string clears it); everything else mirrors the previous behaviour.
-  const fields = [
-    'name = ?',
-    'branding_logo_url = ?',
-    'branding_primary_color = ?',
-    'is_active = ?',
-  ];
-  const values = [name, brandingLogoUrl || null, brandingPrimaryColor || null, isActive];
+  // Only update columns the caller actually provided. A blanket `SET col = ?`
+  // with an undefined value clobbers existing data — notably, the Branding form
+  // doesn't send isActive, so always writing is_active would deactivate the
+  // workspace (hiding it from the switcher and the public portal).
+  const fields = [];
+  const values = [];
+  if (name !== undefined) {
+    fields.push('name = ?');
+    values.push(name);
+  }
+  if (brandingLogoUrl !== undefined) {
+    fields.push('branding_logo_url = ?');
+    values.push(brandingLogoUrl || null);
+  }
+  if (brandingPrimaryColor !== undefined) {
+    fields.push('branding_primary_color = ?');
+    values.push(brandingPrimaryColor || null);
+  }
   if (customDomain !== undefined) {
     fields.push('custom_domain = ?');
     values.push(wantsCustomDomain ? String(customDomain).trim() : null);
   }
+  if (isActive !== undefined) {
+    fields.push('is_active = ?');
+    values.push(isActive ? 1 : 0);
+  }
+
+  if (fields.length === 0) {
+    return Promise.resolve(
+      setServerResponse(API_STATUS_CODE.OK, 'tenant_updated_successfully', lg)
+    );
+  }
+
   const _query = `UPDATE tenants SET ${fields.join(', ')} WHERE id = ?`;
   values.push(id);
 
   try {
-    const [result] = await pool.query(_query, values);
-
-    if (result.affectedRows === 0) {
-      return Promise.reject(
-        setServerResponse(
-          API_STATUS_CODE.NOT_FOUND,
-          'tenant_not_found',
-          lg
-        )
-      );
-    }
+    await pool.query(_query, values);
 
     return Promise.resolve(
       setServerResponse(
