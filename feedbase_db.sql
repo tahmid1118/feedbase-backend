@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS tenants (
   slug VARCHAR(120) NOT NULL,
   subdomain VARCHAR(120) NOT NULL,
   custom_domain VARCHAR(255) NULL,
+  -- The company's website (informational); NOT the unique portal custom_domain.
+  website VARCHAR(255) NULL,
   plan_name VARCHAR(50) NOT NULL DEFAULT 'free',
   -- Stripe billing state (set by checkout + the webhook; never by clients).
   stripe_customer_id VARCHAR(255) NULL,

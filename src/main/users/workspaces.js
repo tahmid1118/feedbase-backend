@@ -140,9 +140,12 @@ const createWorkspace = async (data, authData) => {
     }
     const account = me[0];
 
+    // The "website" is the company's site, not a custom portal domain — store
+    // it in its own (non-unique) column. custom_domain stays null and is set
+    // deliberately later in Branding settings (a paid capability).
     const [tenant] = await conn.query(
-      `INSERT INTO tenants (name, slug, subdomain, custom_domain, plan_name, branding_primary_color, is_active)
-       VALUES (?, ?, ?, ?, 'free', '#c74959', 1)`,
+      `INSERT INTO tenants (name, slug, subdomain, custom_domain, website, plan_name, branding_primary_color, is_active)
+       VALUES (?, ?, ?, NULL, ?, 'free', '#c74959', 1)`,
       [name, subdomain, subdomain, website]
     );
     const newTenantId = tenant.insertId;
@@ -199,11 +202,15 @@ const createWorkspace = async (data, authData) => {
     );
   } catch (error) {
     await conn.rollback();
-    // A concurrent create can slip past the SELECT check and hit the UNIQUE
-    // constraint — treat that as "subdomain taken" rather than a generic error.
+    // A concurrent create can slip past the SELECT check and hit a UNIQUE
+    // constraint — report the right field rather than a generic error.
     if (error && error.code === "ER_DUP_ENTRY") {
+      const dupKey = String(error.sqlMessage || error.message || "");
+      const msgKey = dupKey.includes("custom_domain")
+        ? "custom_domain_taken"
+        : "subdomain_taken";
       return Promise.reject(
-        setServerResponse(API_STATUS_CODE.CONFLICT, "subdomain_taken", lg)
+        setServerResponse(API_STATUS_CODE.CONFLICT, msgKey, lg)
       );
     }
     console.error("Error creating workspace:", error);

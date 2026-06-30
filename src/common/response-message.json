@@ -157,7 +157,8 @@
     "no_active_subscription": "No active subscription to manage",
     "plan_limit_integrations": "Integrations require the Pro plan or higher. Please upgrade.",
     "plan_limit_custom_domain": "A custom domain requires the Pro plan or higher. Please upgrade.",
-    "plan_limit_seats": "You have reached your plan's team member limit. Please upgrade."
+    "plan_limit_seats": "You have reached your plan's team member limit. Please upgrade.",
+    "custom_domain_taken": "That custom domain is already in use"
   },
   "bn": {
     "success": "সফল",
@@ -317,6 +318,7 @@
     "no_active_subscription": "পরিচালনা করার জন্য কোনো সক্রিয় সাবস্ক্রিপশন নেই",
     "plan_limit_integrations": "ইন্টিগ্রেশনের জন্য প্রো প্ল্যান বা উচ্চতর প্রয়োজন। অনুগ্রহ করে আপগ্রেড করুন।",
     "plan_limit_custom_domain": "কাস্টম ডোমেইনের জন্য প্রো প্ল্যান বা উচ্চতর প্রয়োজন। অনুগ্রহ করে আপগ্রেড করুন।",
-    "plan_limit_seats": "আপনি আপনার প্ল্যানের টিম সদস্য সীমায় পৌঁছেছেন। অনুগ্রহ করে আপগ্রেড করুন।"
+    "plan_limit_seats": "আপনি আপনার প্ল্যানের টিম সদস্য সীমায় পৌঁছেছেন। অনুগ্রহ করে আপগ্রেড করুন।",
+    "custom_domain_taken": "সেই কাস্টম ডোমেইন ইতিমধ্যে ব্যবহৃত হচ্ছে"
   }
 }
