@@ -57,6 +57,41 @@ const getWorkspaces = async (authData) => {
 };
 
 /**
+ * Check whether a subdomain is valid (format + not reserved) and available
+ * (not already used by another tenant's subdomain or slug). Used for live
+ * feedback on the create-workspace forms.
+ */
+const checkSubdomain = async (rawSubdomain, lg) => {
+  const subdomain = (rawSubdomain || "").trim().toLowerCase();
+  const valid = SUBDOMAIN_RE.test(subdomain) && !RESERVED_SUBDOMAINS.has(subdomain);
+  if (!valid) {
+    return Promise.resolve(
+      setServerResponse(API_STATUS_CODE.OK, "data_fetched_successfully", lg, {
+        valid: false,
+        available: false,
+      })
+    );
+  }
+  try {
+    const [rows] = await pool.query(
+      "SELECT id FROM tenants WHERE subdomain = ? OR slug = ? LIMIT 1",
+      [subdomain, subdomain]
+    );
+    return Promise.resolve(
+      setServerResponse(API_STATUS_CODE.OK, "data_fetched_successfully", lg, {
+        valid: true,
+        available: rows.length === 0,
+      })
+    );
+  } catch (error) {
+    console.error("Error checking subdomain:", error);
+    return Promise.reject(
+      setServerResponse(API_STATUS_CODE.INTERNAL_SERVER_ERROR, "internal_server_error", lg)
+    );
+  }
+};
+
+/**
  * Create a new workspace (tenant) owned by the authenticated account. The owner
  * user row clones the current account's credentials, and the workspace is seeded
  * with the default status-linked roadmap columns.
@@ -164,6 +199,13 @@ const createWorkspace = async (data, authData) => {
     );
   } catch (error) {
     await conn.rollback();
+    // A concurrent create can slip past the SELECT check and hit the UNIQUE
+    // constraint — treat that as "subdomain taken" rather than a generic error.
+    if (error && error.code === "ER_DUP_ENTRY") {
+      return Promise.reject(
+        setServerResponse(API_STATUS_CODE.CONFLICT, "subdomain_taken", lg)
+      );
+    }
     console.error("Error creating workspace:", error);
     return Promise.reject(
       setServerResponse(API_STATUS_CODE.INTERNAL_SERVER_ERROR, "failed_to_create_tenant", lg)
@@ -216,4 +258,4 @@ const switchWorkspace = async (targetTenantId, authData) => {
   }
 };
 
-module.exports = { getWorkspaces, createWorkspace, switchWorkspace };
+module.exports = { getWorkspaces, checkSubdomain, createWorkspace, switchWorkspace };

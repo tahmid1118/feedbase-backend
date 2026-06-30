@@ -14,6 +14,7 @@ const { changeUserPassword } = require("../../main/users/changeUserPassword");
 const { updateUserRole } = require("../../main/users/updateUserRole");
 const {
   getWorkspaces,
+  checkSubdomain,
   createWorkspace,
   switchWorkspace,
 } = require("../../main/users/workspaces");
@@ -245,6 +246,21 @@ userRouter.post("/change-password", authenticateToken, languageValidator, async 
  */
 userRouter.get("/workspaces", authenticateToken, async (req, res) => {
   getWorkspaces({ ...req.auth, lg: req.query.lg || "en" })
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({ status, message, data: result });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
+    });
+});
+
+/**
+ * @description Check if a subdomain is valid and available (live form feedback).
+ */
+userRouter.get("/workspaces/check-subdomain", authenticateToken, async (req, res) => {
+  checkSubdomain(req.query.subdomain, req.query.lg || "en")
     .then((data) => {
       const { statusCode, status, message, result } = data;
       return res.status(statusCode).send({ status, message, data: result });
