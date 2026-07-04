@@ -11,8 +11,16 @@ const { setServerResponse } = require("../../common/setServerResponse");
  * @param {object} filters { status, postType, tagId, search }
  * @param {string} lg
  */
+// Public board sort options. vote_count is the SELECT alias below.
+const SORTS = {
+  newest: "p.created_at DESC",
+  oldest: "p.created_at ASC",
+  most_voted: "vote_count DESC, p.created_at DESC",
+  least_voted: "vote_count ASC, p.created_at DESC",
+};
+
 const getPublicBoard = async (tenantId, paginationData, filters, lg) => {
-  const sortOrder = paginationData?.sortOrder === "asc" ? "ASC" : "DESC";
+  const orderBy = SORTS[paginationData?.sortBy] || SORTS.newest;
   const itemsPerPage = Number(paginationData?.itemsPerPage) || 20;
   const offset = Number(paginationData?.offset) || 0;
   const searchText = (filters?.search || paginationData?.filterBy || "").trim();
@@ -48,7 +56,7 @@ const getPublicBoard = async (tenantId, paginationData, filters, lg) => {
      FROM posts p
      LEFT JOIN users u ON p.author_id = u.id` +
     whereClause +
-    ` ORDER BY p.is_pinned DESC, p.created_at ${sortOrder} LIMIT ? OFFSET ?`;
+    ` ORDER BY p.is_pinned DESC, ${orderBy} LIMIT ? OFFSET ?`;
   const listParams = [...whereParams, itemsPerPage, offset];
 
   const _countQuery = "SELECT COUNT(*) AS total FROM posts p" + whereClause;
