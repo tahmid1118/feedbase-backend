@@ -74,6 +74,9 @@ CREATE TABLE IF NOT EXISTS posts (
   author_id BIGINT UNSIGNED NULL,
   submitter_name VARCHAR(120) NULL,
   submitter_email VARCHAR(255) NULL,
+  -- Persistent per-browser id for guest submissions, used to give one guest a
+  -- single stable pseudonymous identity (name + colour) across the portal.
+  guest_id VARCHAR(64) NULL,
   title VARCHAR(200) NOT NULL,
   description TEXT NOT NULL,
   post_type ENUM('feedback', 'feature_request', 'bug_report') NOT NULL DEFAULT 'feedback',
@@ -120,6 +123,9 @@ CREATE TABLE IF NOT EXISTS comments (
   author_id BIGINT UNSIGNED NULL,
   submitter_name VARCHAR(120) NULL,
   submitter_email VARCHAR(255) NULL,
+  -- Persistent per-browser id for guest comments → one stable pseudonymous
+  -- identity (name + colour) per guest across the portal.
+  guest_id VARCHAR(64) NULL,
   parent_comment_id BIGINT UNSIGNED NULL,
   body TEXT NOT NULL,
   is_edited TINYINT(1) NOT NULL DEFAULT 0,

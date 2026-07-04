@@ -27,6 +27,10 @@ const createPublicPost = async (tenantId, data, authUser, lg) => {
   const submitterEmail = authorId
     ? null
     : (data?.submitterEmail || "").trim().slice(0, 255) || null;
+  // Persistent per-browser id for guests → one stable pseudonymous identity.
+  const guestId = authorId
+    ? null
+    : (data?.guestId || "").toString().trim().slice(0, 64) || null;
 
   if (!title) {
     return Promise.reject(
@@ -46,8 +50,8 @@ const createPublicPost = async (tenantId, data, authUser, lg) => {
 
   const _query = `
     INSERT INTO posts
-      (tenant_id, author_id, submitter_name, submitter_email, title, description, post_type, status, priority)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'open', 3)
+      (tenant_id, author_id, submitter_name, submitter_email, guest_id, title, description, post_type, status, priority)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', 3)
   `;
 
   try {
@@ -56,6 +60,7 @@ const createPublicPost = async (tenantId, data, authUser, lg) => {
       authorId,
       submitterName,
       submitterEmail,
+      guestId,
       title,
       description,
       postType,

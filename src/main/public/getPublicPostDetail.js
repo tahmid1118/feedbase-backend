@@ -12,7 +12,7 @@ const { setServerResponse } = require("../../common/setServerResponse");
 const getPublicPostDetail = async (tenantId, postId, lg) => {
   const _postQuery = `
     SELECT p.id, p.title, p.description, p.post_type, p.status, p.priority,
-           p.is_pinned, p.duplicate_of_post_id, p.created_at, p.author_id,
+           p.is_pinned, p.duplicate_of_post_id, p.created_at, p.author_id, p.guest_id,
            COALESCE(u.full_name, p.submitter_name, 'Anonymous') AS author_name,
            u.avatar_url AS author_avatar,
            (SELECT COUNT(*) FROM votes WHERE post_id = p.id) AS vote_count,
@@ -31,7 +31,7 @@ const getPublicPostDetail = async (tenantId, postId, lg) => {
 
   const _commentQuery = `
     SELECT c.id, c.post_id, c.parent_comment_id, c.body, c.is_edited,
-           c.created_at, c.author_id,
+           c.created_at, c.author_id, c.guest_id,
            COALESCE(u.full_name, c.submitter_name, 'Anonymous') AS author_name,
            u.avatar_url AS author_avatar
     FROM comments c

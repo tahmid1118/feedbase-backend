@@ -25,6 +25,11 @@ const createPublicComment = async (tenantId, postId, data, authUser, lg) => {
   const submitterEmail = authorId
     ? null
     : (data?.submitterEmail || "").trim().slice(0, 255) || null;
+  // Persistent per-browser id for guests, so all of one guest's comments can be
+  // given a single stable pseudonymous identity (name + colour) on the portal.
+  const guestId = authorId
+    ? null
+    : (data?.guestId || "").toString().trim().slice(0, 64) || null;
   const parentCommentId = data?.parentCommentId || null;
 
   if (!body) {
@@ -79,9 +84,9 @@ const createPublicComment = async (tenantId, postId, data, authUser, lg) => {
 
     const [result] = await pool.query(
       `INSERT INTO comments
-         (tenant_id, post_id, author_id, submitter_name, submitter_email, parent_comment_id, body)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [tenantId, postId, authorId, submitterName, submitterEmail, rootParentId, body]
+         (tenant_id, post_id, author_id, submitter_name, submitter_email, guest_id, parent_comment_id, body)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [tenantId, postId, authorId, submitterName, submitterEmail, guestId, rootParentId, body]
     );
 
     return Promise.resolve(
