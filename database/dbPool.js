@@ -19,7 +19,13 @@ const pool = mysql.createPool({
   // Tunable via env so prod can scale without a code change.
   connectionLimit: Number(process.env.DB_CONNECTION_LIMIT) || 15,
   queueLimit: 0,
-  timezone: "+00:00",
+  // DATETIME columns (created_at, …) are written by MySQL's CURRENT_TIMESTAMP in
+  // the server's SYSTEM timezone. Interpret them in the same (Node process) zone
+  // so the JS Date is a correct instant — NOT "+00:00", which mislabels
+  // local wall-clock as UTC and pushes every timestamp off by the server offset
+  // (e.g. UTC+6 made "35 min ago" render as "in 6 hours"). Keep the DB and app
+  // servers in the same timezone.
+  timezone: "local",
   // Recycle idle connections instead of holding them open forever.
   maxIdle: Number(process.env.DB_MAX_IDLE) || 10,
   idleTimeout: 60000,
