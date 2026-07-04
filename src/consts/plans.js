@@ -5,6 +5,7 @@
  *
  * `limits` are the capabilities enforced by `src/common/planGuard.js`:
  *   - customDomain / integrations: boolean feature gates (enforced today)
+ *   - deleteFeedback: whether feedback posts can be deleted (owner-only, paid)
  *   - seats: max team members (displayed; enforced once an invite flow exists)
  */
 const PLANS = {
@@ -12,19 +13,34 @@ const PLANS = {
     key: "free",
     label: "Free",
     priceId: null,
-    limits: { seats: 2, customDomain: false, integrations: false },
+    limits: {
+      seats: 2,
+      customDomain: false,
+      integrations: false,
+      deleteFeedback: false,
+    },
   },
   pro: {
     key: "pro",
     label: "Pro",
     priceId: process.env.STRIPE_PRICE_PRO || null,
-    limits: { seats: 10, customDomain: true, integrations: true },
+    limits: {
+      seats: 10,
+      customDomain: true,
+      integrations: true,
+      deleteFeedback: true,
+    },
   },
   business: {
     key: "business",
     label: "Business",
     priceId: process.env.STRIPE_PRICE_BUSINESS || null,
-    limits: { seats: Infinity, customDomain: true, integrations: true },
+    limits: {
+      seats: Infinity,
+      customDomain: true,
+      integrations: true,
+      deleteFeedback: true,
+    },
   },
 };
 
