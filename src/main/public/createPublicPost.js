@@ -13,15 +13,20 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * @param {object} data { title, description, postType, submitterName, submitterEmail }
  * @param {string} lg
  */
-const createPublicPost = async (tenantId, data, lg) => {
+const createPublicPost = async (tenantId, data, authUser, lg) => {
   const title = (data?.title || "").trim();
   const description = (data?.description || "").trim();
   const postType = POST_TYPES.includes(data?.postType)
     ? data.postType
     : "feedback";
-  const submitterName = (data?.submitterName || "").trim().slice(0, 120) || null;
-  const submitterEmail =
-    (data?.submitterEmail || "").trim().slice(0, 255) || null;
+  const authorId = authUser?.id || null;
+  // Logged-in submissions are owned by the user (no guest name/email).
+  const submitterName = authorId
+    ? null
+    : (data?.submitterName || "").trim().slice(0, 120) || null;
+  const submitterEmail = authorId
+    ? null
+    : (data?.submitterEmail || "").trim().slice(0, 255) || null;
 
   if (!title) {
     return Promise.reject(
@@ -42,12 +47,13 @@ const createPublicPost = async (tenantId, data, lg) => {
   const _query = `
     INSERT INTO posts
       (tenant_id, author_id, submitter_name, submitter_email, title, description, post_type, status, priority)
-    VALUES (?, NULL, ?, ?, ?, ?, ?, 'open', 3)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'open', 3)
   `;
 
   try {
     const [result] = await pool.query(_query, [
       tenantId,
+      authorId,
       submitterName,
       submitterEmail,
       title,

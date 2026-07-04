@@ -5,19 +5,26 @@ const { setServerResponse } = require("../../common/setServerResponse");
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
- * @description Add a comment to a post from the PUBLIC portal (no auth). The
- * author is a guest: `author_id` is NULL and the optional name/email are stored
- * on the comment. Supports threaded replies via `parentCommentId`.
+ * @description Add a comment to a post from the PUBLIC portal. If `authUser` is
+ * set (a logged-in viewer), the comment is attributed to that user (author_id);
+ * otherwise it's a guest comment (author_id NULL + optional submitter name/email).
+ * Supports threaded replies via `parentCommentId`.
  * @param {number} tenantId resolved from the portal subdomain
  * @param {number} postId
  * @param {object} data { body, parentCommentId, submitterName, submitterEmail }
+ * @param {object|null} authUser req.auth when logged in, else null
  * @param {string} lg
  */
-const createPublicComment = async (tenantId, postId, data, lg) => {
+const createPublicComment = async (tenantId, postId, data, authUser, lg) => {
   const body = (data?.body || "").trim();
-  const submitterName = (data?.submitterName || "").trim().slice(0, 120) || null;
-  const submitterEmail =
-    (data?.submitterEmail || "").trim().slice(0, 255) || null;
+  const authorId = authUser?.id || null;
+  // Logged-in comments carry no guest name/email — the identity is the user.
+  const submitterName = authorId
+    ? null
+    : (data?.submitterName || "").trim().slice(0, 120) || null;
+  const submitterEmail = authorId
+    ? null
+    : (data?.submitterEmail || "").trim().slice(0, 255) || null;
   const parentCommentId = data?.parentCommentId || null;
 
   if (!body) {
@@ -73,8 +80,8 @@ const createPublicComment = async (tenantId, postId, data, lg) => {
     const [result] = await pool.query(
       `INSERT INTO comments
          (tenant_id, post_id, author_id, submitter_name, submitter_email, parent_comment_id, body)
-       VALUES (?, ?, NULL, ?, ?, ?, ?)`,
-      [tenantId, postId, submitterName, submitterEmail, rootParentId, body]
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [tenantId, postId, authorId, submitterName, submitterEmail, rootParentId, body]
     );
 
     return Promise.resolve(

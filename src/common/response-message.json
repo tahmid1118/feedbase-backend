@@ -161,7 +161,12 @@
     "custom_domain_taken": "That custom domain is already in use",
     "tenant_updated_successfully": "Workspace updated successfully",
     "failed_to_update_tenant": "Failed to update workspace",
-    "title_required": "Please add a title"
+    "title_required": "Please add a title",
+    "post_updated_successfully": "Feedback updated",
+    "post_deleted_successfully": "Feedback deleted",
+    "comment_updated_successfully": "Comment updated",
+    "comment_deleted_successfully": "Comment deleted",
+    "not_your_content": "You can only edit or delete your own content"
   },
   "bn": {
     "success": "সফল",
@@ -325,6 +330,11 @@
     "custom_domain_taken": "সেই কাস্টম ডোমেইন ইতিমধ্যে ব্যবহৃত হচ্ছে",
     "tenant_updated_successfully": "ওয়ার্কস্পেস সফলভাবে আপডেট হয়েছে",
     "failed_to_update_tenant": "ওয়ার্কস্পেস আপডেট করতে ব্যর্থ হয়েছে",
-    "title_required": "অনুগ্রহ করে একটি শিরোনাম যোগ করুন"
+    "title_required": "অনুগ্রহ করে একটি শিরোনাম যোগ করুন",
+    "post_updated_successfully": "ফিডব্যাক আপডেট হয়েছে",
+    "post_deleted_successfully": "ফিডব্যাক মুছে ফেলা হয়েছে",
+    "comment_updated_successfully": "মন্তব্য আপডেট হয়েছে",
+    "comment_deleted_successfully": "মন্তব্য মুছে ফেলা হয়েছে",
+    "not_your_content": "আপনি শুধুমাত্র নিজের কন্টেন্ট সম্পাদনা বা মুছতে পারেন"
   }
 }

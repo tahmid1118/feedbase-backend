@@ -74,6 +74,8 @@ User self-service handlers (personal data, profile/password update) key off the 
 
 **Guest submissions:** `POST /public/:subdomain/feedback` lets anonymous visitors create posts. Guest posts have `author_id = NULL` and carry optional `submitter_name` / `submitter_email` (added to the `posts` table; `author_id` is now nullable). Any query that joins the author must `COALESCE(u.full_name, p.submitter_name, 'Anonymous') AS author_name` (and admins also get `COALESCE(u.email, p.submitter_email) AS author_email`). `submitter_email` is **never** exposed on public endpoints.
 
+**Logged-in actions on the portal:** the comment/feedback create routes use an `optionalAuth` middleware (`src/middlewares/jwt/optionalAuth.js`) — a valid Bearer token attaches `req.auth`, so the post/comment is attributed to that user (`author_id` set, no guest name); otherwise it's a guest. Public detail queries return `author_id` + `author_avatar` so the client can render the avatar and decide ownership. **Edit/delete** are owner-only and require login (`authenticateToken`): `PUT|DELETE /public/:subdomain/posts/:postId` and `PUT|DELETE /public/:subdomain/comments/:commentId` (`src/main/public/publicOwnerActions.js`, reject with `not_your_content` unless `author_id === req.auth.id`).
+
 **Guest voting:** `POST /public/:subdomain/posts/:postId/vote { guestId }` toggles an anonymous upvote. The `votes` table now allows guest rows (`user_id` nullable, added `guest_id`, unique `(tenant_id, post_id, guest_id)`), so guest votes land in the same table and the existing `COUNT(*)` vote counts include them unchanged. Spam is limited to one vote per browser per post via the unique `guest_id` (a persistent client cookie).
 
 ### Billing & subscriptions (Stripe)

@@ -5,12 +5,20 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 
+const { authenticateToken } = require("../../middlewares/jwt/jwt");
+const { optionalAuth } = require("../../middlewares/jwt/optionalAuth");
 const { resolvePublicTenant } = require("../../main/public/resolvePublicTenant");
 const { getPublicBoard } = require("../../main/public/getPublicBoard");
 const { createPublicPost } = require("../../main/public/createPublicPost");
 const { togglePublicVote } = require("../../main/public/togglePublicVote");
 const { createPublicComment } = require("../../main/public/createPublicComment");
 const { getPublicPostDetail } = require("../../main/public/getPublicPostDetail");
+const {
+  updatePublicPost,
+  deletePublicPost,
+  updatePublicComment,
+  deletePublicComment,
+} = require("../../main/public/publicOwnerActions");
 const { getPublicRoadmap } = require("../../main/public/getPublicRoadmap");
 const {
   getPublicChangelogList,
@@ -97,8 +105,34 @@ publicRouter.post("/:subdomain/posts", attachPublicTenant, async (req, res) => {
 publicRouter.post(
   "/:subdomain/feedback",
   attachPublicTenant,
+  optionalAuth,
   async (req, res) => {
-    createPublicPost(req.publicTenant.id, req.body, req.lg)
+    createPublicPost(req.publicTenant.id, req.body, req.auth || null, req.lg)
+      .then((data) => send(res, data))
+      .catch((error) => send(res, error));
+  }
+);
+
+/**
+ * @description Edit / delete your own feedback post (login required, owner only).
+ * PUT|DELETE /public/:subdomain/posts/:postId
+ */
+publicRouter.put(
+  "/:subdomain/posts/:postId",
+  attachPublicTenant,
+  authenticateToken,
+  async (req, res) => {
+    updatePublicPost(req.publicTenant.id, req.params.postId, req.body, req.auth, req.lg)
+      .then((data) => send(res, data))
+      .catch((error) => send(res, error));
+  }
+);
+publicRouter.delete(
+  "/:subdomain/posts/:postId",
+  attachPublicTenant,
+  authenticateToken,
+  async (req, res) => {
+    deletePublicPost(req.publicTenant.id, req.params.postId, req.auth, req.lg)
       .then((data) => send(res, data))
       .catch((error) => send(res, error));
   }
@@ -144,13 +178,40 @@ publicRouter.post(
 publicRouter.post(
   "/:subdomain/posts/:postId/comments",
   attachPublicTenant,
+  optionalAuth,
   async (req, res) => {
     createPublicComment(
       req.publicTenant.id,
       req.params.postId,
       req.body,
+      req.auth || null,
       req.lg
     )
+      .then((data) => send(res, data))
+      .catch((error) => send(res, error));
+  }
+);
+
+/**
+ * @description Edit / delete your own comment (login required, owner only).
+ * PUT|DELETE /public/:subdomain/comments/:commentId
+ */
+publicRouter.put(
+  "/:subdomain/comments/:commentId",
+  attachPublicTenant,
+  authenticateToken,
+  async (req, res) => {
+    updatePublicComment(req.publicTenant.id, req.params.commentId, req.body, req.auth, req.lg)
+      .then((data) => send(res, data))
+      .catch((error) => send(res, error));
+  }
+);
+publicRouter.delete(
+  "/:subdomain/comments/:commentId",
+  attachPublicTenant,
+  authenticateToken,
+  async (req, res) => {
+    deletePublicComment(req.publicTenant.id, req.params.commentId, req.auth, req.lg)
       .then((data) => send(res, data))
       .catch((error) => send(res, error));
   }
