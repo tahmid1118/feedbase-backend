@@ -23,13 +23,9 @@ const createPublicPost = async (tenantId, data, lg) => {
   const submitterEmail =
     (data?.submitterEmail || "").trim().slice(0, 255) || null;
 
-  if (!title || !description) {
+  if (!title) {
     return Promise.reject(
-      setServerResponse(
-        API_STATUS_CODE.BAD_REQUEST,
-        "title_and_description_required",
-        lg
-      )
+      setServerResponse(API_STATUS_CODE.BAD_REQUEST, "title_required", lg)
     );
   }
   if (title.length > 200) {
