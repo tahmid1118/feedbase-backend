@@ -8,6 +8,7 @@ const { setServerResponse } = require("../../common/setServerResponse");
 const { authenticateToken } = require("../../middlewares/jwt/jwt");
 const { optionalAuth } = require("../../middlewares/jwt/optionalAuth");
 const { resolvePublicTenant } = require("../../main/public/resolvePublicTenant");
+const { getActiveOffers } = require("../../common/offers");
 const { getPublicBoard } = require("../../main/public/getPublicBoard");
 const { createPublicPost } = require("../../main/public/createPublicPost");
 const { togglePublicVote } = require("../../main/public/togglePublicVote");
@@ -84,6 +85,20 @@ publicRouter.get("/tenant", async (req, res) => {
   resolvePublicTenant(identifier, lg)
     .then((data) => send(res, data))
     .catch((error) => send(res, error));
+});
+
+/**
+ * @description Active promotional offers (global, keyed by plan). Public so the
+ * landing/pricing page can show discounted prices. GET /public/offers
+ */
+publicRouter.get("/offers", async (_req, res) => {
+  try {
+    const offers = await getActiveOffers();
+    return res.status(200).send({ status: "success", data: offers });
+  } catch (error) {
+    console.error("public offers error:", error);
+    return res.status(200).send({ status: "success", data: {} });
+  }
 });
 
 /**

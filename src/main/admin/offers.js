@@ -42,8 +42,16 @@ const createOffer = async (data, adminId, lg) => {
   }
 
   const label = String(data?.label || "").trim().slice(0, 120) || null;
-  const startsAt = data?.startsAt ? new Date(data.startsAt) : null;
-  const endsAt = data?.endsAt ? new Date(data.endsAt) : null;
+  // Store date-only bounds as LOCAL day boundaries (string, no Date/timezone
+  // shift): start of the start day, end of the end day. Passing a Date would be
+  // converted to UTC by the pool and land the offer hours off (e.g. it wouldn't
+  // activate until 6am in a UTC+6 zone).
+  const startsAt = data?.startsAt
+    ? `${String(data.startsAt).slice(0, 10)} 00:00:00`
+    : null;
+  const endsAt = data?.endsAt
+    ? `${String(data.endsAt).slice(0, 10)} 23:59:59`
+    : null;
 
   try {
     let stripeCouponId = null;

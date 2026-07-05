@@ -23,13 +23,19 @@ const shape = (row) => {
   };
 };
 
-/** Active offers keyed by plan (most recent wins if several). */
+/** Active offers keyed by plan (most recent wins if several), for display —
+ *  the Stripe coupon id is stripped since this is exposed publicly. */
 const getActiveOffers = async () => {
   const [rows] = await pool.query(
     `SELECT * FROM offers WHERE ${ACTIVE_WHERE} ORDER BY created_at DESC`
   );
   const byPlan = {};
-  for (const r of rows) if (!byPlan[r.plan]) byPlan[r.plan] = shape(r);
+  for (const r of rows) {
+    if (byPlan[r.plan]) continue;
+    const { stripeCouponId, ...pub } = shape(r);
+    void stripeCouponId;
+    byPlan[r.plan] = pub;
+  }
   return byPlan;
 };
 
