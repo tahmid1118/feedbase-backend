@@ -22,6 +22,7 @@ const { fileUploadRouter } = require("./src/routes/file-uploader/file-upload-rou
 const { analyticsRouter } = require("./src/routes/analytics/analyticsRoute");
 const { publicRouter } = require("./src/routes/public/publicRoute");
 const { billingRouter } = require("./src/routes/billing/billingRoute");
+const { adminRouter } = require("./src/routes/admin/adminRoute");
 const { stripeWebhookRouter } = require("./src/routes/webhooks/stripeWebhookRoute");
 // --- Middleware ---
 // gzip/deflate all compressible responses (JSON, text). Binary uploads under
@@ -72,6 +73,7 @@ app.use("/uploader", fileUploadRouter);
 app.use("/analytics", analyticsRouter);
 app.use("/public", publicRouter);
 app.use("/billing", billingRouter);
+app.use("/admin", adminRouter);
 
 
 // --- Static Files ---
