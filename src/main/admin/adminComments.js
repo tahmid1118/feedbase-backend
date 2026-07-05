@@ -26,32 +26,11 @@ const listPostComments = async (tenantId, postId, lg) => {
   }
 };
 
-/** Edit a comment's body (marks it edited). */
-const editComment = async (tenantId, commentId, body, lg) => {
-  const text = String(body || "").trim();
-  if (!text) {
-    return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "comment_body_required", lg));
-  }
-  try {
-    const [result] = await pool.query(
-      "UPDATE comments SET body = ?, is_edited = 1 WHERE id = ? AND tenant_id = ?",
-      [text, commentId, tenantId]
-    );
-    if (result.affectedRows === 0) {
-      return Promise.reject(setServerResponse(API_STATUS_CODE.NOT_FOUND, "comment_not_found", lg));
-    }
-    return Promise.resolve(setServerResponse(API_STATUS_CODE.OK, "comment_updated", lg));
-  } catch (error) {
-    console.error("admin editComment error:", error);
-    return Promise.reject(
-      setServerResponse(API_STATUS_CODE.INTERNAL_SERVER_ERROR, "internal_server_error", lg)
-    );
-  }
-};
-
 /**
  * Delete a comment. If it's a top-level comment, its replies (which point to it)
- * go with it — matching the portal's two-level thread model.
+ * go with it — matching the portal's two-level thread model. (Admins can delete
+ * comments for moderation but cannot edit their text — the content belongs to
+ * its author.)
  */
 const deleteComment = async (tenantId, commentId, lg) => {
   try {
@@ -75,4 +54,4 @@ const deleteComment = async (tenantId, commentId, lg) => {
   }
 };
 
-module.exports = { listPostComments, editComment, deleteComment };
+module.exports = { listPostComments, deleteComment };
