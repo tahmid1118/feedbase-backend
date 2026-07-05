@@ -51,7 +51,7 @@ Messages are looked up from **`src/common/response-message.json`** by key + lang
 
 ### Multi-tenancy
 
-Every authenticated request has `req.auth = { id, email, tenantId, role }` (set by `authenticateToken` from the JWT plus a DB re-check that the user is still active). Tenant-scoped data queries filter by `tenant_id`. Roles: `owner`, `admin`, `moderator`, `user`.
+Every authenticated request has `req.auth = { id, email, tenantId, role }` (set by `authenticateToken` from the JWT plus a DB re-check that the user is still active). Tenant-scoped data queries filter by `tenant_id`. **Tenant roles are only `owner` and `user`** (the `users.role` enum). `owner` administers the workspace (team/role changes, billing, feedback deletion); `user` is a plain member. The platform operator (**`admin`**) is NOT a tenant role — it's a separate `admins` table with its own auth (see below).
 
 **Multiple workspaces per account:** an email can have a `users` row in several tenants — each is one of that account's "workspaces". `src/main/users/workspaces.js` (routes `GET /users/workspaces`, `GET /users/workspaces/check-subdomain`, `POST /users/workspaces/create`, `POST /users/workspaces/switch`) lists them, validates subdomain availability live, creates a new tenant + owner (seeding default `planned`/`in_progress`/`completed` roadmap columns), and re-issues a JWT scoped to a chosen workspace. Login by email (unscoped) returns the first matching row, so it picks a default workspace.
 
@@ -66,7 +66,9 @@ User self-service handlers (personal data, profile/password update) key off the 
 - JWT Bearer tokens (`Authorization: Bearer <token>`), 90-day expiry by default
 - `authenticateToken` middleware verifies token then queries DB to confirm user is still active
 - Passwords hashed with bcrypt
-- Unauthenticated routes: `POST /users/login`, `POST /users/register`, `POST /tenants/create`, and the entire `/public/*` portal API (below)
+- Unauthenticated routes: `POST /users/login`, `POST /users/register`, `POST /tenants/create`, `POST /admin/auth/login`, and the entire `/public/*` portal API (below)
+- **Platform admin auth.** Admins are a **separate `admins` table** (independent of `users`, so the same email can be both). `adminLogin` (`src/main/admin/adminLogin.js`) issues a JWT with **`scope:'admin'`** + `adminId`; **`authenticateAdmin`** (`src/middlewares/jwt/authenticateAdmin.js`) verifies that scope against an active admin and sets `req.admin`. All `/admin/*` routes except login sit behind it. Bootstrap the first admin with `node scripts/create-admin.js <email> <password> [name]`; further admins are created in-panel.
+- **Admin Panel API** (`src/routes/admin/adminRoute.js`, handlers in `src/main/admin/`): overview counts; workspaces (list/detail/update/**plan grant=comp**/delete); users across all tenants (list/update/role/reset-password/delete); admins (list/create/activate/delete, self-guarded); promo codes (list/create/revoke).
 
 ### Public portal API
 
@@ -81,9 +83,10 @@ User self-service handlers (personal data, profile/password update) key off the 
 ### Billing & subscriptions (Stripe)
 
 - Tiers — **Free / Pro / Business** (monthly), defined in **`src/consts/plans.js`** (`PLANS`, `planByPriceId`, `getPlanLimits`). Pro/Business Stripe Price IDs come from env (`STRIPE_PRICE_PRO`, `STRIPE_PRICE_BUSINESS`); Free has none. `scripts/stripe-setup.js` creates the Products/Prices and prints the IDs.
-- **Hosted Checkout + Customer Portal.** Authenticated routes at `/billing` (`src/routes/billing/billingRoute.js`, owner/admin only): `POST /billing/status`, `POST /billing/checkout {plan}` (→ Stripe Checkout URL), `POST /billing/portal` (→ Customer Portal URL). Handlers in `src/main/billing/`. The shared client is `src/common/stripe.js` (constructed with a placeholder key when unset so the server still boots; real calls gated by `isStripeConfigured()`).
+- **Hosted Checkout + Customer Portal.** Authenticated routes at `/billing` (`src/routes/billing/billingRoute.js`, **owner only**): `POST /billing/status`, `POST /billing/checkout {plan, promotionCode?}` (→ Stripe Checkout URL; a `promotionCode` is applied as a `discounts` entry, else `allow_promotion_codes` lets the user type one), `POST /billing/portal` (→ Customer Portal URL), `POST /billing/redeem {code}` (promo redemption). Handlers in `src/main/billing/`. The shared client is `src/common/stripe.js` (constructed with a placeholder key when unset so the server still boots; real calls gated by `isStripeConfigured()`).
 - **Webhook needs the raw body.** `/webhooks/stripe` is mounted in `app.js` with `express.raw({ type: "application/json" })` **before** the global `express.json` so signature verification works. `handleStripeWebhook` updates the tenant on `checkout.session.completed` / `customer.subscription.updated|deleted`. The shared write logic lives in `src/main/billing/applySubscription.js` (`applySubscription` / `resetToFree`) — resolving the tenant by `metadata.tenantId` or `stripe_customer_id`, and writing `plan_name` (via `planByPriceId`), `subscription_status`, `stripe_subscription_id`, `current_period_end`.
-- **Reconcile-on-load (no-webhook fallback).** `getBillingStatus` calls `reconcileTenantSubscription(tenantId)` first — it pulls the tenant's latest subscription straight from Stripe and persists it. This keeps the plan correct after Checkout/cancellation **even when webhooks aren't delivered** (e.g. local dev without the Stripe CLI, where Stripe can't reach `localhost`). A Stripe error there is non-fatal (falls back to stored values). The webhook is still the real-time path in production.
+- **Reconcile-on-load (no-webhook fallback).** `getBillingStatus` calls `reconcileTenantSubscription(tenantId)` first — it pulls the tenant's latest subscription straight from Stripe and persists it. This keeps the plan correct after Checkout/cancellation **even when webhooks aren't delivered** (e.g. local dev without the Stripe CLI, where Stripe can't reach `localhost`). A Stripe error there is non-fatal (falls back to stored values). The webhook is still the real-time path in production. **Reconcile skips tenants with `subscription_status='comped'`** so an admin/promo grant (which has no Stripe subscription) is never reset to free.
+- **Comps & promo codes.** A **comp** is a paid `plan_name` with `subscription_status='comped'` and no Stripe subscription — set by an admin plan grant (`src/main/admin/workspaces.js`) or a free-plan promo redemption. Promo codes live in `promo_codes` / `promo_redemptions`: **percent-off** codes create a Stripe **coupon + promotion code** (`src/main/admin/promo.js`) applied at Checkout; **free-plan** codes are app records that comp the plan on redemption (`src/main/billing/redeemPromo.js`, owner-only, one per tenant, honoring expiry/limit). `planGuard.getPlanLimits` gates comped tenants correctly since they carry a paid `plan_name`.
 - **Tenant billing columns** (on `tenants`): `plan_name` (existing), `stripe_customer_id`, `stripe_subscription_id`, `subscription_status`, `current_period_end`. **`plan_name` is set only by Stripe** — `updateTenant` no longer accepts it (bypass closed).
 - **Enforcement** via `src/common/planGuard.js` (`planAllows(tenantId, capability)`): `createIntegration` and `updateTenant` (when setting `custom_domain`) reject with `402 PAYMENT_REQUIRED` + a `plan_limit_*` message on Free. (Custom domain is now persisted by `updateTenant`; it previously wasn't.) **`deletePost`** requires the `owner` role (else `403 delete_feedback_owner_only`) **and** the `deleteFeedback` capability (Pro+, else `402 plan_limit_delete_feedback`) — the role check runs first. `seats` is a displayed limit only — there's no team-invite flow to gate yet.
 - Env: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_BUSINESS`. For local webhooks: `stripe listen --forward-to localhost:4560/webhooks/stripe`.
@@ -110,11 +113,12 @@ User self-service handlers (personal data, profile/password update) key off the 
 - **Error handling:** a JSON 404 + central error handler are the last middlewares in `app.js` — unhandled errors return `{ status, message }`, never an HTML stack trace.
 - **Indexes:** the schema is already well-indexed (composite `tenant_id`+column keys, FK indexes). Profile with `EXPLAIN` before adding more — every index slows writes.
 
-### Database schema (15 tables)
+### Database schema (18 tables)
 
-Core: `tenants`, `users`, `posts`, `votes`, `comments`, `tags`, `post_tags`
+Core: `tenants`, `users` (role `owner`/`user`), `posts`, `votes`, `comments`, `tags`, `post_tags`
 Features: `roadmap_columns`, `roadmap_items`, `changelog_entries`, `notifications`
 System: `api_keys`, `audit_logs`, `integrations`, `oauth_accounts`
+Platform (not tenant-scoped): `admins`, `promo_codes`, `promo_redemptions`
 
 Post fields of note: `type` (feedback/feature/bug), `status` (open/in-progress/closed), `priority` (1–5).
 
