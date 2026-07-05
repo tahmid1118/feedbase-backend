@@ -24,6 +24,11 @@ const {
   setAdminActive,
   deleteAdmin,
 } = require("../../main/admin/manageAdmins");
+const {
+  listPromoCodes,
+  createPromoCode,
+  revokePromoCode,
+} = require("../../main/admin/promo");
 
 /** Standard { status, message, [key] } response shape. */
 function send(res, data, key = "data") {
@@ -94,6 +99,17 @@ adminRouter.put("/admins/:id/active", (req, res) =>
 );
 adminRouter.delete("/admins/:id", (req, res) =>
   deleteAdmin(req.params.id, req.admin.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+
+// Promo codes
+adminRouter.get("/promo-codes", (req, res) =>
+  listPromoCodes(lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.post("/promo-codes", (req, res) =>
+  createPromoCode(req.body, req.admin.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.put("/promo-codes/:id/revoke", (req, res) =>
+  revokePromoCode(req.params.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
 );
 
 module.exports = { adminRouter };

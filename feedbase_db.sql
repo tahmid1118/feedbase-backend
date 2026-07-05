@@ -71,6 +71,46 @@ CREATE TABLE IF NOT EXISTS admins (
   UNIQUE KEY uq_admins_email (email)
 ) ENGINE=InnoDB;
 
+-- Admin-generated promo codes. `percent_off` codes are backed by a Stripe
+-- coupon + promotion code (applied at Checkout); `free_plan` codes are
+-- app-managed comps (redeeming grants the plan with no Stripe/charge).
+CREATE TABLE IF NOT EXISTS promo_codes (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  code VARCHAR(64) NOT NULL,
+  type ENUM('percent_off', 'free_plan') NOT NULL,
+  applies_to_plan ENUM('any', 'pro', 'business') NULL,
+  percent_off TINYINT UNSIGNED NULL,
+  plan_grant ENUM('pro', 'business') NULL,
+  duration ENUM('once', 'repeating', 'forever') NOT NULL DEFAULT 'once',
+  duration_months INT UNSIGNED NULL,
+  stripe_coupon_id VARCHAR(255) NULL,
+  stripe_promotion_code_id VARCHAR(255) NULL,
+  max_redemptions INT UNSIGNED NULL,
+  times_redeemed INT UNSIGNED NOT NULL DEFAULT 0,
+  expires_at DATETIME NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_by BIGINT UNSIGNED NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_promo_code (code)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS promo_redemptions (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  promo_code_id BIGINT UNSIGNED NOT NULL,
+  tenant_id BIGINT UNSIGNED NOT NULL,
+  redeemed_by_user_id BIGINT UNSIGNED NULL,
+  plan_granted VARCHAR(50) NULL,
+  applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at DATETIME NULL,
+  PRIMARY KEY (id),
+  KEY idx_promo_redemptions_code (promo_code_id),
+  KEY idx_promo_redemptions_tenant (tenant_id),
+  CONSTRAINT fk_promo_redemptions_code FOREIGN KEY (promo_code_id) REFERENCES promo_codes(id) ON DELETE CASCADE,
+  CONSTRAINT fk_promo_redemptions_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS oauth_accounts (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   tenant_id BIGINT UNSIGNED NOT NULL,

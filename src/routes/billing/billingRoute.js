@@ -5,6 +5,7 @@ const { languageValidator } = require("../../middlewares/common/languageValidato
 const { getBillingStatus } = require("../../main/billing/getBillingStatus");
 const { createCheckoutSession } = require("../../main/billing/createCheckoutSession");
 const { createPortalSession } = require("../../main/billing/createPortalSession");
+const { redeemPromo } = require("../../main/billing/redeemPromo");
 
 /**
  * @description Current subscription status for the authenticated tenant.
@@ -26,8 +27,25 @@ billingRouter.post("/status", authenticateToken, languageValidator, async (req, 
  * Body: { plan: "pro" | "business" }
  */
 billingRouter.post("/checkout", authenticateToken, languageValidator, async (req, res) => {
-  const { plan, lg } = req.body;
-  createCheckoutSession(plan, { ...req.auth, lg })
+  const { plan, lg, promotionCode } = req.body;
+  createCheckoutSession(plan, { ...req.auth, lg }, promotionCode)
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({ status, message, data: result });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
+    });
+});
+
+/**
+ * @description Redeem a promo code (owner only). Free-plan codes comp the plan
+ * instantly; percent-off codes return a Stripe promotion code for checkout.
+ * Body: { code }
+ */
+billingRouter.post("/redeem", authenticateToken, languageValidator, async (req, res) => {
+  redeemPromo(req.body?.code, { ...req.auth, lg: req.body.lg })
     .then((data) => {
       const { statusCode, status, message, result } = data;
       return res.status(statusCode).send({ status, message, data: result });

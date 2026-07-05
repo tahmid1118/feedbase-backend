@@ -13,8 +13,9 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
  * one on the tenant if needed).
  * @param {string} plan plan key ("pro" | "business")
  * @param {object} authData { id, email, tenantId, role, lg }
+ * @param {string} [promotionCode] Stripe promotion code id to apply as a discount
  */
-const createCheckoutSession = async (plan, authData) => {
+const createCheckoutSession = async (plan, authData, promotionCode) => {
   const { tenantId, role, email, lg } = authData;
 
   if (!BILLING_ROLES.includes(role)) {
@@ -61,13 +62,20 @@ const createCheckoutSession = async (plan, authData) => {
       );
     }
 
+    // A pre-applied promotion code and Stripe's own promo-code field are mutually
+    // exclusive — pass an explicit discount when redeeming, otherwise let the
+    // customer type a code on the Checkout page.
+    const discountOpts = promotionCode
+      ? { discounts: [{ promotion_code: promotionCode }] }
+      : { allow_promotion_codes: true };
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
       line_items: [{ price: planDef.priceId, quantity: 1 }],
       metadata: { tenantId: String(tenantId), plan },
       subscription_data: { metadata: { tenantId: String(tenantId), plan } },
-      allow_promotion_codes: true,
+      ...discountOpts,
       success_url: `${FRONTEND_URL}/dashboard/settings?tab=billing&checkout=success`,
       cancel_url: `${FRONTEND_URL}/dashboard/settings?tab=billing&checkout=cancelled`,
     });
