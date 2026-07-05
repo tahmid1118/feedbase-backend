@@ -42,16 +42,22 @@ const createOffer = async (data, adminId, lg) => {
   }
 
   const label = String(data?.label || "").trim().slice(0, 120) || null;
-  // Store date-only bounds as LOCAL day boundaries (string, no Date/timezone
-  // shift): start of the start day, end of the end day. Passing a Date would be
-  // converted to UTC by the pool and land the offer hours off (e.g. it wouldn't
-  // activate until 6am in a UTC+6 zone).
-  const startsAt = data?.startsAt
-    ? `${String(data.startsAt).slice(0, 10)} 00:00:00`
-    : null;
-  const endsAt = data?.endsAt
-    ? `${String(data.endsAt).slice(0, 10)} 23:59:59`
-    : null;
+  // Store bounds as LOCAL DATETIME strings (no Date/timezone conversion — a Date
+  // would be shifted to UTC by the pool and land the offer hours off). Accept a
+  // `datetime-local` value ("YYYY-MM-DDTHH:mm[:ss]") verbatim, or a date-only
+  // value which becomes the start / end of that local day.
+  const toLocalDateTime = (v, endOfDayIfDateOnly) => {
+    if (!v) return null;
+    const s = String(v).trim();
+    if (s.includes("T")) {
+      const dt = s.replace("T", " ");
+      return (dt.length === 16 ? `${dt}:00` : dt).slice(0, 19);
+    }
+    const day = s.slice(0, 10);
+    return endOfDayIfDateOnly ? `${day} 23:59:59` : `${day} 00:00:00`;
+  };
+  const startsAt = toLocalDateTime(data?.startsAt, false);
+  const endsAt = toLocalDateTime(data?.endsAt, true);
 
   try {
     let stripeCouponId = null;
