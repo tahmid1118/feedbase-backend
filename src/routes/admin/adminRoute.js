@@ -2,9 +2,30 @@ const express = require("express");
 const adminRouter = express.Router();
 
 const { languageValidator } = require("../../middlewares/common/languageValidator");
+const { authenticateAdmin } = require("../../middlewares/jwt/authenticateAdmin");
 const { adminLogin } = require("../../main/admin/adminLogin");
+const { getOverview } = require("../../main/admin/getOverview");
+const {
+  listWorkspaces,
+  getWorkspace,
+  updateWorkspace,
+  setWorkspacePlan,
+  deleteWorkspace,
+} = require("../../main/admin/workspaces");
+const {
+  listAllUsers,
+  updateUser,
+  resetUserPassword,
+  deleteUser,
+} = require("../../main/admin/adminUsers");
+const {
+  listAdmins,
+  createAdmin,
+  setAdminActive,
+  deleteAdmin,
+} = require("../../main/admin/manageAdmins");
 
-/** Standard { status, message, data } response shape. */
+/** Standard { status, message, [key] } response shape. */
 function send(res, data, key = "data") {
   const { statusCode, status, message, result } = data;
   const body = { status, message };
@@ -12,15 +33,67 @@ function send(res, data, key = "data") {
   return res.status(statusCode).send(body);
 }
 
-/**
- * @description Platform admin login (separate identity from tenant users).
- * POST /admin/auth/login  { lg, userData: { email, password } }
- */
+const lgOf = (req) => req.body?.lg || req.query?.lg || "en";
+
+// --- Public: admin login ---
 adminRouter.post("/auth/login", languageValidator, async (req, res) => {
   const { userData = {}, lg } = req.body;
   adminLogin(userData, lg)
     .then((data) => send(res, data, "admin"))
     .catch((error) => send(res, error));
 });
+
+// --- Everything below requires an admin token ---
+adminRouter.use(authenticateAdmin);
+
+// Overview
+adminRouter.get("/overview", (req, res) =>
+  getOverview(lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+
+// Workspaces
+adminRouter.get("/workspaces", (req, res) =>
+  listWorkspaces(req.query?.search, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.get("/workspaces/:id", (req, res) =>
+  getWorkspace(req.params.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.put("/workspaces/:id", (req, res) =>
+  updateWorkspace(req.params.id, req.body, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.put("/workspaces/:id/plan", (req, res) =>
+  setWorkspacePlan(req.params.id, req.body?.plan, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.delete("/workspaces/:id", (req, res) =>
+  deleteWorkspace(req.params.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+
+// Users
+adminRouter.get("/users", (req, res) =>
+  listAllUsers(req.query?.search, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.put("/users/:id", (req, res) =>
+  updateUser(req.params.id, req.body, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.put("/users/:id/password", (req, res) =>
+  resetUserPassword(req.params.id, req.body?.password, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.delete("/users/:id", (req, res) =>
+  deleteUser(req.params.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+
+// Admins
+adminRouter.get("/admins", (req, res) =>
+  listAdmins(lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.post("/admins", (req, res) =>
+  createAdmin(req.body, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.put("/admins/:id/active", (req, res) =>
+  setAdminActive(req.params.id, req.body?.isActive, req.admin.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.delete("/admins/:id", (req, res) =>
+  deleteAdmin(req.params.id, req.admin.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
 
 module.exports = { adminRouter };
