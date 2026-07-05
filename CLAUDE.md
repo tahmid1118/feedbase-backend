@@ -99,6 +99,7 @@ User self-service handlers (personal data, profile/password update) key off the 
 - Max size set via `FILE_UPLOAD_MAX_SIZE` env var (default 10MB)
 - Files stored under `./uploads/` with unique names
 - `checkIfFileSavePathExist` middleware creates the directory if missing
+- **`POST /uploader/upload-image` is a GENERIC uploader** (`insertImageData`): it only stores the file and returns its path. It must **not** mutate the user's `avatar_url` — the same endpoint uploads the profile avatar *and* the Branding company logo, so writing the avatar there would leak the logo into the uploader's profile photo. The avatar is set only by the profile save (`updateUserData` with `avatarUrl`); the logo is saved as the tenant's `branding_logo_url`.
 
 ### Performance
 
