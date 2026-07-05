@@ -3,6 +3,7 @@ const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { getPlanLimits } = require("../../consts/plans");
 const { reconcileTenantSubscription } = require("./applySubscription");
+const { getActiveOffers } = require("../../common/offers");
 
 /**
  * @description Return the authenticated tenant's current subscription state for
@@ -41,6 +42,8 @@ const getBillingStatus = async (authData) => {
       currentPeriodEnd: t.current_period_end || null,
       hasSubscription: Boolean(t.stripe_subscription_id),
       limits: getPlanLimits(planName),
+      // Active promotional offers keyed by plan (for the diagonal-strike price).
+      offers: await getActiveOffers(),
     };
 
     return Promise.resolve(

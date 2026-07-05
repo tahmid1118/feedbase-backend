@@ -8,10 +8,13 @@
  *   - deleteFeedback: whether feedback posts can be deleted (owner-only, paid)
  *   - seats: max team members (displayed; enforced once an invite flow exists)
  */
+// `price` is the monthly list price (USD) — the display baseline that offers
+// discount from. Keep it in sync with the Stripe prices + `lib/plans.ts`.
 const PLANS = {
   free: {
     key: "free",
     label: "Free",
+    price: 0,
     priceId: null,
     limits: {
       seats: 2,
@@ -23,6 +26,7 @@ const PLANS = {
   pro: {
     key: "pro",
     label: "Pro",
+    price: 19,
     priceId: process.env.STRIPE_PRICE_PRO || null,
     limits: {
       seats: 10,
@@ -34,6 +38,7 @@ const PLANS = {
   business: {
     key: "business",
     label: "Business",
+    price: 49,
     priceId: process.env.STRIPE_PRICE_BUSINESS || null,
     limits: {
       seats: Infinity,

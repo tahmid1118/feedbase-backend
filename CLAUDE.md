@@ -68,7 +68,7 @@ User self-service handlers (personal data, profile/password update) key off the 
 - Passwords hashed with bcrypt
 - Unauthenticated routes: `POST /users/login`, `POST /users/register`, `POST /tenants/create`, `POST /admin/auth/login`, and the entire `/public/*` portal API (below)
 - **Platform admin auth.** Admins are a **separate `admins` table** (independent of `users`, so the same email can be both). `adminLogin` (`src/main/admin/adminLogin.js`) issues a JWT with **`scope:'admin'`** + `adminId`; **`authenticateAdmin`** (`src/middlewares/jwt/authenticateAdmin.js`) verifies that scope against an active admin and sets `req.admin`. All `/admin/*` routes except login sit behind it. Bootstrap the first admin with `node scripts/create-admin.js <email> <password> [name]`; further admins are created in-panel.
-- **Admin Panel API** (`src/routes/admin/adminRoute.js`, handlers in `src/main/admin/`): overview counts; workspaces (list/detail/update/**plan grant=comp**/delete); users across all tenants (list/update/role/reset-password/delete); admins (list/create/activate/delete, self-guarded); promo codes (list/create/revoke).
+- **Admin Panel API** (`src/routes/admin/adminRoute.js`, handlers in `src/main/admin/`): overview counts; workspaces (list/detail/update/**plan grant=comp**/delete); users across all tenants (list/update/role/reset-password/delete); admins (list/create/activate/delete, self-guarded); promo codes (list/create/revoke); offers (list/create/deactivate).
 
 ### Public portal API
 
@@ -87,6 +87,7 @@ User self-service handlers (personal data, profile/password update) key off the 
 - **Webhook needs the raw body.** `/webhooks/stripe` is mounted in `app.js` with `express.raw({ type: "application/json" })` **before** the global `express.json` so signature verification works. `handleStripeWebhook` updates the tenant on `checkout.session.completed` / `customer.subscription.updated|deleted`. The shared write logic lives in `src/main/billing/applySubscription.js` (`applySubscription` / `resetToFree`) — resolving the tenant by `metadata.tenantId` or `stripe_customer_id`, and writing `plan_name` (via `planByPriceId`), `subscription_status`, `stripe_subscription_id`, `current_period_end`.
 - **Reconcile-on-load (no-webhook fallback).** `getBillingStatus` calls `reconcileTenantSubscription(tenantId)` first — it pulls the tenant's latest subscription straight from Stripe and persists it. This keeps the plan correct after Checkout/cancellation **even when webhooks aren't delivered** (e.g. local dev without the Stripe CLI, where Stripe can't reach `localhost`). A Stripe error there is non-fatal (falls back to stored values). The webhook is still the real-time path in production. **Reconcile skips tenants with `subscription_status='comped'`** so an admin/promo grant (which has no Stripe subscription) is never reset to free.
 - **Comps & promo codes.** A **comp** is a paid `plan_name` with `subscription_status='comped'` and no Stripe subscription — set by an admin plan grant (`src/main/admin/workspaces.js`) or a free-plan promo redemption. Promo codes live in `promo_codes` / `promo_redemptions`: **percent-off** codes create a Stripe **coupon + promotion code** (`src/main/admin/promo.js`) applied at Checkout; **free-plan** codes are app records that comp the plan on redemption (`src/main/billing/redeemPromo.js`, owner-only, one per tenant, honoring expiry/limit). `planGuard.getPlanLimits` gates comped tenants correctly since they carry a paid `plan_name`.
+- **Offers** (`offers` table, `src/main/admin/offers.js`, `src/common/offers.js`): an admin-set promotional **price** on a paid plan (`plans.js` now carries a numeric `price` as the list baseline). One active offer per plan, backed by a Stripe **percent-off coupon** (`duration:'forever'`) auto-applied at checkout when no promo code is passed (`createCheckoutSession` discount precedence: promo code → offer coupon → `allow_promotion_codes`). `getBillingStatus` returns `offers` (active offers keyed by plan with `originalPrice`/`offerPrice`/`percentOff`) for the Billing tab's diagonal-strike price. Deactivating an offer deletes its coupon.
 - **Tenant billing columns** (on `tenants`): `plan_name` (existing), `stripe_customer_id`, `stripe_subscription_id`, `subscription_status`, `current_period_end`. **`plan_name` is set only by Stripe** — `updateTenant` no longer accepts it (bypass closed).
 - **Enforcement** via `src/common/planGuard.js` (`planAllows(tenantId, capability)`): `createIntegration` and `updateTenant` (when setting `custom_domain`) reject with `402 PAYMENT_REQUIRED` + a `plan_limit_*` message on Free. (Custom domain is now persisted by `updateTenant`; it previously wasn't.) **`deletePost`** requires the `owner` role (else `403 delete_feedback_owner_only`) **and** the `deleteFeedback` capability (Pro+, else `402 plan_limit_delete_feedback`) — the role check runs first. `seats` is a displayed limit only — there's no team-invite flow to gate yet.
 - Env: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_BUSINESS`. For local webhooks: `stripe listen --forward-to localhost:4560/webhooks/stripe`.
@@ -113,12 +114,12 @@ User self-service handlers (personal data, profile/password update) key off the 
 - **Error handling:** a JSON 404 + central error handler are the last middlewares in `app.js` — unhandled errors return `{ status, message }`, never an HTML stack trace.
 - **Indexes:** the schema is already well-indexed (composite `tenant_id`+column keys, FK indexes). Profile with `EXPLAIN` before adding more — every index slows writes.
 
-### Database schema (18 tables)
+### Database schema (19 tables)
 
 Core: `tenants`, `users` (role `owner`/`user`), `posts`, `votes`, `comments`, `tags`, `post_tags`
 Features: `roadmap_columns`, `roadmap_items`, `changelog_entries`, `notifications`
 System: `api_keys`, `audit_logs`, `integrations`, `oauth_accounts`
-Platform (not tenant-scoped): `admins`, `promo_codes`, `promo_redemptions`
+Platform (not tenant-scoped): `admins`, `promo_codes`, `promo_redemptions`, `offers`
 
 Post fields of note: `type` (feedback/feature/bug), `status` (open/in-progress/closed), `priority` (1–5).
 

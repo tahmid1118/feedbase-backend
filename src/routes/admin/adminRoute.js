@@ -29,6 +29,11 @@ const {
   createPromoCode,
   revokePromoCode,
 } = require("../../main/admin/promo");
+const {
+  listOffers,
+  createOffer,
+  deactivateOffer,
+} = require("../../main/admin/offers");
 
 /** Standard { status, message, [key] } response shape. */
 function send(res, data, key = "data") {
@@ -110,6 +115,17 @@ adminRouter.post("/promo-codes", (req, res) =>
 );
 adminRouter.put("/promo-codes/:id/revoke", (req, res) =>
   revokePromoCode(req.params.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+
+// Offers
+adminRouter.get("/offers", (req, res) =>
+  listOffers(lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.post("/offers", (req, res) =>
+  createOffer(req.body, req.admin.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.put("/offers/:id/deactivate", (req, res) =>
+  deactivateOffer(req.params.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
 );
 
 module.exports = { adminRouter };

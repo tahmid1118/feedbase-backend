@@ -3,6 +3,7 @@ const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { stripe, isStripeConfigured } = require("../../common/stripe");
 const { PLANS } = require("../../consts/plans");
+const { getActiveOfferForPlan } = require("../../common/offers");
 
 const BILLING_ROLES = ["owner"];
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
@@ -62,12 +63,19 @@ const createCheckoutSession = async (plan, authData, promotionCode) => {
       );
     }
 
-    // A pre-applied promotion code and Stripe's own promo-code field are mutually
-    // exclusive — pass an explicit discount when redeeming, otherwise let the
-    // customer type a code on the Checkout page.
-    const discountOpts = promotionCode
-      ? { discounts: [{ promotion_code: promotionCode }] }
-      : { allow_promotion_codes: true };
+    // Discount precedence (all mutually exclusive with Stripe's own code field):
+    //   1. a redeemed promo code (explicit promotionCode),
+    //   2. an active plan offer (auto-applied coupon),
+    //   3. otherwise let the customer type a code at Checkout.
+    let discountOpts = { allow_promotion_codes: true };
+    if (promotionCode) {
+      discountOpts = { discounts: [{ promotion_code: promotionCode }] };
+    } else {
+      const offer = await getActiveOfferForPlan(plan);
+      if (offer?.stripeCouponId) {
+        discountOpts = { discounts: [{ coupon: offer.stripeCouponId }] };
+      }
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",

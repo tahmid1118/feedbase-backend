@@ -111,6 +111,25 @@ CREATE TABLE IF NOT EXISTS promo_redemptions (
   CONSTRAINT fk_promo_redemptions_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Admin-set promotional prices on a paid plan. One active offer per plan; backed
+-- by a Stripe percent-off coupon auto-applied at checkout. The Billing tab shows
+-- the plan's list price with a diagonal strike + the offer price.
+CREATE TABLE IF NOT EXISTS offers (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  plan ENUM('pro', 'business') NOT NULL,
+  offer_price DECIMAL(10,2) NOT NULL,
+  label VARCHAR(120) NULL,
+  starts_at DATETIME NULL,
+  ends_at DATETIME NULL,
+  stripe_coupon_id VARCHAR(255) NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_by BIGINT UNSIGNED NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_offers_active (plan, is_active)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS oauth_accounts (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   tenant_id BIGINT UNSIGNED NOT NULL,

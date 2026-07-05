@@ -1,0 +1,106 @@
+const { pool } = require("../../../database/dbPool");
+const { API_STATUS_CODE } = require("../../consts/errorStatus");
+const { setServerResponse } = require("../../common/setServerResponse");
+const { stripe, isStripeConfigured } = require("../../common/stripe");
+const { PLANS } = require("../../consts/plans");
+
+const OFFER_PLANS = ["pro", "business"];
+
+/** List all offers (admin view). */
+const listOffers = async (lg) => {
+  try {
+    const [rows] = await pool.query("SELECT * FROM offers ORDER BY created_at DESC");
+    return Promise.resolve(
+      setServerResponse(API_STATUS_CODE.OK, "admin_data_retrieved", lg, { rows })
+    );
+  } catch (error) {
+    console.error("listOffers error:", error);
+    return Promise.reject(
+      setServerResponse(API_STATUS_CODE.INTERNAL_SERVER_ERROR, "internal_server_error", lg)
+    );
+  }
+};
+
+/**
+ * Create a promotional offer for a paid plan. The offer sets a lower shown price
+ * and is backed by a Stripe percent-off coupon auto-applied at checkout, so
+ * customers actually pay the offer price. Only one active offer per plan.
+ */
+const createOffer = async (data, adminId, lg) => {
+  const plan = data?.plan;
+  if (!OFFER_PLANS.includes(plan)) {
+    return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "invalid_plan", lg));
+  }
+  const originalPrice = PLANS[plan].price;
+  const offerPrice = Number(data?.offerPrice);
+  if (!(offerPrice > 0) || offerPrice >= originalPrice) {
+    return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "invalid_offer_price", lg));
+  }
+  const percentOff = Math.round((1 - offerPrice / originalPrice) * 100);
+  if (percentOff < 1 || percentOff > 100) {
+    return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "invalid_offer_price", lg));
+  }
+
+  const label = String(data?.label || "").trim().slice(0, 120) || null;
+  const startsAt = data?.startsAt ? new Date(data.startsAt) : null;
+  const endsAt = data?.endsAt ? new Date(data.endsAt) : null;
+
+  try {
+    let stripeCouponId = null;
+    if (isStripeConfigured()) {
+      try {
+        const coupon = await stripe.coupons.create({
+          percent_off: percentOff,
+          duration: "forever",
+          name: `Offer ${plan} $${offerPrice}`,
+        });
+        stripeCouponId = coupon.id;
+      } catch (e) {
+        console.error("offer coupon create failed (non-fatal):", e.message);
+      }
+    }
+
+    // Only one active offer per plan.
+    await pool.query("UPDATE offers SET is_active = 0 WHERE plan = ? AND is_active = 1", [plan]);
+
+    const [result] = await pool.query(
+      `INSERT INTO offers (plan, offer_price, label, starts_at, ends_at, stripe_coupon_id, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [plan, offerPrice, label, startsAt, endsAt, stripeCouponId, adminId]
+    );
+    return Promise.resolve(
+      setServerResponse(API_STATUS_CODE.CREATED, "offer_created", lg, { id: result.insertId })
+    );
+  } catch (error) {
+    console.error("createOffer error:", error);
+    return Promise.reject(
+      setServerResponse(API_STATUS_CODE.INTERNAL_SERVER_ERROR, "internal_server_error", lg)
+    );
+  }
+};
+
+/** Deactivate an offer (also deletes its Stripe coupon). */
+const deactivateOffer = async (id, lg) => {
+  try {
+    const [rows] = await pool.query("SELECT stripe_coupon_id FROM offers WHERE id = ?", [id]);
+    if (rows.length === 0) {
+      return Promise.reject(setServerResponse(API_STATUS_CODE.NOT_FOUND, "offer_not_found", lg));
+    }
+    if (rows[0].stripe_coupon_id && isStripeConfigured()) {
+      try {
+        await stripe.coupons.del(rows[0].stripe_coupon_id);
+      } catch (e) {
+        console.error("offer coupon delete failed (non-fatal):", e.message);
+      }
+    }
+    await pool.query("UPDATE offers SET is_active = 0 WHERE id = ?", [id]);
+    return Promise.resolve(setServerResponse(API_STATUS_CODE.OK, "offer_deactivated", lg));
+  } catch (error) {
+    console.error("deactivateOffer error:", error);
+    return Promise.reject(
+      setServerResponse(API_STATUS_CODE.INTERNAL_SERVER_ERROR, "internal_server_error", lg)
+    );
+  }
+};
+
+module.exports = { listOffers, createOffer, deactivateOffer };
