@@ -40,6 +40,11 @@ const {
   setPostPin,
   deleteWorkspacePost,
 } = require("../../main/admin/adminPosts");
+const {
+  listPostComments,
+  editComment,
+  deleteComment,
+} = require("../../main/admin/adminComments");
 
 /** Standard { status, message, [key] } response shape. */
 function send(res, data, key = "data") {
@@ -96,6 +101,17 @@ adminRouter.put("/workspaces/:id/posts/:postId/pin", (req, res) =>
 );
 adminRouter.delete("/workspaces/:id/posts/:postId", (req, res) =>
   deleteWorkspacePost(req.params.id, req.params.postId, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+
+// Moderate a post's comments
+adminRouter.get("/workspaces/:id/posts/:postId/comments", (req, res) =>
+  listPostComments(req.params.id, req.params.postId, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.put("/workspaces/:id/comments/:commentId", (req, res) =>
+  editComment(req.params.id, req.params.commentId, req.body?.body, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.delete("/workspaces/:id/comments/:commentId", (req, res) =>
+  deleteComment(req.params.id, req.params.commentId, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
 );
 
 // Users
