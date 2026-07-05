@@ -3,7 +3,7 @@ const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { stripe, isStripeConfigured } = require("../../common/stripe");
 
-const BILLING_ROLES = ["owner", "admin"];
+const BILLING_ROLES = ["owner"];
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 /**

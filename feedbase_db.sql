@@ -40,7 +40,9 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NULL,
   full_name VARCHAR(150) NOT NULL,
   contact_no VARCHAR(20) NULL,
-  role ENUM('visitor', 'user', 'moderator', 'admin', 'owner') NOT NULL DEFAULT 'user',
+  -- Tenant roles: 'owner' manages the workspace, 'user' is a member. The
+  -- platform operator ("admin") is NOT a tenant role — it lives in `admins`.
+  role ENUM('owner', 'user') NOT NULL DEFAULT 'user',
   avatar_url VARCHAR(500) NULL,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   last_login_at DATETIME NULL,

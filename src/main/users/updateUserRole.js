@@ -2,14 +2,20 @@ const { pool } = require('../../../database/dbPool');
 const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
 
+const TENANT_ROLES = ['owner', 'user'];
+
 const updateUserRole = async (userId, role, authData) => {
   const { tenantId, lg, role: actorRole } = authData;
-  
-  // Only admin or owner can update roles
-  if (actorRole !== 'admin' && actorRole !== 'owner') {
+
+  // Only the workspace owner can change roles.
+  if (actorRole !== 'owner') {
     return Promise.reject(setServerResponse(API_STATUS_CODE.FORBIDDEN, 'insufficient_permissions', lg));
   }
-  
+  // Only the two tenant roles are assignable ('admin' is a platform role).
+  if (!TENANT_ROLES.includes(role)) {
+    return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, 'invalid_role', lg));
+  }
+
   const _query = 'UPDATE users SET role = ? WHERE id = ? AND tenant_id = ?';
   try {
     const [result] = await pool.query(_query, [role, userId, tenantId]);
