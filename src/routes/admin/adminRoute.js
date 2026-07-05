@@ -34,6 +34,12 @@ const {
   createOffer,
   deactivateOffer,
 } = require("../../main/admin/offers");
+const {
+  listWorkspacePosts,
+  setPostStatus,
+  setPostPin,
+  deleteWorkspacePost,
+} = require("../../main/admin/adminPosts");
 
 /** Standard { status, message, [key] } response shape. */
 function send(res, data, key = "data") {
@@ -76,6 +82,20 @@ adminRouter.put("/workspaces/:id/plan", (req, res) =>
 );
 adminRouter.delete("/workspaces/:id", (req, res) =>
   deleteWorkspace(req.params.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+
+// Moderate a workspace's posts (admin acts across any tenant).
+adminRouter.get("/workspaces/:id/posts", (req, res) =>
+  listWorkspacePosts(req.params.id, req.query, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.put("/workspaces/:id/posts/:postId/status", (req, res) =>
+  setPostStatus(req.params.id, req.params.postId, req.body?.status, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.put("/workspaces/:id/posts/:postId/pin", (req, res) =>
+  setPostPin(req.params.id, req.params.postId, req.body?.isPinned, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.delete("/workspaces/:id/posts/:postId", (req, res) =>
+  deleteWorkspacePost(req.params.id, req.params.postId, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
 );
 
 // Users
