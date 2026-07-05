@@ -43,6 +43,23 @@ const syncPostStatusToColumn = async (tenantId, postId, columnId) => {
   }
 };
 
+/**
+ * Removing a post from the roadmap returns it to the Open state, so it
+ * reappears in the Open tab (the inverse of the column→status sync). Swallows
+ * its own errors — the removal must not fail if the status reset does.
+ */
+const resetPostStatusToOpen = async (tenantId, postId) => {
+  try {
+    if (!postId) return;
+    await pool.query(
+      "UPDATE posts SET status = 'open' WHERE id = ? AND tenant_id = ?",
+      [postId, tenantId]
+    );
+  } catch (error) {
+    console.error("resetPostStatusToOpen failed:", error.message);
+  }
+};
+
 /** If a column matches the new status, move the post's roadmap item into it. */
 const syncRoadmapItemToStatus = async (tenantId, postId, status) => {
   try {
@@ -61,4 +78,8 @@ const syncRoadmapItemToStatus = async (tenantId, postId, status) => {
   }
 };
 
-module.exports = { syncPostStatusToColumn, syncRoadmapItemToStatus };
+module.exports = {
+  syncPostStatusToColumn,
+  syncRoadmapItemToStatus,
+  resetPostStatusToOpen,
+};
