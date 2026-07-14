@@ -92,6 +92,15 @@ User self-service handlers (personal data, profile/password update) key off the 
 - **Enforcement** via `src/common/planGuard.js` (`planAllows(tenantId, capability)`): `createIntegration` and `updateTenant` (when setting `custom_domain`) reject with `402 PAYMENT_REQUIRED` + a `plan_limit_*` message on Free. (Custom domain is now persisted by `updateTenant`; it previously wasn't.) **`deletePost`** requires the `owner` role (else `403 delete_feedback_owner_only`) **and** the `deleteFeedback` capability (Pro+, else `402 plan_limit_delete_feedback`) — the role check runs first. `seats` is a displayed limit only — there's no team-invite flow to gate yet.
 - Env: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_BUSINESS`. For local webhooks: `stripe listen --forward-to localhost:4560/webhooks/stripe`.
 
+### Team invitations & email
+
+- **Invite flow** (`src/main/invitations/invitations.js`, routes `src/routes/invitations/invitationRoute.js` at `/invitations` + two public routes on `/public`): the **owner** invites by email → a row in `invitations` with a `crypto.randomBytes(32)` **token**, a **7-day `expires_at`**, and `status='pending'`. The emailed link is `${FRONTEND_URL}/invite/<token>`.
+- **Security.** The token is the credential. It is **single-use** — accept only matches `status='pending' AND expires_at > NOW()` (selected `FOR UPDATE` inside a transaction, so a double-click can't create two memberships) and then flips to `accepted`. Revoking sets `revoked`, killing the link instantly. Before sending, the address is checked for format **and a DNS MX lookup** (`isDeliverableEmail`) so typos like `gmial.com` are rejected; an inconclusive DNS result does not block.
+- **Two accept paths.** *New user* → **public** `POST /public/invitations/:token/accept {fullName,password}` creates the account + membership (the link proves email ownership) and returns a JWT. *Existing account* → **authenticated** `POST /invitations/:token/accept`, which requires being signed in **as the invited email** (`invitation_wrong_account` otherwise) — otherwise anyone holding a forwarded link could join as that person.
+- **Seats are now enforced** (the thing `plans.js` was waiting for): members + outstanding invites must stay under `getPlanLimits(plan).seats` (Free 2 / Pro 10 / Business ∞), else `402 plan_limit_seats`.
+- **One owner per workspace.** Invitees always join as `role='user'`. `updateUserRole` refuses to create a second owner (`workspace_already_has_owner`) or to demote the last one (`workspace_needs_an_owner`).
+- **Mailer** (`src/common/mailer.js`): provider precedence **Resend HTTP API** (`RESEND_API_KEY`) → **SMTP/nodemailer** (`SMTP_HOST/PORT/USER/PASS`) → **dev logger** (no provider configured ⇒ the message + link are printed to the console so the flow stays testable). `sendEmail` never throws — a mail failure must not roll back the invitation. The branded HTML template lives in `src/common/emails/invitationEmail.js`.
+
 ### Conventions & gotchas
 
 - **Bodyless requests:** a global middleware in `app.js` defaults `req.body` to `{}`. Without it, GET/DELETE routes that read `req.body.lg` (or any body field) crash with `Cannot read properties of undefined`. Keep that middleware, and prefer `req.body?.x` in handlers.
@@ -114,9 +123,9 @@ User self-service handlers (personal data, profile/password update) key off the 
 - **Error handling:** a JSON 404 + central error handler are the last middlewares in `app.js` — unhandled errors return `{ status, message }`, never an HTML stack trace.
 - **Indexes:** the schema is already well-indexed (composite `tenant_id`+column keys, FK indexes). Profile with `EXPLAIN` before adding more — every index slows writes.
 
-### Database schema (19 tables)
+### Database schema (20 tables)
 
-Core: `tenants`, `users` (role `owner`/`user`), `posts`, `votes`, `comments`, `tags`, `post_tags`
+Core: `tenants`, `users` (role `owner`/`user`), `invitations`, `posts`, `votes`, `comments`, `tags`, `post_tags`
 Features: `roadmap_columns`, `roadmap_items`, `changelog_entries`, `notifications`
 System: `api_keys`, `audit_logs`, `integrations`, `oauth_accounts`
 Platform (not tenant-scoped): `admins`, `promo_codes`, `promo_redemptions`, `offers`
@@ -125,6 +134,10 @@ Post fields of note: `type` (feedback/feature/bug), `status` (open/in-progress/c
 
 ## Environment
 
-Copy `.env.example` to `.env`. Required variables include: `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SECRET_ACCESS_TOKEN`, `ACCESS_TOKEN_EXPIRE`, `FILE_UPLOAD_MAX_SIZE`, `FRONTEND_URL` (Stripe success/return URLs), SMTP config, and OAuth credentials. Stripe billing: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_BUSINESS` (the server boots without them; billing endpoints just return "not configured"). Optional pool tuning: `DB_CONNECTION_LIMIT` (default 15), `DB_MAX_IDLE` (default 10).
+Copy `.env.example` to `.env`. Required variables include: `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SECRET_ACCESS_TOKEN`, `ACCESS_TOKEN_EXPIRE`, `FILE_UPLOAD_MAX_SIZE`, `FRONTEND_URL` (Stripe return URLs **and the invite link base**), and OAuth credentials. Stripe billing: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_BUSINESS` (the server boots without them; billing endpoints just return "not configured"). Optional pool tuning: `DB_CONNECTION_LIMIT` (default 15), `DB_MAX_IDLE` (default 10).
+
+**Email** (invitations) — all optional; with none set, invite emails are just logged to the console and the flow still works:
+- `RESEND_API_KEY` — preferred (HTTP API). `MAIL_FROM` (e.g. `Feedbase <invites@yourdomain.com>`; a transactional provider requires a **verified sender/domain**) and `MAIL_REPLY_TO` (defaults to `tahmidshahriar.bd@gmail.com`).
+- SMTP fallback: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` (Gmail needs an **App Password**, not the account password).
 
 Production/staging processes are managed by PM2 via `ecosystem.config.js`.

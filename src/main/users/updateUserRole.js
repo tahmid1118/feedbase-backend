@@ -16,8 +16,30 @@ const updateUserRole = async (userId, role, authData) => {
     return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, 'invalid_role', lg));
   }
 
-  const _query = 'UPDATE users SET role = ? WHERE id = ? AND tenant_id = ?';
   try {
+    // A workspace has exactly ONE owner — everyone else is a member.
+    const [owners] = await pool.query(
+      "SELECT id FROM users WHERE tenant_id = ? AND role = 'owner'",
+      [tenantId]
+    );
+    const otherOwner = owners.find((o) => String(o.id) !== String(userId));
+
+    if (role === 'owner' && otherOwner) {
+      return Promise.reject(
+        setServerResponse(API_STATUS_CODE.BAD_REQUEST, 'workspace_already_has_owner', lg)
+      );
+    }
+    // Don't let the sole owner demote themselves and leave the workspace ownerless.
+    if (role === 'user' && !otherOwner) {
+      const isTargetOwner = owners.some((o) => String(o.id) === String(userId));
+      if (isTargetOwner) {
+        return Promise.reject(
+          setServerResponse(API_STATUS_CODE.BAD_REQUEST, 'workspace_needs_an_owner', lg)
+        );
+      }
+    }
+
+    const _query = 'UPDATE users SET role = ? WHERE id = ? AND tenant_id = ?';
     const [result] = await pool.query(_query, [role, userId, tenantId]);
     if (result.affectedRows === 0) {
       return Promise.reject(setServerResponse(API_STATUS_CODE.NOT_FOUND, 'user_not_found', lg));

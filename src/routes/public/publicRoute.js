@@ -9,6 +9,10 @@ const { authenticateToken } = require("../../middlewares/jwt/jwt");
 const { optionalAuth } = require("../../middlewares/jwt/optionalAuth");
 const { resolvePublicTenant } = require("../../main/public/resolvePublicTenant");
 const { getActiveOffers } = require("../../common/offers");
+const {
+  getInvitation,
+  acceptInvitationAsNewUser,
+} = require("../../main/invitations/invitations");
 const { getPublicBoard } = require("../../main/public/getPublicBoard");
 const { createPublicPost } = require("../../main/public/createPublicPost");
 const { togglePublicVote } = require("../../main/public/togglePublicVote");
@@ -83,6 +87,28 @@ publicRouter.get("/tenant", async (req, res) => {
   const lg = req.query.lg || "en";
   const identifier = req.query.subdomain || req.query.domain || "";
   resolvePublicTenant(identifier, lg)
+    .then((data) => send(res, data))
+    .catch((error) => send(res, error));
+});
+
+/**
+ * @description Describe a workspace invitation so the accept page can render.
+ * GET /public/invitations/:token
+ */
+publicRouter.get("/invitations/:token", async (req, res) => {
+  const lg = req.query.lg || "en";
+  getInvitation(req.params.token, lg)
+    .then((data) => send(res, data))
+    .catch((error) => send(res, error));
+});
+
+/**
+ * @description Accept an invitation as a NEW user (sets name + password).
+ * POST /public/invitations/:token/accept  { fullName, password }
+ */
+publicRouter.post("/invitations/:token/accept", async (req, res) => {
+  const lg = req.body?.lg || "en";
+  acceptInvitationAsNewUser(req.params.token, req.body, lg)
     .then((data) => send(res, data))
     .catch((error) => send(res, error));
 });

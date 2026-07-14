@@ -130,6 +130,30 @@ CREATE TABLE IF NOT EXISTS offers (
   KEY idx_offers_active (plan, is_active)
 ) ENGINE=InnoDB;
 
+-- Email invitations to join a workspace as a member. The token is the one-time
+-- credential in the emailed link: single-use (status flips to 'accepted') and
+-- time-boxed (expires_at). Revoking kills the link immediately.
+CREATE TABLE IF NOT EXISTS invitations (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  tenant_id BIGINT UNSIGNED NOT NULL,
+  email VARCHAR(190) NOT NULL,
+  token VARCHAR(128) NOT NULL,
+  -- Invitees always join as members; a workspace has exactly one owner.
+  role ENUM('user') NOT NULL DEFAULT 'user',
+  invited_by BIGINT UNSIGNED NULL,
+  status ENUM('pending', 'accepted', 'revoked') NOT NULL DEFAULT 'pending',
+  expires_at DATETIME NOT NULL,
+  accepted_at DATETIME NULL,
+  accepted_by_user_id BIGINT UNSIGNED NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_invitations_token (token),
+  KEY idx_invitations_tenant_status (tenant_id, status),
+  KEY idx_invitations_email (email),
+  CONSTRAINT fk_invitations_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS oauth_accounts (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   tenant_id BIGINT UNSIGNED NOT NULL,
