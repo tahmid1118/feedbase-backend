@@ -1,6 +1,7 @@
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
+const { notifyOwnerOfNewPost } = require("./notifyOwnerOfNewPost");
 
 const POST_TYPES = ["feedback", "feature_request", "bug_report"];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -65,6 +66,16 @@ const createPublicPost = async (tenantId, data, authUser, lg) => {
       description,
       postType,
     ]);
+
+    // Tell the workspace owner. Deliberately NOT awaited: a slow SMTP round-trip
+    // must not delay the visitor's submission, and a mail failure must not fail
+    // the post (the notifier swallows its own errors).
+    notifyOwnerOfNewPost(
+      tenantId,
+      result.insertId,
+      { title, description, postType, submitterName },
+      authUser
+    ).catch(() => {});
 
     return Promise.resolve(
       setServerResponse(
