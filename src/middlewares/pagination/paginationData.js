@@ -24,6 +24,10 @@ const paginationData = (req, res, next) => {
   const _currentPageNumber = req.body.paginationData.currentPageNumber;
   const _sortOrder = req.body.paginationData.sortOrder;
   const _filterBy = req.body.paginationData.filterBy;
+  // Board sort (newest | oldest | most_voted | least_voted). This middleware
+  // REBUILDS paginationData, so anything not carried over here is silently
+  // dropped before it reaches the handler.
+  const _sortBy = req.body.paginationData.sortBy;
   const errors = [];
 
   if (isNaN(_itemsPerPage)) {
@@ -67,6 +71,7 @@ const paginationData = (req, res, next) => {
   };
   req.body.paginationData = {
     ...paginationData,
+    ...(_sortBy ? { sortBy: _sortBy } : {}),
     offset: paginationData.itemsPerPage * paginationData.currentPageNumber,
   };
   // console.log(paginationData);

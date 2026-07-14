@@ -2,9 +2,21 @@ const { pool } = require('../../../database/dbPool');
 const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
 
+// Dashboard board sort options (mirrors the public board's SORTS).
+// `vote_count` is the SELECT alias below.
+const SORTS = {
+  newest: 'p.created_at DESC',
+  oldest: 'p.created_at ASC',
+  most_voted: 'vote_count DESC, p.created_at DESC',
+  least_voted: 'vote_count ASC, p.created_at DESC',
+};
+
 const getPostList = async (paginationData, filters, authData) => {
   const { id: userId, tenantId, lg } = authData;
-  const sortOrder = paginationData?.sortOrder === 'asc' ? 'ASC' : 'DESC';
+  // Prefer the explicit sortBy; fall back to the legacy asc/desc sortOrder.
+  const legacyOrder =
+    paginationData?.sortOrder === 'asc' ? SORTS.oldest : SORTS.newest;
+  const orderBy = SORTS[paginationData?.sortBy] || legacyOrder;
   const itemsPerPage = Number(paginationData?.itemsPerPage) || 10;
   const offset = Number(paginationData?.offset) || 0;
 
@@ -38,7 +50,7 @@ const getPostList = async (paginationData, filters, authData) => {
      FROM posts p
      LEFT JOIN users u ON p.author_id = u.id` +
     whereClause +
-    ` ORDER BY p.is_pinned DESC, p.created_at ${sortOrder} LIMIT ? OFFSET ?`;
+    ` ORDER BY p.is_pinned DESC, ${orderBy} LIMIT ? OFFSET ?`;
   const listParams = [userId, ...whereParams, itemsPerPage, offset];
 
   const _countQuery = 'SELECT COUNT(*) as total FROM posts p' + whereClause;

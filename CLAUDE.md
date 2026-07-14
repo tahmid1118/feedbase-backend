@@ -117,6 +117,9 @@ User self-service handlers (personal data, profile/password update) key off the 
 
 ### Conventions & gotchas
 
+- **`paginationData` middleware REBUILDS `req.body.paginationData`** from a fixed set of fields (`itemsPerPage`, `currentPageNumber`, `sortOrder`, `filterBy`, `offset`, `sortBy`). Anything else you put in it is **silently dropped before the handler sees it** — if you add a new pagination field, whitelist it there too or you'll get a baffling "the handler works when called directly but not over HTTP" bug.
+- **Board sort** (`newest` | `oldest` | `most_voted` | `least_voted`) is a `SORTS` map in both `getPostList.js` (dashboard) and `getPublicBoard.js` (portal); both order by `p.is_pinned DESC` first, then the chosen sort. `vote_count` is a SELECT alias, so the vote sorts work without a join.
+
 - **Bodyless requests:** a global middleware in `app.js` defaults `req.body` to `{}`. Without it, GET/DELETE routes that read `req.body.lg` (or any body field) crash with `Cannot read properties of undefined`. Keep that middleware, and prefer `req.body?.x` in handlers.
 - **Partial updates:** `UPDATE` handlers should set only the columns actually provided (build the `SET` clause dynamically). A blanket `SET col = ?` with an `undefined` value silently nulls existing data — e.g. moving a roadmap item must not wipe its `target_release_date`.
 
