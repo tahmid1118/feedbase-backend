@@ -6,6 +6,7 @@
  * `limits` are the capabilities enforced by `src/common/planGuard.js`:
  *   - customDomain / integrations: boolean feature gates (enforced today)
  *   - deleteFeedback: whether feedback posts can be deleted (owner-only, paid)
+ *   - multiDevice: may be signed in on several devices/browsers at once
  *   - seats: max team members (displayed; enforced once an invite flow exists)
  */
 // `price` is the monthly list price (USD) — the display baseline that offers
@@ -21,6 +22,7 @@ const PLANS = {
       customDomain: false,
       integrations: false,
       deleteFeedback: false,
+      multiDevice: false,
     },
   },
   pro: {
@@ -33,6 +35,7 @@ const PLANS = {
       customDomain: true,
       integrations: true,
       deleteFeedback: true,
+      multiDevice: false,
     },
   },
   business: {
@@ -45,6 +48,7 @@ const PLANS = {
       customDomain: true,
       integrations: true,
       deleteFeedback: true,
+      multiDevice: true,
     },
   },
 };

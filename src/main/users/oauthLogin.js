@@ -3,6 +3,7 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
 const { placeholderImagePath } = require("../../consts/staticValues");
+const { startSession } = require('../../common/sessions');
 
 const VALID_PROVIDERS = ['google', 'github', 'microsoft'];
 
@@ -17,13 +18,14 @@ const resolveTenantId = (tenantId) => {
   return parsed;
 };
 
-const generateToken = (userInfo) => {
+const generateToken = (userInfo, sid) => {
   return jwt.sign(
     {
       id: userInfo.id,
       email: userInfo.email,
       tenantId: userInfo.tenant_id,
       role: userInfo.role,
+      sid,
     },
     process.env.SECRET_ACCESS_TOKEN,
     { expiresIn: process.env.ACCESS_TOKEN_EXPIRE }
@@ -44,7 +46,7 @@ const getUserById = async (userId) => {
  * matched by an existing oauth link, then by email within the tenant, otherwise a
  * new user is provisioned. A JWT is returned in the same shape as password login.
  */
-const oauthLogin = async (userData, lg) => {
+const oauthLogin = async (userData, lg, req) => {
   const language = userData?.lg || lg || 'en';
   const provider = (userData?.provider || '').toLowerCase();
   const providerUserId = userData?.providerUserId;
@@ -107,9 +109,17 @@ const oauthLogin = async (userData, lg) => {
       );
     }
 
+    // One device at a time (Free/Pro) — same gate as password login.
+    const session = await startSession(userInfo, req);
+    if (session.blocked) {
+      return Promise.reject(
+        setServerResponse(API_STATUS_CODE.CONFLICT, 'already_logged_in_elsewhere', language)
+      );
+    }
+
     await pool.query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [userInfo.id]);
 
-    const token = generateToken(userInfo);
+    const token = generateToken(userInfo, session.sessionId);
     const user = {
       token,
       id: userInfo.id,

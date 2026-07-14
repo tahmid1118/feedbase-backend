@@ -155,6 +155,8 @@ const deleteAccount = async (password, authData) => {
       // Any leftover rows for this email, plus invitations addressed to it.
       await conn.query("DELETE FROM users WHERE email = ?", [email]);
       await conn.query("DELETE FROM invitations WHERE email = ?", [email]);
+      // The account is gone — so are its device sessions, on every device.
+      await conn.query("DELETE FROM user_sessions WHERE email = ?", [email]);
 
       await conn.commit();
 

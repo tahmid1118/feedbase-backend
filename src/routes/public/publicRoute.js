@@ -108,7 +108,7 @@ publicRouter.get("/invitations/:token", async (req, res) => {
  */
 publicRouter.post("/invitations/:token/accept", async (req, res) => {
   const lg = req.body?.lg || "en";
-  acceptInvitationAsNewUser(req.params.token, req.body, lg)
+  acceptInvitationAsNewUser(req.params.token, req.body, lg, req)
     .then((data) => send(res, data))
     .catch((error) => send(res, error));
 });

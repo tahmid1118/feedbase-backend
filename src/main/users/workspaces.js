@@ -13,13 +13,16 @@ const RESERVED_SUBDOMAINS = new Set([
 ]);
 const SUBDOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])?$/;
 
-const signToken = (user) =>
+// Switching/creating a workspace re-scopes the SAME device session — it is not
+// a new login, so the caller's `sid` is carried straight through.
+const signToken = (user, sid) =>
   jwt.sign(
     {
       id: user.id,
       email: user.email,
       tenantId: user.tenant_id,
       role: user.role,
+      sid,
     },
     process.env.SECRET_ACCESS_TOKEN,
     { expiresIn: process.env.ACCESS_TOKEN_EXPIRE }
@@ -97,7 +100,7 @@ const checkSubdomain = async (rawSubdomain, lg) => {
  * with the default status-linked roadmap columns.
  */
 const createWorkspace = async (data, authData) => {
-  const { id: userId, lg } = authData;
+  const { id: userId, lg, sid } = authData;
   const name = (data?.name || "").trim();
   const subdomain = (data?.subdomain || "").trim().toLowerCase();
   const website = (data?.website || "").trim() || null;
@@ -179,12 +182,15 @@ const createWorkspace = async (data, authData) => {
 
     await conn.commit();
 
-    const token = signToken({
-      id: ownerUserId,
-      email: account.email,
-      tenant_id: newTenantId,
-      role: "owner",
-    });
+    const token = signToken(
+      {
+        id: ownerUserId,
+        email: account.email,
+        tenant_id: newTenantId,
+        role: "owner",
+      },
+      sid
+    );
 
     return Promise.resolve(
       setServerResponse(API_STATUS_CODE.CREATED, "workspace_created_successfully", lg, {
@@ -227,7 +233,7 @@ const createWorkspace = async (data, authData) => {
  * in the target tenant and issue a fresh JWT scoped to it.
  */
 const switchWorkspace = async (targetTenantId, authData) => {
-  const { email, lg } = authData;
+  const { email, lg, sid } = authData;
   try {
     const [rows] = await pool.query(
       `SELECT u.id, u.email, u.tenant_id, u.role, u.full_name, u.avatar_url
@@ -242,7 +248,7 @@ const switchWorkspace = async (targetTenantId, authData) => {
       );
     }
     const user = rows[0];
-    const token = signToken(user);
+    const token = signToken(user, sid);
 
     return Promise.resolve(
       setServerResponse(API_STATUS_CODE.OK, "workspace_switched_successfully", lg, {

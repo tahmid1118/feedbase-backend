@@ -1,6 +1,10 @@
 const express = require("express");
+const jwt = require("jsonwebtoken");
 const userRouter = express.Router();
 const { authenticateToken } = require("../../middlewares/jwt/jwt");
+const { revokeSession } = require("../../common/sessions");
+const { setServerResponse } = require("../../common/setServerResponse");
+const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { languageValidator } = require("../../middlewares/common/languageValidator");
 const { paginationData } = require("../../middlewares/pagination/paginationData");
 const { userLogin } = require("../../main/users/userLogin");
@@ -28,7 +32,7 @@ const {
  */
 userRouter.post("/login", languageValidator, async (req, res) => {
   const { userData = {}, lg } = req.body;
-  userLogin(userData, lg)
+  userLogin(userData, lg, req)
     .then((data) => {
       const { statusCode, status, message, result } = data;
       return res.status(statusCode).send({
@@ -53,7 +57,7 @@ userRouter.post("/login", languageValidator, async (req, res) => {
  */
 userRouter.post("/oauth/login", languageValidator, async (req, res) => {
   const { userData = {}, lg } = req.body;
-  oauthLogin(userData, lg)
+  oauthLogin(userData, lg, req)
     .then((data) => {
       const { statusCode, status, message, result } = data;
       return res.status(statusCode).send({
@@ -70,6 +74,40 @@ userRouter.post("/oauth/login", languageValidator, async (req, res) => {
         message: message,
       });
     });
+});
+
+/**
+ * @description End this device's session. On single-device plans this is what
+ * frees the account to sign in elsewhere, so it must be called on sign-out.
+ * Deliberately tolerant: an already-dead session still reports success.
+ */
+userRouter.post("/logout", languageValidator, async (req, res) => {
+  const lg = req.body?.lg || "en";
+  try {
+    const parts = (req.header("Authorization") || "").split(" ");
+    const token = parts[0] === "Bearer" ? parts[1] : null;
+    let sid = null;
+    if (token && token !== "undefined" && token !== "null") {
+      try {
+        sid = jwt.verify(token, process.env.SECRET_ACCESS_TOKEN)?.sid || null;
+      } catch {
+        // An expired/!invalid token has no session left to revoke — that's fine.
+      }
+    }
+    if (sid) await revokeSession(sid);
+    const data = setServerResponse(
+      API_STATUS_CODE.OK,
+      "logged_out_successfully",
+      lg
+    );
+    return res.status(data.statusCode).send({
+      status: data.status,
+      message: data.message,
+    });
+  } catch (error) {
+    console.error("Logout error:", error);
+    return res.status(200).send({ status: true, message: "Logged out" });
+  }
 });
 
 /**

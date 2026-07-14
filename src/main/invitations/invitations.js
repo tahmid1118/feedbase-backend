@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
+const { createSession } = require("../../common/sessions");
 const { getTenantPlan } = require("../../common/planGuard");
 const { getPlanLimits } = require("../../consts/plans");
 const { sendEmail, isMailConfigured } = require("../../common/mailer");
@@ -14,9 +15,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const INVITE_TTL_DAYS = 7;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
-const signToken = (user) =>
+const signToken = (user, sid) =>
   jwt.sign(
-    { id: user.id, email: user.email, tenantId: user.tenant_id, role: user.role },
+    { id: user.id, email: user.email, tenantId: user.tenant_id, role: user.role, sid },
     process.env.SECRET_ACCESS_TOKEN,
     { expiresIn: process.env.ACCESS_TOKEN_EXPIRE }
   );
@@ -261,7 +262,7 @@ const joinWorkspace = async (conn, inv, { fullName, passwordHash, avatarUrl }) =
  * link is the proof of email ownership (standard for invitations). Single-use:
  * the UPDATE only matches a still-pending row.
  */
-const acceptInvitationAsNewUser = async (token, data, lg) => {
+const acceptInvitationAsNewUser = async (token, data, lg, req) => {
   const fullName = String(data?.fullName || "").trim();
   const password = String(data?.password || "");
   if (!fullName) {
@@ -303,12 +304,13 @@ const acceptInvitationAsNewUser = async (token, data, lg) => {
 
     await conn.commit();
 
-    const authToken = signToken({
-      id: memberId,
-      email: inv.email,
-      tenant_id: inv.tenant_id,
-      role: "user",
-    });
+    // Accepting as a brand-new account is that account's first sign-in, so it
+    // opens a device session (nothing else can be live for a new email).
+    const sid = await createSession(inv.email, req);
+    const authToken = signToken(
+      { id: memberId, email: inv.email, tenant_id: inv.tenant_id, role: "user" },
+      sid
+    );
 
     return Promise.resolve(
       setServerResponse(API_STATUS_CODE.CREATED, "invitation_accepted", lg, {
@@ -341,7 +343,7 @@ const acceptInvitationAsNewUser = async (token, data, lg) => {
  * Clones the account's credentials into a member row for the invited workspace.
  */
 const acceptInvitationAsExistingUser = async (token, authData) => {
-  const { email: authEmail, id: authUserId, lg } = authData;
+  const { email: authEmail, id: authUserId, lg, sid } = authData;
 
   const conn = await pool.getConnection();
   try {
@@ -394,12 +396,11 @@ const acceptInvitationAsExistingUser = async (token, authData) => {
 
     await conn.commit();
 
-    const authToken = signToken({
-      id: memberId,
-      email: inv.email,
-      tenant_id: inv.tenant_id,
-      role: "user",
-    });
+    // Already signed in — joining re-scopes the SAME device session.
+    const authToken = signToken(
+      { id: memberId, email: inv.email, tenant_id: inv.tenant_id, role: "user" },
+      sid
+    );
 
     return Promise.resolve(
       setServerResponse(API_STATUS_CODE.OK, "invitation_accepted", lg, {

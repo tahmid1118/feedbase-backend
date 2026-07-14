@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
+const { startSession } = require('../../common/sessions');
 
 
 const parseTenantId = (tenantId) => {
@@ -60,16 +61,18 @@ const userLoginQuery = async (email, tenantId = null) => {
 /**
  * Generates a JWT token for the given user info.
  * @param {{ id: number, email: string }} userInfo - The user information for the token payload.
+ * @param {string} sid - The device-session id this token belongs to.
  * @returns {string} The generated JWT token.
  * @description This function will generate a unique user token.
  */
-const generateToken = (userInfo) => {
+const generateToken = (userInfo, sid) => {
     const token = jwt.sign(
         {
             id: userInfo.id,
             email: userInfo.email,
             tenantId: userInfo.tenant_id,
             role: userInfo.role,
+            sid,
         },
         process.env.SECRET_ACCESS_TOKEN,
         {
@@ -84,10 +87,12 @@ const generateToken = (userInfo) => {
 /**
  * Handles user login by validating credentials and returning a server response with a token on success.
  * @param {{ lg: string, email: string, password: string }} userData - The user login data.
+ * @param {string} lg
+ * @param {object} [req] - Express request, used to record the device (UA/IP).
  * @returns {Promise<Object>} The server response indicating success or failure, with a token and user info on success.
  * @description This function handles user login by validated user data.
  */
-const userLogin = async (userData, lg) => {
+const userLogin = async (userData, lg, req) => {
     let userInfo;
     const language = userData?.lg || lg || 'en';
     const tenantId = parseTenantId(userData?.tenantId);
@@ -140,7 +145,20 @@ const userLogin = async (userData, lg) => {
             )
         );
     }
-    const token = generateToken(userInfo);
+    // One device at a time (Free/Pro): refuse a second login while another
+    // device still holds a live session. Business plans skip this entirely.
+    const session = await startSession(userInfo, req);
+    if (session.blocked) {
+        return Promise.reject(
+            setServerResponse(
+                API_STATUS_CODE.CONFLICT,
+                'already_logged_in_elsewhere',
+                language,
+            )
+        );
+    }
+
+    const token = generateToken(userInfo, session.sessionId);
     const user = {
         token: token,
         id: userInfo.id,

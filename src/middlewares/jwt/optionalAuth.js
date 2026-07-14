@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const { pool } = require("../../../database/dbPool");
+const { isSessionActive } = require("../../common/sessions");
 
 const getActiveUser = async (id, email) => {
   const [rows] = await pool.query(
@@ -22,6 +23,9 @@ const optionalAuth = async (req, res, next) => {
   jwt.verify(token, process.env.SECRET_ACCESS_TOKEN, async (err, decoded) => {
     if (err || !decoded?.id || !decoded?.email) return next();
     try {
+      // A revoked device session can no longer act as that user — fall through
+      // as a guest rather than attributing the comment/vote to them.
+      if (!decoded.sid || !(await isSessionActive(decoded.sid))) return next();
       const u = await getActiveUser(decoded.id, decoded.email);
       if (u) {
         req.auth = {

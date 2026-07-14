@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const { pool } = require("../../../database/dbPool");
+const { isSessionActive, touchSession } = require("../../common/sessions");
 
 const getActiveUser = async (id, email) => {
   const query = `
@@ -50,9 +51,19 @@ const authenticateToken = async (req, res, next) => {
         console.error("JWT Verification Error:", err);
         return res.status(400).send("Invalid token");
       }
-      const { id, email } = user;
+      const { id, email, sid } = user;
       if (!id || !email) {
         return res.status(400).send("Invalid token");
+      }
+
+      // Every user token carries a device-session id (`sid`). A revoked session
+      // — signed out here, or taken over by a new login after this device went
+      // idle — is dead at once; we don't wait for the JWT to expire. 401 (not
+      // 400) so the client can distinguish "session gone" from a bad request
+      // and sign the user out cleanly. Tokens minted before this feature have
+      // no `sid` and are likewise rejected: everyone re-authenticates once.
+      if (!sid || !(await isSessionActive(sid))) {
+        return res.status(401).send("Session ended");
       }
 
       try {
@@ -63,7 +74,12 @@ const authenticateToken = async (req, res, next) => {
             email: userInfo.email,
             tenantId: userInfo.tenant_id,
             role: userInfo.role,
+            sid,
           };
+          // Keep the session warm so it's never mistaken for abandoned. The
+          // write is throttled to once a minute; a failure must not break the
+          // request.
+          touchSession(sid).catch(() => {});
           next();
         } else {
           return res.status(400).send("Invalid user");

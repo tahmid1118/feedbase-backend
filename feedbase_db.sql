@@ -154,6 +154,32 @@ CREATE TABLE IF NOT EXISTS invitations (
   CONSTRAINT fk_invitations_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Device sessions — the mechanism behind "one device at a time".
+-- Every issued user JWT carries an `sid` claim pointing here; `authenticateToken`
+-- rejects a token whose session was revoked, so a session can be killed
+-- server-side without waiting for the JWT to expire.
+--
+-- Keyed by EMAIL, not user id: one person may hold a row in several tenants, and
+-- switching workspaces must not read as signing in on a new device.
+--
+-- On plans without the `multiDevice` limit (Free, Pro) a second login is refused
+-- while a session is still live. A session not seen for 15 minutes counts as
+-- abandoned and is taken over by the next login (which revokes it) — otherwise
+-- closing the browser without signing out would lock the account out for good.
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  session_id VARCHAR(64) NOT NULL,
+  email VARCHAR(190) NOT NULL,
+  user_agent VARCHAR(255) NULL,
+  ip_address VARCHAR(64) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  revoked_at DATETIME NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_user_sessions_sid (session_id),
+  KEY idx_user_sessions_email (email, revoked_at, last_seen_at)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS oauth_accounts (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   tenant_id BIGINT UNSIGNED NOT NULL,
