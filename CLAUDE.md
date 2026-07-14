@@ -101,6 +101,20 @@ User self-service handlers (personal data, profile/password update) key off the 
 - **One owner per workspace.** Invitees always join as `role='user'`. `updateUserRole` refuses to create a second owner (`workspace_already_has_owner`) or to demote the last one (`workspace_needs_an_owner`).
 - **Mailer** (`src/common/mailer.js`): provider precedence **Resend HTTP API** (`RESEND_API_KEY`) → **SMTP/nodemailer** (`SMTP_HOST/PORT/USER/PASS`) → **dev logger** (no provider configured ⇒ the message + link are printed to the console so the flow stays testable). `sendEmail` never throws — a mail failure must not roll back the invitation. The branded HTML template lives in `src/common/emails/invitationEmail.js`.
 
+### Account deletion
+
+`src/main/users/deleteAccount.js` (`POST /users/account/deletion-summary` + `POST /users/account/delete`, both authenticated). An account is an **email** with one `users` row per workspace, so deleting it means:
+
+- **Re-authentication.** The current password is bcrypt-verified first — a hijacked session must not be able to destroy the account.
+- **Owned workspaces are deleted outright** (one owner per workspace, no ownership transfer ⇒ they can't be orphaned). Any Stripe subscription is **cancelled first** so billing stops. `DELETE FROM tenants` then cascades everything (verified: the cascade succeeds even though some child FKs are `RESTRICT`, because those rows are cascade-deleted too).
+- **Joined workspaces keep their data** — only the membership row goes. But several FKs into `users` are **`ON DELETE RESTRICT`**, so a plain delete would fail. Content that belongs to the *workspace*, not the leaver, is preserved instead of destroyed:
+  - `posts.author_id` / `comments.author_id` (nullable) → **set NULL** (they stay on the board, shown as Anonymous).
+  - `changelog_entries.created_by`, `api_keys.created_by`, `file_uploads.uploaded_by` (NOT NULL + RESTRICT) → **reassigned to that workspace's owner**.
+  - `votes` / `notifications` / `oauth_accounts` cascade away; `audit_logs.actor_user_id` is `SET NULL`.
+- All of it runs in one transaction, and pending `invitations` addressed to the email are cleaned up.
+
+**If you add a new table referencing `users(id)`**, decide its delete rule deliberately — a `RESTRICT` + `NOT NULL` column must be handled in `deleteAccount` or account deletion will start failing.
+
 ### Conventions & gotchas
 
 - **Bodyless requests:** a global middleware in `app.js` defaults `req.body` to `{}`. Without it, GET/DELETE routes that read `req.body.lg` (or any body field) crash with `Cannot read properties of undefined`. Keep that middleware, and prefer `req.body?.x` in handlers.

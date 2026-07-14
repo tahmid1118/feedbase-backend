@@ -13,6 +13,10 @@ const { updatePersonalInfo } = require("../../main/users/updateUserData");
 const { changeUserPassword } = require("../../main/users/changeUserPassword");
 const { updateUserRole } = require("../../main/users/updateUserRole");
 const {
+  getAccountDeletionSummary,
+  deleteAccount,
+} = require("../../main/users/deleteAccount");
+const {
   getWorkspaces,
   checkSubdomain,
   createWorkspace,
@@ -238,6 +242,38 @@ userRouter.post("/change-password", authenticateToken, languageValidator, async 
         status: status,
         message: message,
       });
+    });
+});
+
+/**
+ * @description What deleting this account would destroy (confirmation dialog).
+ */
+userRouter.post("/account/deletion-summary", authenticateToken, languageValidator, async (req, res) => {
+  getAccountDeletionSummary({ ...req.auth, lg: req.body.lg })
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({ status, message, data: result });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
+    });
+});
+
+/**
+ * @description Permanently delete the authenticated account. Requires the
+ * password. Owned workspaces are deleted (subscriptions cancelled); joined
+ * workspaces just lose the membership.
+ */
+userRouter.post("/account/delete", authenticateToken, languageValidator, async (req, res) => {
+  deleteAccount(req.body?.password, { ...req.auth, lg: req.body.lg })
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({ status, message, data: result });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
     });
 });
 
