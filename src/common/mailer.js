@@ -69,6 +69,21 @@ async function sendViaSmtp({ to, subject, html, text }) {
  * must not break the operation that triggered it (the caller decides what to
  * tell the user).
  */
+const logEmail = (banner, { to, subject, text }) => {
+  console.log(
+    [
+      "",
+      `──────────── EMAIL (${banner}) ────────────`,
+      `To:      ${to}`,
+      `Subject: ${subject}`,
+      "",
+      (text || "").trim(),
+      "──────────────────────────────────────────────────────────────",
+      "",
+    ].join("\n")
+  );
+};
+
 const sendEmail = async ({ to, subject, html, text }) => {
   try {
     if (isResendConfigured()) {
@@ -79,21 +94,13 @@ const sendEmail = async ({ to, subject, html, text }) => {
       await sendViaSmtp({ to, subject, html, text });
       return { sent: true, provider: "smtp" };
     }
-    console.log(
-      [
-        "",
-        "──────────── EMAIL (not sent — no mail provider configured) ────────────",
-        `To:      ${to}`,
-        `Subject: ${subject}`,
-        "",
-        (text || "").trim(),
-        "────────────────────────────────────────────────────────────────────────",
-        "",
-      ].join("\n")
-    );
+    logEmail("not sent — no mail provider configured", { to, subject, text });
     return { sent: false, provider: "log" };
   } catch (error) {
+    // A provider is configured but the send failed (bad credentials, rate limit,
+    // …). Still log the message so the action link is never lost.
     console.error("sendEmail failed:", error.message);
+    logEmail(`NOT SENT — provider error: ${error.message}`, { to, subject, text });
     return { sent: false, provider: "error", error: error.message };
   }
 };
