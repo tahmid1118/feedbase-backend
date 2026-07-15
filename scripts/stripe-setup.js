@@ -1,38 +1,52 @@
 /**
- * One-off helper: create the Pro and Business Products + monthly Prices in your
- * Stripe account (test mode), then print the Price IDs to paste into `.env`.
+ * One-off helper: create the Pro and Business Products + their monthly AND
+ * yearly Prices in your Stripe account (test mode), then print the Price IDs to
+ * paste into `.env`.
+ *
+ * The yearly price is the monthly price × 12 with YEARLY_DISCOUNT (20%) off, so
+ * it's a genuinely cheaper price rather than a coupon.
  *
  * Usage:
  *   1. Set STRIPE_SECRET_KEY in .env (a test key, sk_test_...).
  *   2. node scripts/stripe-setup.js
- *   3. Copy STRIPE_PRICE_PRO / STRIPE_PRICE_BUSINESS into .env.
+ *   3. Copy STRIPE_PRICE_PRO / _BUSINESS and STRIPE_PRICE_PRO_YEARLY /
+ *      _BUSINESS_YEARLY into .env.
  *
- * Safe to re-run: it looks up existing products by name before creating.
+ * Safe to re-run: it looks up existing products/prices before creating.
  */
 require("dotenv").config();
 const Stripe = require("stripe");
+const { YEARLY_DISCOUNT } = require("../src/consts/plans");
 
 const TIERS = [
   { key: "pro", name: "Feedbase Pro", amount: 1900, envVar: "STRIPE_PRICE_PRO" },
   { key: "business", name: "Feedbase Business", amount: 4900, envVar: "STRIPE_PRICE_BUSINESS" },
 ];
 
+/** Yearly total in cents: 12 months minus the yearly discount. */
+const yearlyAmount = (monthlyAmount) =>
+  Math.round(monthlyAmount * 12 * (1 - YEARLY_DISCOUNT));
+
 async function findProductByName(stripe, name) {
   const list = await stripe.products.list({ limit: 100, active: true });
   return list.data.find((p) => p.name === name) || null;
 }
 
-async function ensurePrice(stripe, product, amount) {
+/** Find (or create) an active recurring USD price for a product + interval. */
+async function ensurePrice(stripe, product, amount, interval) {
   const prices = await stripe.prices.list({ product: product.id, active: true, limit: 100 });
   const existing = prices.data.find(
-    (p) => p.unit_amount === amount && p.recurring?.interval === "month" && p.currency === "usd"
+    (p) =>
+      p.unit_amount === amount &&
+      p.recurring?.interval === interval &&
+      p.currency === "usd"
   );
   if (existing) return existing;
   return stripe.prices.create({
     product: product.id,
     unit_amount: amount,
     currency: "usd",
-    recurring: { interval: "month" },
+    recurring: { interval },
   });
 }
 
@@ -52,9 +66,17 @@ async function ensurePrice(stripe, product, amount) {
     } else {
       console.log(`Found product: ${tier.name} (${product.id})`);
     }
-    const price = await ensurePrice(stripe, product, tier.amount);
-    out[tier.envVar] = price.id;
-    console.log(`  ${tier.envVar}=${price.id}  ($${(tier.amount / 100).toFixed(2)}/mo)`);
+
+    const monthly = await ensurePrice(stripe, product, tier.amount, "month");
+    out[tier.envVar] = monthly.id;
+    console.log(`  ${tier.envVar}=${monthly.id}  ($${(tier.amount / 100).toFixed(2)}/mo)`);
+
+    const yAmount = yearlyAmount(tier.amount);
+    const yearly = await ensurePrice(stripe, product, yAmount, "year");
+    out[`${tier.envVar}_YEARLY`] = yearly.id;
+    console.log(
+      `  ${tier.envVar}_YEARLY=${yearly.id}  ($${(yAmount / 100).toFixed(2)}/yr — ${YEARLY_DISCOUNT * 100}% off)`
+    );
   }
 
   console.log("\nPaste these into your .env:\n");

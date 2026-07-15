@@ -24,11 +24,11 @@ billingRouter.post("/status", authenticateToken, languageValidator, async (req, 
 
 /**
  * @description Start a Stripe Checkout session for a paid plan.
- * Body: { plan: "pro" | "business" }
+ * Body: { plan: "pro" | "business", interval?: "month" | "year", promotionCode? }
  */
 billingRouter.post("/checkout", authenticateToken, languageValidator, async (req, res) => {
-  const { plan, lg, promotionCode } = req.body;
-  createCheckoutSession(plan, { ...req.auth, lg }, promotionCode)
+  const { plan, lg, promotionCode, interval } = req.body;
+  createCheckoutSession(plan, { ...req.auth, lg }, promotionCode, interval)
     .then((data) => {
       const { statusCode, status, message, result } = data;
       return res.status(statusCode).send({ status, message, data: result });

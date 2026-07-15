@@ -42,6 +42,7 @@ const PLANS = {
     label: "Pro",
     price: 19,
     priceId: process.env.STRIPE_PRICE_PRO || null,
+    priceIdYearly: process.env.STRIPE_PRICE_PRO_YEARLY || null,
     limits: {
       seats: 5,
       ownWorkspaces: 3,
@@ -58,6 +59,7 @@ const PLANS = {
     label: "Business",
     price: 49,
     priceId: process.env.STRIPE_PRICE_BUSINESS || null,
+    priceIdYearly: process.env.STRIPE_PRICE_BUSINESS_YEARLY || null,
     limits: {
       seats: Infinity,
       ownWorkspaces: Infinity,
@@ -85,15 +87,52 @@ const maxPlan = (planNames) => {
   return best;
 };
 
-/** Map a Stripe Price ID back to a plan key (used by the webhook). */
+/**
+ * The yearly discount: a yearly subscription costs 12 months minus this, i.e.
+ * yearly total = monthly × 12 × (1 - YEARLY_DISCOUNT). Baked into a genuinely
+ * lower yearly Stripe price (see scripts/stripe-setup.js) — not a coupon.
+ */
+const YEARLY_DISCOUNT = 0.2;
+
+/** Billing intervals we support. */
+const INTERVALS = ["month", "year"];
+
+/** The Stripe Price ID for a plan on a given interval ("month" | "year"). */
+const priceIdFor = (planKey, interval) => {
+  const p = PLANS[planKey];
+  if (!p) return null;
+  return interval === "year" ? p.priceIdYearly : p.priceId;
+};
+
+/** Map a Stripe Price ID back to a plan key — matches monthly OR yearly. */
 const planByPriceId = (priceId) => {
   if (!priceId) return null;
-  const match = Object.values(PLANS).find((p) => p.priceId === priceId);
+  const match = Object.values(PLANS).find(
+    (p) => p.priceId === priceId || p.priceIdYearly === priceId
+  );
   return match ? match.key : null;
+};
+
+/** Whether a given Price ID is a yearly price → "year", else "month". */
+const intervalByPriceId = (priceId) => {
+  if (!priceId) return null;
+  const yearly = Object.values(PLANS).some((p) => p.priceIdYearly === priceId);
+  return yearly ? "year" : "month";
 };
 
 /** Limits for a plan name, falling back to the free tier for unknown values. */
 const getPlanLimits = (planName) =>
   (PLANS[planName] || PLANS.free).limits;
 
-module.exports = { PLANS, VALID_PLAN_KEYS, PLAN_RANK, maxPlan, planByPriceId, getPlanLimits };
+module.exports = {
+  PLANS,
+  VALID_PLAN_KEYS,
+  PLAN_RANK,
+  YEARLY_DISCOUNT,
+  INTERVALS,
+  maxPlan,
+  priceIdFor,
+  planByPriceId,
+  intervalByPriceId,
+  getPlanLimits,
+};

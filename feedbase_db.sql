@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS tenants (
   stripe_customer_id VARCHAR(255) NULL,
   stripe_subscription_id VARCHAR(255) NULL,
   subscription_status VARCHAR(50) NULL,
+  -- Billing interval of the active subscription ('month' | 'year'); NULL on free.
+  billing_interval ENUM('month', 'year') NULL,
   current_period_end DATETIME NULL,
   branding_logo_url VARCHAR(500) NULL,
   branding_primary_color VARCHAR(20) NULL,

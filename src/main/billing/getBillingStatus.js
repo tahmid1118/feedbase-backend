@@ -23,7 +23,7 @@ const getBillingStatus = async (authData) => {
     }
 
     const [rows] = await pool.query(
-      `SELECT plan_name, subscription_status, current_period_end,
+      `SELECT plan_name, subscription_status, billing_interval, current_period_end,
               stripe_subscription_id
        FROM tenants WHERE id = ?`,
       [tenantId]
@@ -39,6 +39,7 @@ const getBillingStatus = async (authData) => {
     const result = {
       planName,
       subscriptionStatus: t.subscription_status || null,
+      billingInterval: t.billing_interval || null, // 'month' | 'year' | null
       currentPeriodEnd: t.current_period_end || null,
       hasSubscription: Boolean(t.stripe_subscription_id),
       limits: getPlanLimits(planName),

@@ -2,7 +2,7 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { stripe, isStripeConfigured } = require("../../common/stripe");
-const { PLANS } = require("../../consts/plans");
+const { PLANS, priceIdFor } = require("../../consts/plans");
 const { getActiveOfferForPlan } = require("../../common/offers");
 
 const BILLING_ROLES = ["owner"];
@@ -15,9 +15,11 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
  * @param {string} plan plan key ("pro" | "business")
  * @param {object} authData { id, email, tenantId, role, lg }
  * @param {string} [promotionCode] Stripe promotion code id to apply as a discount
+ * @param {string} [interval] "month" (default) | "year" — yearly is ~20% cheaper
  */
-const createCheckoutSession = async (plan, authData, promotionCode) => {
+const createCheckoutSession = async (plan, authData, promotionCode, interval) => {
   const { tenantId, role, email, lg } = authData;
+  const billingInterval = interval === "year" ? "year" : "month";
 
   if (!BILLING_ROLES.includes(role)) {
     return Promise.reject(
@@ -31,7 +33,8 @@ const createCheckoutSession = async (plan, authData, promotionCode) => {
   }
 
   const planDef = PLANS[plan];
-  if (!planDef || plan === "free" || !planDef.priceId) {
+  const priceId = priceIdFor(plan, billingInterval);
+  if (!planDef || plan === "free" || !priceId) {
     return Promise.reject(
       setServerResponse(API_STATUS_CODE.BAD_REQUEST, "invalid_plan", lg)
     );
@@ -65,12 +68,14 @@ const createCheckoutSession = async (plan, authData, promotionCode) => {
 
     // Discount precedence (all mutually exclusive with Stripe's own code field):
     //   1. a redeemed promo code (explicit promotionCode),
-    //   2. an active plan offer (auto-applied coupon),
+    //   2. an active plan offer (auto-applied coupon) — MONTHLY only, since the
+    //      yearly price already bakes in the 20% yearly discount and stacking
+    //      would double-discount,
     //   3. otherwise let the customer type a code at Checkout.
     let discountOpts = { allow_promotion_codes: true };
     if (promotionCode) {
       discountOpts = { discounts: [{ promotion_code: promotionCode }] };
-    } else {
+    } else if (billingInterval === "month") {
       const offer = await getActiveOfferForPlan(plan);
       if (offer?.stripeCouponId) {
         discountOpts = { discounts: [{ coupon: offer.stripeCouponId }] };
@@ -80,8 +85,8 @@ const createCheckoutSession = async (plan, authData, promotionCode) => {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
-      line_items: [{ price: planDef.priceId, quantity: 1 }],
-      metadata: { tenantId: String(tenantId), plan },
+      line_items: [{ price: priceId, quantity: 1 }],
+      metadata: { tenantId: String(tenantId), plan, interval: billingInterval },
       subscription_data: { metadata: { tenantId: String(tenantId), plan } },
       ...discountOpts,
       success_url: `${FRONTEND_URL}/dashboard/settings?tab=billing&checkout=success`,
