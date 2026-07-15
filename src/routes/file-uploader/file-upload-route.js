@@ -1,15 +1,3 @@
-/**
- * @author Md. Majedul Islam <https://github.com/majedul-uxbd> 
- * Software Engineer,
- * Ultra-X BD Ltd.
- *
- * @copyright All right reserved Ultra-X Asia Pacific
- * 
- * @description 
- * 
- */
-
-
 const express = require('express');
 const { authenticateToken } = require('../../middlewares/jwt/jwt');
 const { checkIfFileSavePathExist } = require('../../common/file-upload/check-file-path-exist');

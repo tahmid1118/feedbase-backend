@@ -1,14 +1,3 @@
-/**
- * @author Md. Majedul Islam <https://github.com/majedul-uxbd> 
- * Software Engineer,
- * Ultra-X BD Ltd.
- *
- * @copyright All right reserved Ultra-X Asia Pacific
- * 
- * @description 
- * 
- */
-
 const _ = require('lodash');
 const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
