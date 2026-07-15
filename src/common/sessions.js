@@ -116,15 +116,26 @@ const allowsMultiDevice = async (tenantId) => {
  * The gate applied at every point a *new* session would be created (login,
  * OAuth, invitation accept). Returns the new session id, or rejects with
  * `{ blocked: true, session }` when a single-device plan already has a live one.
+ *
+ * `options.force` is the account owner's escape hatch: a `409` means the
+ * password was correct, so the owner may choose to sign out their other devices
+ * and take over here. Force revokes every existing session first, then proceeds
+ * — never blocks. This keeps "one device at a time" (the newest login wins, the
+ * others die) without ever trapping the legitimate owner behind a stale session.
  */
-const startSession = async (user, req) => {
+const startSession = async (user, req, options = {}) => {
   const multiDevice = await allowsMultiDevice(user.tenant_id);
   if (!multiDevice) {
-    const live = await getLiveSessionForEmail(user.email);
-    if (live) return { blocked: true, session: live };
-    // Nothing live — but an abandoned session may still be unrevoked. Clear it
-    // so exactly one session exists for this account.
-    await revokeSessionsForEmail(user.email);
+    if (options.force) {
+      // Owner-confirmed takeover: kill all other sessions, then continue.
+      await revokeSessionsForEmail(user.email);
+    } else {
+      const live = await getLiveSessionForEmail(user.email);
+      if (live) return { blocked: true, session: live };
+      // Nothing live — but an abandoned session may still be unrevoked. Clear it
+      // so exactly one session exists for this account.
+      await revokeSessionsForEmail(user.email);
+    }
   }
   return { blocked: false, sessionId: await createSession(user.email, req) };
 };

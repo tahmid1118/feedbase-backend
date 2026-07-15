@@ -147,7 +147,10 @@ const userLogin = async (userData, lg, req) => {
     }
     // One device at a time (Free/Pro): refuse a second login while another
     // device still holds a live session. Business plans skip this entirely.
-    const session = await startSession(userInfo, req);
+    // `force` is the owner's confirmed takeover after a 409 (password already
+    // verified), which signs the other devices out instead of blocking.
+    const force = userData?.force === true || userData?.force === "true";
+    const session = await startSession(userInfo, req, { force });
     if (session.blocked) {
         return Promise.reject(
             setServerResponse(
