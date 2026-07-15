@@ -237,7 +237,9 @@
         "attachment_video_too_large": "Videos must be 50MB or smaller.",
         "failed_to_upload_attachment": "Failed to upload the attachment. Please try again.",
         "plan_limit_attachments": "Attachments are a paid feature. Upgrade to Pro or Business to add photos and video to feedback.",
-        "email_required": "Please add your email so we can update you about your feedback"
+        "email_required": "Please add your email so we can update you about your feedback",
+        "plan_limit_workspaces_own": "You have reached the number of workspaces your plan can create. Upgrade to Pro or Business to add more.",
+        "plan_limit_workspaces_join": "You have reached the number of workspaces your plan can join. Upgrade to Pro or Business to join more."
     },
     "bn": {
         "success": "সফল",
@@ -477,6 +479,8 @@
         "attachment_video_too_large": "ভিডিও অবশ্যই ৫০MB বা তার কম হতে হবে।",
         "failed_to_upload_attachment": "সংযুক্তি আপলোড করা যায়নি। আবার চেষ্টা করুন।",
         "plan_limit_attachments": "সংযুক্তি একটি পেইড ফিচার। ফিডব্যাকে ছবি ও ভিডিও যোগ করতে Pro বা Business-এ আপগ্রেড করুন।",
-        "email_required": "আপনার ফিডব্যাকের আপডেট জানাতে অনুগ্রহ করে আপনার ইমেইল যোগ করুন"
+        "email_required": "আপনার ফিডব্যাকের আপডেট জানাতে অনুগ্রহ করে আপনার ইমেইল যোগ করুন",
+        "plan_limit_workspaces_own": "আপনার প্ল্যানে তৈরি করা যায় এমন ওয়ার্কস্পেসের সীমায় পৌঁছে গেছেন। আরও যোগ করতে প্রো বা বিজনেসে আপগ্রেড করুন।",
+        "plan_limit_workspaces_join": "আপনার প্ল্যানে যোগ দেওয়া যায় এমন ওয়ার্কস্পেসের সীমায় পৌঁছে গেছেন। আরও যোগ দিতে প্রো বা বিজনেসে আপগ্রেড করুন।"
     }
 }

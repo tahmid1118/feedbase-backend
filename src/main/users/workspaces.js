@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
+const { getAccountWorkspaceUsage } = require("../../common/planGuard");
 
 const RESERVED_SUBDOMAINS = new Set([
   "www",
@@ -46,9 +47,13 @@ const getWorkspaces = async (authData) => {
       [email]
     );
     const workspaces = rows.map((r) => ({ ...r, current: r.tenant_id === tenantId }));
+    // Per-account caps (owned/joined) so the UI can gate "Add Workspace" and
+    // explain why. `limits.ownLimit`/`joinLimit` are null when unlimited.
+    const limits = await getAccountWorkspaceUsage(email);
     return Promise.resolve(
       setServerResponse(API_STATUS_CODE.OK, "data_fetched_successfully", lg, {
         workspaces,
+        limits,
       })
     );
   } catch (error) {
@@ -100,7 +105,7 @@ const checkSubdomain = async (rawSubdomain, lg) => {
  * with the default status-linked roadmap columns.
  */
 const createWorkspace = async (data, authData) => {
-  const { id: userId, lg, sid } = authData;
+  const { id: userId, email, lg, sid } = authData;
   const name = (data?.name || "").trim();
   const subdomain = (data?.subdomain || "").trim().toLowerCase();
   const website = (data?.website || "").trim() || null;
@@ -113,6 +118,16 @@ const createWorkspace = async (data, authData) => {
   if (!SUBDOMAIN_RE.test(subdomain) || RESERVED_SUBDOMAINS.has(subdomain)) {
     return Promise.reject(
       setServerResponse(API_STATUS_CODE.BAD_REQUEST, "invalid_subdomain", lg)
+    );
+  }
+
+  // Per-account cap on OWNED workspaces (governed by the account's tier — the
+  // best plan it already owns). A fresh account owns 0, so its first workspace
+  // is always allowed. To raise the cap, upgrade an owned workspace to Pro/Business.
+  const usage = await getAccountWorkspaceUsage(email);
+  if (!usage.canCreate) {
+    return Promise.reject(
+      setServerResponse(API_STATUS_CODE.PAYMENT_REQUIRED, "plan_limit_workspaces_own", lg)
     );
   }
 

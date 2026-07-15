@@ -6,7 +6,7 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { createSession } = require("../../common/sessions");
-const { getTenantPlan } = require("../../common/planGuard");
+const { getTenantPlan, getAccountWorkspaceUsage } = require("../../common/planGuard");
 const { getPlanLimits } = require("../../consts/plans");
 const { sendEmail, isMailConfigured } = require("../../common/mailer");
 const { invitationEmail } = require("../../common/emails/invitationEmail");
@@ -382,6 +382,16 @@ const acceptInvitationAsExistingUser = async (token, authData) => {
       await conn.rollback();
       return Promise.reject(
         setServerResponse(API_STATUS_CODE.BAD_REQUEST, "already_a_member", lg)
+      );
+    }
+
+    // Per-account cap on JOINED workspaces (governed by the invitee's own tier).
+    // A new account has 0 memberships so this only bites existing accounts.
+    const usage = await getAccountWorkspaceUsage(inv.email);
+    if (!usage.canJoin) {
+      await conn.rollback();
+      return Promise.reject(
+        setServerResponse(API_STATUS_CODE.PAYMENT_REQUIRED, "plan_limit_workspaces_join", lg)
       );
     }
 

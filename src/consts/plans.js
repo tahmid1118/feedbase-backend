@@ -11,6 +11,12 @@
  *   - seats: max team members BESIDES the owner (the owner is never counted),
  *       so Free = owner + 2, Pro = owner + 5, Business = unlimited. Enforced at
  *       invite time in `invitations.js`.
+ *   - ownWorkspaces / joinWorkspaces: per-ACCOUNT caps (not per-tenant) on how
+ *       many workspaces an email may OWN and be a MEMBER of. Governed by the
+ *       account's tier = the highest plan among the workspaces it owns (see
+ *       `getAccountTier` in planGuard). Free owns 1 / joins 1, Pro 3 / 3,
+ *       Business unlimited. Enforced in `workspaces.js` (create) and
+ *       `invitations.js` (accept).
  */
 // `price` is the monthly list price (USD) — the display baseline that offers
 // discount from. Keep it in sync with the Stripe prices + `lib/plans.ts`.
@@ -22,6 +28,8 @@ const PLANS = {
     priceId: null,
     limits: {
       seats: 2,
+      ownWorkspaces: 1,
+      joinWorkspaces: 1,
       customDomain: false,
       integrations: false,
       deleteFeedback: false,
@@ -36,6 +44,8 @@ const PLANS = {
     priceId: process.env.STRIPE_PRICE_PRO || null,
     limits: {
       seats: 5,
+      ownWorkspaces: 3,
+      joinWorkspaces: 3,
       customDomain: true,
       integrations: true,
       deleteFeedback: true,
@@ -50,6 +60,8 @@ const PLANS = {
     priceId: process.env.STRIPE_PRICE_BUSINESS || null,
     limits: {
       seats: Infinity,
+      ownWorkspaces: Infinity,
+      joinWorkspaces: Infinity,
       customDomain: true,
       integrations: true,
       deleteFeedback: true,
@@ -60,6 +72,18 @@ const PLANS = {
 };
 
 const VALID_PLAN_KEYS = Object.keys(PLANS);
+
+/** Tier ordering, low → high. Used to pick an account's effective plan. */
+const PLAN_RANK = { free: 0, pro: 1, business: 2 };
+
+/** The highest-tier plan among a list of plan names (defaults to "free"). */
+const maxPlan = (planNames) => {
+  let best = "free";
+  for (const p of planNames || []) {
+    if ((PLAN_RANK[p] ?? 0) > (PLAN_RANK[best] ?? 0)) best = p;
+  }
+  return best;
+};
 
 /** Map a Stripe Price ID back to a plan key (used by the webhook). */
 const planByPriceId = (priceId) => {
@@ -72,4 +96,4 @@ const planByPriceId = (priceId) => {
 const getPlanLimits = (planName) =>
   (PLANS[planName] || PLANS.free).limits;
 
-module.exports = { PLANS, VALID_PLAN_KEYS, planByPriceId, getPlanLimits };
+module.exports = { PLANS, VALID_PLAN_KEYS, PLAN_RANK, maxPlan, planByPriceId, getPlanLimits };
