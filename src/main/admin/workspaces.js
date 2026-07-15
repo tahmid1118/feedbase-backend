@@ -1,8 +1,25 @@
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
+const { stripe, isStripeConfigured } = require("../../common/stripe");
 
 const PLANS = ["free", "pro", "business"];
+
+/**
+ * Cancel a tenant's live Stripe subscription (if any) so an admin plan grant /
+ * revoke doesn't leave a real subscription running alongside the override —
+ * otherwise the tenant keeps being charged for their OLD plan and "Manage
+ * billing" opens the Stripe portal on that stale subscription. Best-effort.
+ */
+const cancelStripeSubscription = async (subscriptionId) => {
+  if (!subscriptionId || !isStripeConfigured()) return;
+  try {
+    await stripe.subscriptions.cancel(subscriptionId);
+  } catch (error) {
+    // Already canceled / not found is fine — we're clearing it locally anyway.
+    console.error("cancelStripeSubscription (non-fatal):", error.message);
+  }
+};
 
 /** List every workspace with its owner + basic counts (admin view). */
 const listWorkspaces = async (search, lg) => {
@@ -88,23 +105,48 @@ const updateWorkspace = async (id, data, lg) => {
   }
 };
 
-/** Grant/comp a paid plan or revoke it to free (admin override, no Stripe). */
-const setWorkspacePlan = async (id, plan, lg) => {
+/**
+ * Grant/comp a paid plan or revoke it to free (admin override, no Stripe).
+ * `durationMonths` sets how long a comp lasts: falsy/0 = LIFETIME (never
+ * expires), a positive integer = expires after that many months (reconcile then
+ * reverts the workspace to free). Ignored for `plan === "free"`.
+ */
+const setWorkspacePlan = async (id, plan, durationMonths, lg) => {
   if (!PLANS.includes(plan)) {
     return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "invalid_plan", lg));
   }
+  const months = Number(durationMonths);
+  const timed = Number.isInteger(months) && months > 0;
   try {
+    // Cancel any live Stripe subscription first — an admin override replaces it,
+    // so the tenant must not keep paying for (and "Manage billing" must not show)
+    // the old plan.
+    const [[current]] = await pool.query(
+      "SELECT stripe_subscription_id FROM tenants WHERE id = ?",
+      [id]
+    );
+    if (!current) {
+      return Promise.reject(setServerResponse(API_STATUS_CODE.NOT_FOUND, "tenant_not_found", lg));
+    }
+    await cancelStripeSubscription(current.stripe_subscription_id);
+
     if (plan === "free") {
       await pool.query(
-        "UPDATE tenants SET plan_name='free', subscription_status=NULL, stripe_subscription_id=NULL, current_period_end=NULL WHERE id = ?",
+        "UPDATE tenants SET plan_name='free', subscription_status=NULL, billing_interval=NULL, stripe_subscription_id=NULL, current_period_end=NULL WHERE id = ?",
         [id]
       );
     } else {
-      // Comp: a paid plan with no Stripe subscription. 'comped' status is
-      // preserved by the reconcile guard so it isn't reset to free on load.
+      // Comp: a paid plan with NO Stripe subscription (any prior one is now
+      // canceled + cleared). `current_period_end` is the comp's expiry — NULL for
+      // a lifetime comp, or NOW()+N months for a time-limited one (reconcile
+      // reverts it to free once past). The reconcile guard preserves live comps.
       await pool.query(
-        "UPDATE tenants SET plan_name = ?, subscription_status='comped', current_period_end=NULL WHERE id = ?",
-        [plan, id]
+        `UPDATE tenants
+            SET plan_name = ?, subscription_status='comped', billing_interval=NULL,
+                stripe_subscription_id=NULL,
+                current_period_end = ${timed ? "DATE_ADD(NOW(), INTERVAL ? MONTH)" : "NULL"}
+          WHERE id = ?`,
+        timed ? [plan, months, id] : [plan, id]
       );
     }
     return Promise.resolve(setServerResponse(API_STATUS_CODE.OK, "plan_updated", lg));

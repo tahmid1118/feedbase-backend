@@ -82,7 +82,7 @@ adminRouter.put("/workspaces/:id", (req, res) =>
   updateWorkspace(req.params.id, req.body, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
 );
 adminRouter.put("/workspaces/:id/plan", (req, res) =>
-  setWorkspacePlan(req.params.id, req.body?.plan, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+  setWorkspacePlan(req.params.id, req.body?.plan, req.body?.durationMonths, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
 );
 adminRouter.delete("/workspaces/:id", (req, res) =>
   deleteWorkspace(req.params.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))

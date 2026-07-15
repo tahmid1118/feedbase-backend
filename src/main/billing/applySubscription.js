@@ -63,12 +63,22 @@ const resetToFree = async (sub) => {
 const reconcileTenantSubscription = async (tenantId) => {
   if (!isStripeConfigured()) return;
   const [rows] = await pool.query(
-    "SELECT stripe_customer_id, subscription_status FROM tenants WHERE id = ?",
+    "SELECT stripe_customer_id, subscription_status, current_period_end FROM tenants WHERE id = ?",
     [tenantId]
   );
   // A comped plan (admin override / free-plan promo redemption) has no Stripe
-  // subscription — never let reconcile reset it back to free.
-  if (rows[0]?.subscription_status === "comped") return;
+  // subscription. A LIFETIME comp (current_period_end NULL) or a still-valid
+  // time-limited one is preserved; an EXPIRED time-limited comp reverts to free.
+  if (rows[0]?.subscription_status === "comped") {
+    const end = rows[0]?.current_period_end;
+    if (end && new Date(end) < new Date()) {
+      await pool.query(
+        "UPDATE tenants SET plan_name='free', subscription_status=NULL, billing_interval=NULL, current_period_end=NULL WHERE id = ?",
+        [tenantId]
+      );
+    }
+    return;
+  }
   const customerId = rows[0]?.stripe_customer_id;
   if (!customerId) return;
 
