@@ -349,7 +349,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   tenant_id BIGINT UNSIGNED NOT NULL,
   user_id BIGINT UNSIGNED NOT NULL,
-  notification_type ENUM('post_status', 'comment_reply', 'mention', 'changelog', 'system') NOT NULL,
+  notification_type ENUM('post_status', 'comment_reply', 'mention', 'changelog', 'system', 'new_feedback') NOT NULL,
   title VARCHAR(160) NOT NULL,
   message TEXT NULL,
   reference_type VARCHAR(50) NULL,

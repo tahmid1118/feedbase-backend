@@ -3,9 +3,19 @@ const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { notifyOwnerOfNewPost } = require("./notifyOwnerOfNewPost");
 const { attachToPost } = require("../attachments/attachments");
+const { notifyTeam } = require("../../common/notifications");
 
 const POST_TYPES = ["feedback", "feature_request", "bug_report"];
+const TYPE_LABEL = {
+  feedback: "feedback",
+  feature_request: "a feature request",
+  bug_report: "a bug report",
+};
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const truncate = (s, n) => {
+  const t = String(s ?? "").trim();
+  return t.length > n ? `${t.slice(0, n)}…` : t;
+};
 
 /**
  * @description Create a feedback post from the PUBLIC portal (no auth). The
@@ -88,6 +98,18 @@ const createPublicPost = async (tenantId, data, authUser, lg) => {
       { title, description, postType, submitterName },
       authUser
     ).catch(() => {});
+
+    // In-app notification to the whole team (except the poster, if they're a
+    // member). Fire-and-forget, same as the email above.
+    const who = authUser?.fullName || submitterName || "Someone";
+    notifyTeam(tenantId, {
+      type: "new_feedback",
+      title: `New feedback: ${truncate(title, 80)}`,
+      message: `${who} submitted ${TYPE_LABEL[postType] || "feedback"}.`,
+      referenceType: "post",
+      referenceId: result.insertId,
+      excludeUserId: authorId,
+    }).catch(() => {});
 
     return Promise.resolve(
       setServerResponse(

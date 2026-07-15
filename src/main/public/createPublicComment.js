@@ -1,8 +1,13 @@
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
+const { notifyTeam } = require("../../common/notifications");
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const truncate = (s, n) => {
+  const t = String(s ?? "").trim();
+  return t.length > n ? `${t.slice(0, n)}…` : t;
+};
 
 /**
  * @description Add a comment to a post from the PUBLIC portal. If `authUser` is
@@ -45,7 +50,7 @@ const createPublicComment = async (tenantId, postId, data, authUser, lg) => {
 
   try {
     const [posts] = await pool.query(
-      "SELECT id FROM posts WHERE id = ? AND tenant_id = ?",
+      "SELECT id, title FROM posts WHERE id = ? AND tenant_id = ?",
       [postId, tenantId]
     );
     if (posts.length === 0) {
@@ -53,6 +58,7 @@ const createPublicComment = async (tenantId, postId, data, authUser, lg) => {
         setServerResponse(API_STATUS_CODE.NOT_FOUND, "post_not_found", lg)
       );
     }
+    const postTitle = posts[0].title;
 
     // A reply must target a comment on this same post/tenant. Comments are kept
     // two levels deep: a reply always attaches to the TOP-LEVEL comment, so
@@ -88,6 +94,18 @@ const createPublicComment = async (tenantId, postId, data, authUser, lg) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [tenantId, postId, authorId, submitterName, submitterEmail, guestId, rootParentId, body]
     );
+
+    // In-app notification to the team (except the commenter, if a member).
+    // Fire-and-forget — a notification failure must not fail the comment.
+    const who = authUser?.fullName || submitterName || "Someone";
+    notifyTeam(tenantId, {
+      type: "comment_reply",
+      title: `New comment on “${truncate(postTitle, 70)}”`,
+      message: `${who}: “${truncate(body, 140)}”`,
+      referenceType: "post",
+      referenceId: postId,
+      excludeUserId: authorId,
+    }).catch(() => {});
 
     return Promise.resolve(
       setServerResponse(
