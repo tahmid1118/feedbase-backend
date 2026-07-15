@@ -244,7 +244,9 @@
         "feedback_not_completed": "You can only notify the submitter once the feedback is marked completed.",
         "no_submitter_email": "This feedback has no email address to notify.",
         "submitter_notified": "The submitter has been notified",
-        "failed_to_notify_submitter": "Failed to notify the submitter"
+        "failed_to_notify_submitter": "Failed to notify the submitter",
+        "all_notifications_cleared": "All notifications cleared",
+        "failed_to_clear_notifications": "Failed to clear notifications"
     },
     "bn": {
         "success": "সফল",
@@ -491,6 +493,8 @@
         "feedback_not_completed": "ফিডব্যাক সম্পন্ন হিসেবে চিহ্নিত হলে তবেই দাতাকে জানাতে পারবেন।",
         "no_submitter_email": "এই ফিডব্যাকের জন্য জানানোর কোনো ইমেইল ঠিকানা নেই।",
         "submitter_notified": "দাতাকে জানানো হয়েছে",
-        "failed_to_notify_submitter": "দাতাকে জানাতে ব্যর্থ হয়েছে"
+        "failed_to_notify_submitter": "দাতাকে জানাতে ব্যর্থ হয়েছে",
+        "all_notifications_cleared": "সব নোটিফিকেশন মুছে ফেলা হয়েছে",
+        "failed_to_clear_notifications": "নোটিফিকেশন মুছতে ব্যর্থ হয়েছে"
     }
 }

@@ -7,6 +7,7 @@ const { getNotifications } = require("../../main/notification/getNotifications")
 const { markAsRead } = require("../../main/notification/markAsRead");
 const { markAllAsRead } = require("../../main/notification/markAllAsRead");
 const { deleteNotification } = require("../../main/notification/deleteNotification");
+const { clearAllNotifications } = require("../../main/notification/clearAllNotifications");
 const { getUnreadCount } = require("../../main/notification/getUnreadCount");
 
 /**
@@ -101,6 +102,22 @@ notificationRouter.delete("/delete/:id", authenticateToken, languageValidator, a
         status: status,
         message: message,
       });
+    });
+});
+
+/**
+ * @description Delete ALL of the authenticated user's notifications.
+ */
+notificationRouter.delete("/clear", authenticateToken, languageValidator, async (req, res) => {
+  const lg = req.body.lg || req.query.lg || 'en';
+  clearAllNotifications({ ...req.auth, lg })
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({ status, message, data: result });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
     });
 });
 
