@@ -23,9 +23,13 @@ const TIERS = [
   { key: "business", name: "Feedbase Business", amount: 4900, envVar: "STRIPE_PRICE_BUSINESS" },
 ];
 
-/** Yearly total in cents: 12 months minus the yearly discount. */
+/**
+ * Yearly total in cents. The per-month equivalent is rounded to a WHOLE dollar
+ * first (so both the monthly-equivalent and the annual total stay integers —
+ * e.g. Pro $19 → $15/mo → $180/yr), then multiplied by 12.
+ */
 const yearlyAmount = (monthlyAmount) =>
-  Math.round(monthlyAmount * 12 * (1 - YEARLY_DISCOUNT));
+  Math.round((monthlyAmount / 100) * (1 - YEARLY_DISCOUNT)) * 100 * 12;
 
 async function findProductByName(stripe, name) {
   const list = await stripe.products.list({ limit: 100, active: true });
