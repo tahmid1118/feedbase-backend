@@ -27,10 +27,9 @@ const getPostList = async (paginationData, filters, authData) => {
   let whereClause = ' WHERE p.tenant_id = ?';
   const whereParams = [tenantId];
 
-  // A specific status tab filters to it; the "All" tab (no status) excludes
-  // rejected feedback — it lives only in its own Rejected tab.
+  // A specific status tab filters to it; the "All" tab (no status) shows every
+  // post INCLUDING rejected. (Rejected is still hidden from the PUBLIC board.)
   if (filters?.status) { whereClause += ' AND p.status = ?'; whereParams.push(filters.status); }
-  else { whereClause += " AND p.status <> 'rejected'"; }
   if (filters?.postType) { whereClause += ' AND p.post_type = ?'; whereParams.push(filters.postType); }
   if (filters?.isPinned !== undefined && filters?.isPinned !== null && filters?.isPinned !== '') {
     whereClause += ' AND p.is_pinned = ?';

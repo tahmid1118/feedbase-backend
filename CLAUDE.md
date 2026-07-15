@@ -164,7 +164,7 @@ Features: `roadmap_columns`, `roadmap_items`, `changelog_entries`, `notification
 System: `api_keys`, `audit_logs`, `integrations`, `oauth_accounts`, `user_sessions` (device sessions — see Authentication)
 Platform (not tenant-scoped): `admins`, `promo_codes`, `promo_redemptions`, `offers`
 
-Post fields of note: `type` (feedback/feature/bug), `status` (`open`/`planned`/`in_progress`/`completed`/`closed`/`rejected`), `priority` (1–5). **`rejected`** = feedback the team declined: `updatePostStatus` validates the value; `getPostList` hides it from the dashboard "All" tab (shown only when `status='rejected'` is requested); the **public** board (`getPublicBoard`) and post detail (`getPublicPostDetail`) exclude it unconditionally. It's restored by setting status back to `open`. (`closed` is a legacy value, not offered in the UI.)
+Post fields of note: `type` (feedback/feature/bug), `status` (`open`/`planned`/`in_progress`/`completed`/`closed`/`rejected`), `priority` (1–5). **`rejected`** = feedback the team declined: `updatePostStatus` validates the value; on the dashboard it appears in the "All" tab and its own "Rejected" tab (`getPostList` applies no special exclusion); the **public** board (`getPublicBoard`) and post detail (`getPublicPostDetail`) exclude it unconditionally so it's never shown to end users. It's restored by setting status back to `open`. (`closed` is a legacy value, not offered in the UI.)
 
 ## Environment
 
