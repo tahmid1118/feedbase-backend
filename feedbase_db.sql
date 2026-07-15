@@ -210,9 +210,12 @@ CREATE TABLE IF NOT EXISTS posts (
   title VARCHAR(200) NOT NULL,
   description TEXT NOT NULL,
   post_type ENUM('feedback', 'feature_request', 'bug_report') NOT NULL DEFAULT 'feedback',
-  -- 'rejected' = feedback the team declined; hidden from the public board and
-  -- the dashboard "All" tab, shown only in the Rejected tab (restorable to open).
+  -- 'rejected' = feedback the team declined; hidden from the public portal,
+  -- shown in the dashboard "All" tab and its own Rejected tab (restorable to open).
   status ENUM('open', 'planned', 'in_progress', 'completed', 'closed', 'rejected') NOT NULL DEFAULT 'open',
+  -- When the owner sent the "your feedback is implemented" email to the submitter
+  -- (Pro+ contactSubmitter feature); NULL until notified.
+  implemented_notified_at DATETIME NULL,
   priority TINYINT UNSIGNED NOT NULL DEFAULT 3,
   is_pinned TINYINT(1) NOT NULL DEFAULT 0,
   duplicate_of_post_id BIGINT UNSIGNED NULL,

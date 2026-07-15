@@ -2,6 +2,7 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
 const { getAttachmentsForPost } = require("../attachments/attachments");
+const { planAllows } = require("../../common/planGuard");
 
 const getPostById = async (id, authData) => {
   const { id: userId, tenantId, lg } = authData;
@@ -40,7 +41,17 @@ const getPostById = async (id, authData) => {
 
     const [tags] = await pool.query(_tagQuery, [id, tenantId]);
     const attachments = await getAttachmentsForPost(id, tenantId);
-    const post = { ...rows[0], has_voted: rows[0].has_voted === 1, tags, attachments };
+    // The submitter's email is a paid capability (Pro+ `contactSubmitter`) — hide
+    // it from Free workspaces so it never reaches the client at all.
+    const canContact = await planAllows(tenantId, "contactSubmitter");
+    const { author_email, ...rest } = rows[0];
+    const post = {
+      ...rest,
+      author_email: canContact ? author_email : null,
+      has_voted: rows[0].has_voted === 1,
+      tags,
+      attachments,
+    };
 
     return Promise.resolve(
       setServerResponse(

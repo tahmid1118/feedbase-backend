@@ -239,7 +239,12 @@
         "plan_limit_attachments": "Attachments are a paid feature. Upgrade to Pro or Business to add photos and video to feedback.",
         "email_required": "Please add your email so we can update you about your feedback",
         "plan_limit_workspaces_own": "You have reached the number of workspaces your plan can create. Upgrade to Pro or Business to add more.",
-        "plan_limit_workspaces_join": "You have reached the number of workspaces your plan can join. Upgrade to Pro or Business to join more."
+        "plan_limit_workspaces_join": "You have reached the number of workspaces your plan can join. Upgrade to Pro or Business to join more.",
+        "plan_limit_contact_submitter": "Contacting feedback submitters is a Pro feature. Upgrade to Pro or Business to use it.",
+        "feedback_not_completed": "You can only notify the submitter once the feedback is marked completed.",
+        "no_submitter_email": "This feedback has no email address to notify.",
+        "submitter_notified": "The submitter has been notified",
+        "failed_to_notify_submitter": "Failed to notify the submitter"
     },
     "bn": {
         "success": "সফল",
@@ -481,6 +486,11 @@
         "plan_limit_attachments": "সংযুক্তি একটি পেইড ফিচার। ফিডব্যাকে ছবি ও ভিডিও যোগ করতে Pro বা Business-এ আপগ্রেড করুন।",
         "email_required": "আপনার ফিডব্যাকের আপডেট জানাতে অনুগ্রহ করে আপনার ইমেইল যোগ করুন",
         "plan_limit_workspaces_own": "আপনার প্ল্যানে তৈরি করা যায় এমন ওয়ার্কস্পেসের সীমায় পৌঁছে গেছেন। আরও যোগ করতে প্রো বা বিজনেসে আপগ্রেড করুন।",
-        "plan_limit_workspaces_join": "আপনার প্ল্যানে যোগ দেওয়া যায় এমন ওয়ার্কস্পেসের সীমায় পৌঁছে গেছেন। আরও যোগ দিতে প্রো বা বিজনেসে আপগ্রেড করুন।"
+        "plan_limit_workspaces_join": "আপনার প্ল্যানে যোগ দেওয়া যায় এমন ওয়ার্কস্পেসের সীমায় পৌঁছে গেছেন। আরও যোগ দিতে প্রো বা বিজনেসে আপগ্রেড করুন।",
+        "plan_limit_contact_submitter": "ফিডব্যাক দাতার সাথে যোগাযোগ একটি প্রো ফিচার। ব্যবহার করতে প্রো বা বিজনেসে আপগ্রেড করুন।",
+        "feedback_not_completed": "ফিডব্যাক সম্পন্ন হিসেবে চিহ্নিত হলে তবেই দাতাকে জানাতে পারবেন।",
+        "no_submitter_email": "এই ফিডব্যাকের জন্য জানানোর কোনো ইমেইল ঠিকানা নেই।",
+        "submitter_notified": "দাতাকে জানানো হয়েছে",
+        "failed_to_notify_submitter": "দাতাকে জানাতে ব্যর্থ হয়েছে"
     }
 }

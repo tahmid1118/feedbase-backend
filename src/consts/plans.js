@@ -7,6 +7,8 @@
  *   - customDomain / integrations: boolean feature gates (enforced today)
  *   - deleteFeedback: whether feedback posts can be deleted (owner-only, paid)
  *   - attachments: whether feedback posts may carry photo/video attachments
+ *   - contactSubmitter: owner may see a submitter's email and notify them when
+ *       their feedback is completed (implemented)
  *   - multiDevice: may be signed in on several devices/browsers at once
  *   - seats: max team members BESIDES the owner (the owner is never counted),
  *       so Free = owner + 2, Pro = owner + 5, Business = unlimited. Enforced at
@@ -34,6 +36,7 @@ const PLANS = {
       integrations: false,
       deleteFeedback: false,
       attachments: false,
+      contactSubmitter: false,
       multiDevice: false,
     },
   },
@@ -51,6 +54,7 @@ const PLANS = {
       integrations: true,
       deleteFeedback: true,
       attachments: true,
+      contactSubmitter: true,
       multiDevice: false,
     },
   },
@@ -68,6 +72,7 @@ const PLANS = {
       integrations: true,
       deleteFeedback: true,
       attachments: true,
+      contactSubmitter: true,
       multiDevice: true,
     },
   },

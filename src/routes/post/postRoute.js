@@ -9,6 +9,7 @@ const { updatePost } = require("../../main/post/updatePost");
 const { deletePost } = require("../../main/post/deletePost");
 const { getPostList } = require("../../main/post/getPostList");
 const { updatePostStatus } = require("../../main/post/updatePostStatus");
+const { notifyFeedbackImplemented } = require("../../main/post/notifyFeedbackImplemented");
 const { updatePostPin } = require("../../main/post/updatePostPin");
 const { setPostDuplicate } = require("../../main/post/setPostDuplicate");
 const { getDuplicateSuggestions } = require("../../main/post/getDuplicateSuggestions");
@@ -186,6 +187,23 @@ postRouter.patch("/status/:id", authenticateToken, languageValidator, async (req
         status: status,
         message: message,
       });
+    });
+});
+
+/**
+ * @description Email the submitter that their feedback is implemented (Pro+,
+ * owner-only, post must be completed).
+ */
+postRouter.post("/:id/notify-implemented", authenticateToken, languageValidator, async (req, res) => {
+  const authData = { ...req.auth, lg: req.body.lg };
+  notifyFeedbackImplemented(req.params.id, authData)
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({ status, message, data: result });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
     });
 });
 
