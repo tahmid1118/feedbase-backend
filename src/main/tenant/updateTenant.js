@@ -1,23 +1,12 @@
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
-const { planAllows } = require('../../common/planGuard');
 
 const updateTenant = async (id, tenantData, lg) => {
-  const { name, brandingLogoUrl, brandingPrimaryColor, customDomain, isActive } = tenantData;
+  const { name, brandingLogoUrl, brandingPrimaryColor, isActive } = tenantData;
   // NOTE: plan_name is controlled exclusively by Stripe billing (checkout +
   // webhook) and is intentionally NOT updatable through this endpoint.
-
-  // A custom domain is a paid capability — gate it before writing.
-  const wantsCustomDomain =
-    customDomain !== undefined &&
-    customDomain !== null &&
-    String(customDomain).trim() !== "";
-  if (wantsCustomDomain && !(await planAllows(id, 'customDomain'))) {
-    return Promise.reject(
-      setServerResponse(API_STATUS_CODE.PAYMENT_REQUIRED, 'plan_limit_custom_domain', lg)
-    );
-  }
+  // Custom domains are not a feature — `custom_domain` is never written here.
 
   // Only update columns the caller actually provided. A blanket `SET col = ?`
   // with an undefined value clobbers existing data — notably, the Branding form
@@ -36,10 +25,6 @@ const updateTenant = async (id, tenantData, lg) => {
   if (brandingPrimaryColor !== undefined) {
     fields.push('branding_primary_color = ?');
     values.push(brandingPrimaryColor || null);
-  }
-  if (customDomain !== undefined) {
-    fields.push('custom_domain = ?');
-    values.push(wantsCustomDomain ? String(customDomain).trim() : null);
   }
   if (isActive !== undefined) {
     fields.push('is_active = ?');

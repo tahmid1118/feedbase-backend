@@ -20,15 +20,15 @@ const resolvePublicTenant = async (identifier, lg) => {
   }
 
   const _query = `
-    SELECT id, name, slug, subdomain, custom_domain,
+    SELECT id, name, slug, subdomain,
            branding_logo_url, branding_primary_color, plan_name
     FROM tenants
-    WHERE is_active = 1 AND (subdomain = ? OR custom_domain = ?)
+    WHERE is_active = 1 AND subdomain = ?
     LIMIT 1
   `;
 
   try {
-    const [rows] = await pool.query(_query, [value, value]);
+    const [rows] = await pool.query(_query, [value]);
 
     if (rows.length === 0) {
       return Promise.reject(

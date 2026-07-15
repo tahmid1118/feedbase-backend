@@ -52,12 +52,12 @@ async function attachPublicTenant(req, res, next) {
 
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, slug, subdomain, custom_domain,
+      `SELECT id, name, slug, subdomain,
               branding_logo_url, branding_primary_color
        FROM tenants
-       WHERE is_active = 1 AND (subdomain = ? OR custom_domain = ?)
+       WHERE is_active = 1 AND subdomain = ?
        LIMIT 1`,
-      [identifier, identifier]
+      [identifier]
     );
 
     if (rows.length === 0) {
