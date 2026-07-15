@@ -3,8 +3,15 @@ const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
 const { syncRoadmapItemToStatus } = require('../../common/roadmapSync');
 
+const VALID_STATUSES = new Set([
+  'open', 'planned', 'in_progress', 'completed', 'closed', 'rejected',
+]);
+
 const updatePostStatus = async (id, newStatus, authData) => {
   const { tenantId, lg } = authData;
+  if (!VALID_STATUSES.has(newStatus)) {
+    return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, 'invalid_status', lg));
+  }
   const _query = 'UPDATE posts SET status = ? WHERE id = ? AND tenant_id = ?';
   try {
     const [result] = await pool.query(_query, [newStatus, id, tenantId]);

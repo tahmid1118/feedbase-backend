@@ -19,6 +19,7 @@ const POST_STATUSES = new Set([
   "in_progress",
   "completed",
   "closed",
+  "rejected",
 ]);
 
 const statusFromColumnKey = (key) => (POST_STATUSES.has(key) ? key : null);

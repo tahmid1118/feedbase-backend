@@ -210,7 +210,9 @@ CREATE TABLE IF NOT EXISTS posts (
   title VARCHAR(200) NOT NULL,
   description TEXT NOT NULL,
   post_type ENUM('feedback', 'feature_request', 'bug_report') NOT NULL DEFAULT 'feedback',
-  status ENUM('open', 'planned', 'in_progress', 'completed', 'closed') NOT NULL DEFAULT 'open',
+  -- 'rejected' = feedback the team declined; hidden from the public board and
+  -- the dashboard "All" tab, shown only in the Rejected tab (restorable to open).
+  status ENUM('open', 'planned', 'in_progress', 'completed', 'closed', 'rejected') NOT NULL DEFAULT 'open',
   priority TINYINT UNSIGNED NOT NULL DEFAULT 3,
   is_pinned TINYINT(1) NOT NULL DEFAULT 0,
   duplicate_of_post_id BIGINT UNSIGNED NULL,

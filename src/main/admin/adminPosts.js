@@ -3,7 +3,7 @@ const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { syncRoadmapItemToStatus } = require("../../common/roadmapSync");
 
-const STATUSES = ["open", "planned", "in_progress", "completed", "closed"];
+const STATUSES = ["open", "planned", "in_progress", "completed", "closed", "rejected"];
 
 /** List a workspace's feedback posts (admin moderation view). */
 const listWorkspacePosts = async (tenantId, filters, lg) => {
