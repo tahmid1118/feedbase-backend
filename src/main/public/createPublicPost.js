@@ -2,6 +2,7 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { notifyOwnerOfNewPost } = require("./notifyOwnerOfNewPost");
+const { attachToPost } = require("../attachments/attachments");
 
 const POST_TYPES = ["feedback", "feature_request", "bug_report"];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -66,6 +67,10 @@ const createPublicPost = async (tenantId, data, authUser, lg) => {
       description,
       postType,
     ]);
+
+    // Link any attachments uploaded for this submission (Pro+; the upload
+    // endpoint already plan-gated). Best-effort, scoped to this tenant.
+    await attachToPost(pool, data?.attachmentIds, result.insertId, tenantId);
 
     // Tell the workspace owner. Deliberately NOT awaited: a slow SMTP round-trip
     // must not delay the visitor's submission, and a mail failure must not fail

@@ -52,7 +52,10 @@ const getPublicBoard = async (tenantId, paginationData, filters, lg) => {
             p.is_pinned, p.created_at,
             COALESCE(u.full_name, p.submitter_name, 'Anonymous') AS author_name,
             (SELECT COUNT(*) FROM votes WHERE post_id = p.id) AS vote_count,
-            (SELECT COUNT(*) FROM comments WHERE post_id = p.id) AS comment_count
+            (SELECT COUNT(*) FROM comments WHERE post_id = p.id) AS comment_count,
+            (SELECT COUNT(*) FROM post_attachments WHERE post_id = p.id) AS attachment_count,
+            (SELECT storage_path FROM post_attachments
+              WHERE post_id = p.id AND kind = 'image' ORDER BY id ASC LIMIT 1) AS thumbnail_path
      FROM posts p
      LEFT JOIN users u ON p.author_id = u.id` +
     whereClause +

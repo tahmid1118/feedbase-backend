@@ -1,9 +1,10 @@
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
+const { attachToPost } = require("../attachments/attachments");
 
 const createPost = async (postData, authData) => {
-  const { title, description, postType, status, priority } = postData;
+  const { title, description, postType, status, priority, attachmentIds } = postData;
   const { id: authorId, tenantId, lg } = authData;
 
   const _query = `
@@ -13,9 +14,12 @@ const createPost = async (postData, authData) => {
 
   try {
     const [result] = await pool.query(_query, [
-      tenantId, authorId, title, description, 
+      tenantId, authorId, title, description,
       postType || 'feedback', status || 'open', priority || 3
     ]);
+
+    // Link any attachments uploaded for this post (best-effort; scoped to tenant).
+    await attachToPost(pool, attachmentIds, result.insertId, tenantId);
 
     return Promise.resolve(
       setServerResponse(

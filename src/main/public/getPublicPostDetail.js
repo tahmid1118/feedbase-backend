@@ -1,6 +1,7 @@
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
+const { getAttachmentsForPost } = require("../attachments/attachments");
 
 /**
  * @description Public, read-only post detail with its comment thread, scoped to
@@ -51,8 +52,9 @@ const getPublicPostDetail = async (tenantId, postId, lg) => {
 
     const [tags] = await pool.query(_tagQuery, [postId, tenantId]);
     const [comments] = await pool.query(_commentQuery, [tenantId, postId]);
+    const attachments = await getAttachmentsForPost(postId, tenantId);
 
-    const post = { ...rows[0], tags, comments };
+    const post = { ...rows[0], tags, comments, attachments };
 
     return Promise.resolve(
       setServerResponse(

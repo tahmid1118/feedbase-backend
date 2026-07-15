@@ -229,7 +229,14 @@
         "not_your_content": "You can only edit or delete your own content",
         "already_logged_in_elsewhere": "You are already signed in on another device or browser. Please sign out there first, or upgrade to Business to use multiple devices.",
         "session_ended": "Your session has ended. Please sign in again.",
-        "logged_out_successfully": "Logged out successfully"
+        "logged_out_successfully": "Logged out successfully",
+        "attachment_uploaded": "Attachment uploaded",
+        "attachment_required": "No file was provided.",
+        "invalid_attachment_type": "Only images (PNG, JPG, WEBP, GIF) and video (MP4, WebM, MOV) are allowed.",
+        "attachment_image_too_large": "Images must be 10MB or smaller.",
+        "attachment_video_too_large": "Videos must be 50MB or smaller.",
+        "failed_to_upload_attachment": "Failed to upload the attachment. Please try again.",
+        "plan_limit_attachments": "Attachments are a paid feature. Upgrade to Pro or Business to add photos and video to feedback."
     },
     "bn": {
         "success": "সফল",
@@ -461,6 +468,13 @@
         "not_your_content": "আপনি শুধুমাত্র নিজের কন্টেন্ট সম্পাদনা বা মুছতে পারেন",
         "already_logged_in_elsewhere": "আপনি ইতিমধ্যে অন্য একটি ডিভাইস বা ব্রাউজারে সাইন ইন করা আছেন। আগে সেখান থেকে সাইন আউট করুন, অথবা একাধিক ডিভাইস ব্যবহার করতে বিজনেস প্ল্যানে আপগ্রেড করুন।",
         "session_ended": "আপনার সেশন শেষ হয়ে গেছে। অনুগ্রহ করে আবার সাইন ইন করুন।",
-        "logged_out_successfully": "সফলভাবে লগ আউট হয়েছে"
+        "logged_out_successfully": "সফলভাবে লগ আউট হয়েছে",
+        "attachment_uploaded": "সংযুক্তি আপলোড হয়েছে",
+        "attachment_required": "কোনো ফাইল দেওয়া হয়নি।",
+        "invalid_attachment_type": "শুধুমাত্র ছবি (PNG, JPG, WEBP, GIF) এবং ভিডিও (MP4, WebM, MOV) অনুমোদিত।",
+        "attachment_image_too_large": "ছবি অবশ্যই ১০MB বা তার কম হতে হবে।",
+        "attachment_video_too_large": "ভিডিও অবশ্যই ৫০MB বা তার কম হতে হবে।",
+        "failed_to_upload_attachment": "সংযুক্তি আপলোড করা যায়নি। আবার চেষ্টা করুন।",
+        "plan_limit_attachments": "সংযুক্তি একটি পেইড ফিচার। ফিডব্যাকে ছবি ও ভিডিও যোগ করতে Pro বা Business-এ আপগ্রেড করুন।"
     }
 }

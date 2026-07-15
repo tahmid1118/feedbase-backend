@@ -406,6 +406,28 @@ CREATE TABLE IF NOT EXISTS integrations (
   CONSTRAINT fk_integrations_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Photo/video attachments on a feedback post. A paid-plan (Pro+) capability.
+-- Deliberately guest-friendly: unlike file_uploads there is NO uploader FK, so a
+-- visitor submitting on the public board can attach without an account.
+-- `post_id` is NULL between upload and submit: the file is stored first, then
+-- linked to the post it was created with (unlinked rows are orphans to prune).
+CREATE TABLE IF NOT EXISTS post_attachments (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  tenant_id BIGINT UNSIGNED NOT NULL,
+  post_id BIGINT UNSIGNED NULL,
+  kind ENUM('image', 'video') NOT NULL,
+  storage_path VARCHAR(500) NOT NULL,
+  mime_type VARCHAR(100) NOT NULL,
+  size_bytes BIGINT UNSIGNED NOT NULL,
+  original_name VARCHAR(255) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_post_attachments_post (post_id),
+  KEY idx_post_attachments_pending (tenant_id, post_id, created_at),
+  CONSTRAINT fk_post_attachments_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+  CONSTRAINT fk_post_attachments_post FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS file_uploads (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   tenant_id BIGINT UNSIGNED NOT NULL,

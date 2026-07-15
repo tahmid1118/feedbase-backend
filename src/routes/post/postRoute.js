@@ -12,6 +12,10 @@ const { updatePostStatus } = require("../../main/post/updatePostStatus");
 const { updatePostPin } = require("../../main/post/updatePostPin");
 const { setPostDuplicate } = require("../../main/post/setPostDuplicate");
 const { getDuplicateSuggestions } = require("../../main/post/getDuplicateSuggestions");
+const { storeAttachment } = require("../../main/attachments/attachments");
+const { attachmentValidator } = require("../../common/file-upload/attachment-validator");
+const { errorCheck } = require("../../common/file-upload/check-error");
+const { requireAttachmentsAuthed } = require("../../middlewares/plan/requireAttachments");
 
 /**
  * @description Create a new post (feedback/feature request/bug report)
@@ -36,6 +40,33 @@ postRouter.post("/create", authenticateToken, languageValidator, async (req, res
       });
     });
 });
+
+/**
+ * @description Upload one photo/video attachment for a feedback post (Pro+).
+ * Returns the stored attachment incl. its id; the client sends the ids back on
+ * `/posts/create` to link them. The plan gate runs BEFORE multer so a Free
+ * workspace never streams the file. Registered before `/:id` so "attachment"
+ * isn't read as a post id.
+ */
+postRouter.post(
+  "/attachment",
+  authenticateToken,
+  requireAttachmentsAuthed,
+  attachmentValidator.single("file"),
+  errorCheck,
+  async (req, res) => {
+    const lg = req.body?.lg || "en";
+    storeAttachment(req.file, req.auth.tenantId, lg)
+      .then((data) => {
+        const { statusCode, status, message, result } = data;
+        return res.status(statusCode).send({ status, message, data: result });
+      })
+      .catch((error) => {
+        const { statusCode, status, message } = error;
+        return res.status(statusCode).send({ status, message });
+      });
+  }
+);
 
 /**
  * @description Update post

@@ -1,6 +1,7 @@
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
+const { getAttachmentsForPost } = require("../attachments/attachments");
 
 const getPostById = async (id, authData) => {
   const { id: userId, tenantId, lg } = authData;
@@ -38,7 +39,8 @@ const getPostById = async (id, authData) => {
     }
 
     const [tags] = await pool.query(_tagQuery, [id, tenantId]);
-    const post = { ...rows[0], has_voted: rows[0].has_voted === 1, tags };
+    const attachments = await getAttachmentsForPost(id, tenantId);
+    const post = { ...rows[0], has_voted: rows[0].has_voted === 1, tags, attachments };
 
     return Promise.resolve(
       setServerResponse(

@@ -1,6 +1,7 @@
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
+const { getPlanLimits } = require("../../consts/plans");
 
 /**
  * @description Look up an active tenant by its subdomain or custom domain.
@@ -20,7 +21,7 @@ const resolvePublicTenant = async (identifier, lg) => {
 
   const _query = `
     SELECT id, name, slug, subdomain, custom_domain,
-           branding_logo_url, branding_primary_color
+           branding_logo_url, branding_primary_color, plan_name
     FROM tenants
     WHERE is_active = 1 AND (subdomain = ? OR custom_domain = ?)
     LIMIT 1
@@ -35,12 +36,16 @@ const resolvePublicTenant = async (identifier, lg) => {
       );
     }
 
+    // Expose only whether attachments are allowed — never the raw plan/billing.
+    const { plan_name, ...tenant } = rows[0];
+    tenant.attachments_enabled = Boolean(getPlanLimits(plan_name).attachments);
+
     return Promise.resolve(
       setServerResponse(
         API_STATUS_CODE.OK,
         "tenant_retrieved_successfully",
         lg,
-        rows[0]
+        tenant
       )
     );
   } catch (error) {

@@ -6,6 +6,7 @@
  * `limits` are the capabilities enforced by `src/common/planGuard.js`:
  *   - customDomain / integrations: boolean feature gates (enforced today)
  *   - deleteFeedback: whether feedback posts can be deleted (owner-only, paid)
+ *   - attachments: whether feedback posts may carry photo/video attachments
  *   - multiDevice: may be signed in on several devices/browsers at once
  *   - seats: max team members (displayed; enforced once an invite flow exists)
  */
@@ -22,6 +23,7 @@ const PLANS = {
       customDomain: false,
       integrations: false,
       deleteFeedback: false,
+      attachments: false,
       multiDevice: false,
     },
   },
@@ -35,6 +37,7 @@ const PLANS = {
       customDomain: true,
       integrations: true,
       deleteFeedback: true,
+      attachments: true,
       multiDevice: false,
     },
   },
@@ -48,6 +51,7 @@ const PLANS = {
       customDomain: true,
       integrations: true,
       deleteFeedback: true,
+      attachments: true,
       multiDevice: true,
     },
   },

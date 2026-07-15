@@ -15,6 +15,10 @@ const {
 } = require("../../main/invitations/invitations");
 const { getPublicBoard } = require("../../main/public/getPublicBoard");
 const { createPublicPost } = require("../../main/public/createPublicPost");
+const { storeAttachment } = require("../../main/attachments/attachments");
+const { attachmentValidator } = require("../../common/file-upload/attachment-validator");
+const { errorCheck } = require("../../common/file-upload/check-error");
+const { requireAttachmentsPublic } = require("../../middlewares/plan/requireAttachments");
 const { togglePublicVote } = require("../../main/public/togglePublicVote");
 const { createPublicComment } = require("../../main/public/createPublicComment");
 const { getPublicPostDetail } = require("../../main/public/getPublicPostDetail");
@@ -149,6 +153,26 @@ publicRouter.post(
   optionalAuth,
   async (req, res) => {
     createPublicPost(req.publicTenant.id, req.body, req.auth || null, req.lg)
+      .then((data) => send(res, data))
+      .catch((error) => send(res, error));
+  }
+);
+
+/**
+ * @description Upload one photo/video attachment for a public feedback post
+ * (Pro+ workspaces only). Unauthenticated — the submitter is usually a guest —
+ * but tenant-scoped and plan-gated. Returns the attachment incl. its id, which
+ * the submit call sends back to link it.
+ * POST /public/:subdomain/attachments  (multipart, field `file`)
+ */
+publicRouter.post(
+  "/:subdomain/attachments",
+  attachPublicTenant,
+  requireAttachmentsPublic,
+  attachmentValidator.single("file"),
+  errorCheck,
+  async (req, res) => {
+    storeAttachment(req.file, req.publicTenant.id, req.lg)
       .then((data) => send(res, data))
       .catch((error) => send(res, error));
   }
