@@ -8,7 +8,9 @@
  *   - deleteFeedback: whether feedback posts can be deleted (owner-only, paid)
  *   - attachments: whether feedback posts may carry photo/video attachments
  *   - multiDevice: may be signed in on several devices/browsers at once
- *   - seats: max team members (displayed; enforced once an invite flow exists)
+ *   - seats: max team members BESIDES the owner (the owner is never counted),
+ *       so Free = owner + 2, Pro = owner + 5, Business = unlimited. Enforced at
+ *       invite time in `invitations.js`.
  */
 // `price` is the monthly list price (USD) — the display baseline that offers
 // discount from. Keep it in sync with the Stripe prices + `lib/plans.ts`.
@@ -33,7 +35,7 @@ const PLANS = {
     price: 19,
     priceId: process.env.STRIPE_PRICE_PRO || null,
     limits: {
-      seats: 10,
+      seats: 5,
       customDomain: true,
       integrations: true,
       deleteFeedback: true,

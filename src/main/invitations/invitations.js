@@ -78,12 +78,15 @@ const createInvitation = async (data, authData) => {
       );
     }
 
-    // Seat limit: current members + outstanding invites must stay under the plan.
+    // Seat limit: current team members + outstanding invites must stay under the
+    // plan. `seats` counts members BESIDES the owner, so the owner (role='owner')
+    // is excluded from the tally — Free allows owner + 2, Pro owner + 5, Business
+    // unlimited.
     const plan = await getTenantPlan(tenantId);
     const seats = getPlanLimits(plan).seats;
     if (Number.isFinite(seats)) {
       const [[{ members }]] = await pool.query(
-        "SELECT COUNT(*) AS members FROM users WHERE tenant_id = ? AND is_active = 1",
+        "SELECT COUNT(*) AS members FROM users WHERE tenant_id = ? AND is_active = 1 AND role <> 'owner'",
         [tenantId]
       );
       const [[{ pending }]] = await pool.query(
