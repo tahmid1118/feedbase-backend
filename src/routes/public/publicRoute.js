@@ -144,8 +144,9 @@ publicRouter.post("/:subdomain/posts", attachPublicTenant, async (req, res) => {
 
 /**
  * @description Submit feedback from the public portal (no auth). The author is a
- * guest; name/email are optional.
- * POST /public/:subdomain/feedback  { title, description, postType, submitterName?, submitterEmail? }
+ * guest; the name is optional but the email is required (so the team can reach
+ * them about their post). A logged-in submission carries the account email instead.
+ * POST /public/:subdomain/feedback  { title, description, postType, submitterName?, submitterEmail }
  */
 publicRouter.post(
   "/:subdomain/feedback",

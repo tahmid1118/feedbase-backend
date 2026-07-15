@@ -44,6 +44,13 @@ const createPublicPost = async (tenantId, data, authUser, lg) => {
       setServerResponse(API_STATUS_CODE.BAD_REQUEST, "title_too_long", lg)
     );
   }
+  // Guests must leave an email so the team can reach them about their post.
+  // Logged-in submissions (authorId set) already carry a verified account email.
+  if (!authorId && !submitterEmail) {
+    return Promise.reject(
+      setServerResponse(API_STATUS_CODE.BAD_REQUEST, "email_required", lg)
+    );
+  }
   if (submitterEmail && !EMAIL_RE.test(submitterEmail)) {
     return Promise.reject(
       setServerResponse(API_STATUS_CODE.BAD_REQUEST, "invalid_email", lg)

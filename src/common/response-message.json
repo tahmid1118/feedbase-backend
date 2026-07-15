@@ -236,7 +236,8 @@
         "attachment_image_too_large": "Images must be 10MB or smaller.",
         "attachment_video_too_large": "Videos must be 50MB or smaller.",
         "failed_to_upload_attachment": "Failed to upload the attachment. Please try again.",
-        "plan_limit_attachments": "Attachments are a paid feature. Upgrade to Pro or Business to add photos and video to feedback."
+        "plan_limit_attachments": "Attachments are a paid feature. Upgrade to Pro or Business to add photos and video to feedback.",
+        "email_required": "Please add your email so we can update you about your feedback"
     },
     "bn": {
         "success": "সফল",
@@ -475,6 +476,7 @@
         "attachment_image_too_large": "ছবি অবশ্যই ১০MB বা তার কম হতে হবে।",
         "attachment_video_too_large": "ভিডিও অবশ্যই ৫০MB বা তার কম হতে হবে।",
         "failed_to_upload_attachment": "সংযুক্তি আপলোড করা যায়নি। আবার চেষ্টা করুন।",
-        "plan_limit_attachments": "সংযুক্তি একটি পেইড ফিচার। ফিডব্যাকে ছবি ও ভিডিও যোগ করতে Pro বা Business-এ আপগ্রেড করুন।"
+        "plan_limit_attachments": "সংযুক্তি একটি পেইড ফিচার। ফিডব্যাকে ছবি ও ভিডিও যোগ করতে Pro বা Business-এ আপগ্রেড করুন।",
+        "email_required": "আপনার ফিডব্যাকের আপডেট জানাতে অনুগ্রহ করে আপনার ইমেইল যোগ করুন"
     }
 }
