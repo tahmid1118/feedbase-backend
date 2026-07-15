@@ -43,15 +43,32 @@ const getAnalyticsOverview = async (authData) => {
         .then(([rows]) => rows),
       pool
         .query(
-          `SELECT DATE(created_at) AS date, COUNT(*) AS count
+          // Return a clean 'YYYY-MM-DD' string per day (no timezone ambiguity)
+          // for the days that HAD posts; the full 30-day series is filled below.
+          `SELECT DATE_FORMAT(DATE(created_at), '%Y-%m-%d') AS date, COUNT(*) AS count
            FROM posts
-           WHERE tenant_id = ? AND created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-           GROUP BY DATE(created_at)
-           ORDER BY date ASC`,
+           WHERE tenant_id = ? AND created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
+           GROUP BY DATE(created_at)`,
           [tenantId]
         )
         .then(([rows]) => rows),
     ]);
+
+    // Expand the sparse per-day counts into a complete 30-day series (today and
+    // the previous 29 days), zero-filling empty days, so the client renders a
+    // proper daily bar chart instead of a few lonely bars.
+    const trendByDate = trend.reduce((acc, row) => {
+      acc[row.date] = Number(row.count);
+      return acc;
+    }, {});
+    const trendSeries = [];
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      trendSeries.push({ date: key, count: trendByDate[key] || 0 });
+    }
 
     // Normalize status/type breakdowns into keyed maps for easy client consumption.
     const statusBreakdown = statusCounts.reduce((acc, row) => {
@@ -73,7 +90,7 @@ const getAnalyticsOverview = async (authData) => {
       },
       statusCounts: statusBreakdown,
       typeCounts: typeBreakdown,
-      trends: trend,
+      trends: trendSeries,
     };
 
     return Promise.resolve(
