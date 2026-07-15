@@ -2,6 +2,7 @@ const express = require("express");
 const tenantRouter = express.Router();
 const { authenticateToken } = require("../../middlewares/jwt/jwt");
 const { languageValidator } = require("../../middlewares/common/languageValidator");
+const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { createTenant } = require("../../main/tenant/createTenant");
 const { getTenantById } = require("../../main/tenant/getTenantById");
 const { updateTenant } = require("../../main/tenant/updateTenant");
@@ -85,6 +86,12 @@ tenantRouter.post("/:id", authenticateToken, languageValidator, async (req, res)
 tenantRouter.put("/update/:id", authenticateToken, languageValidator, async (req, res) => {
   const { id } = req.params;
   const { tenantData, lg } = req.body;
+  // Only the workspace OWNER may update its settings, and only its OWN tenant.
+  if (Number(id) !== Number(req.auth.tenantId) || req.auth.role !== "owner") {
+    return res
+      .status(API_STATUS_CODE.FORBIDDEN)
+      .send({ status: "failed", message: "You are not allowed to update this workspace." });
+  }
   updateTenant(id, tenantData, lg)
     .then((data) => {
       const { statusCode, status, message } = data;
