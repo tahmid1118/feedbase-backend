@@ -20,7 +20,7 @@ Feedbase Backend is a multi-tenant Node.js API for feedback collection, roadmap 
 
 ## API Docs And Import Files
 
-- `API_FULL_LIST.md`: human-readable endpoint list with sample payloads
+- Human-readable endpoint list with sample payloads: `API_FULL_LIST.md` in the frontend repo (`D:\Development\Frontend\feedbase`) — the single canonical reference.
 - `apidog-import-openapi.json`: OpenAPI file for APIdog import
 - `postman-apidog-collection.json`: Postman collection (also APIdog compatible)
 - `postman-apidog-environment.json`: sample environment for Postman/APIdog
@@ -108,7 +108,6 @@ feedbase-backend/
 |   `-- routes/
 |-- uploads/
 |-- feedbase_db.sql
-|-- API_FULL_LIST.md
 |-- apidog-import-openapi.json
 `-- postman-apidog-collection.json
 ```

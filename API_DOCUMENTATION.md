@@ -1,6 +1,6 @@
 # Feedbase Backend API Documentation
 
-> Full endpoint reference with sample body and sample response for every API is available in `API_FULL_LIST.md`.
+> Full endpoint reference with sample body and sample response for every API is maintained in the frontend repo: `D:\Development\Frontend\feedbase\API_FULL_LIST.md` (the single canonical list).
 
 ## Base URL
 ```
