@@ -43,7 +43,7 @@ const PLANS = {
   pro: {
     key: "pro",
     label: "Pro",
-    price: 19,
+    price: 10,
     priceId: process.env.STRIPE_PRICE_PRO || null,
     priceIdYearly: process.env.STRIPE_PRICE_PRO_YEARLY || null,
     limits: {
@@ -61,7 +61,7 @@ const PLANS = {
   business: {
     key: "business",
     label: "Business",
-    price: 49,
+    price: 15,
     priceId: process.env.STRIPE_PRICE_BUSINESS || null,
     priceIdYearly: process.env.STRIPE_PRICE_BUSINESS_YEARLY || null,
     limits: {
