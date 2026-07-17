@@ -3,7 +3,7 @@ const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { stripe, isStripeConfigured } = require("../../common/stripe");
 const { PLANS, priceIdFor } = require("../../consts/plans");
-const { getActiveOfferForPlan } = require("../../common/offers");
+const { getActiveOfferForPlanInterval } = require("../../common/offers");
 
 const BILLING_ROLES = ["owner"];
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
@@ -68,15 +68,15 @@ const createCheckoutSession = async (plan, authData, promotionCode, interval) =>
 
     // Discount precedence (all mutually exclusive with Stripe's own code field):
     //   1. a redeemed promo code (explicit promotionCode),
-    //   2. an active plan offer (auto-applied coupon) — MONTHLY only, since the
-    //      yearly price already bakes in the 20% yearly discount and stacking
-    //      would double-discount,
+    //   2. an active plan offer for THIS interval (auto-applied amount-off coupon
+    //      whose baseline is that interval's list price, so monthly and yearly
+    //      offers each discount their own price — no double-discount),
     //   3. otherwise let the customer type a code at Checkout.
     let discountOpts = { allow_promotion_codes: true };
     if (promotionCode) {
       discountOpts = { discounts: [{ promotion_code: promotionCode }] };
-    } else if (billingInterval === "month") {
-      const offer = await getActiveOfferForPlan(plan);
+    } else {
+      const offer = await getActiveOfferForPlanInterval(plan, billingInterval);
       if (offer?.stripeCouponId) {
         discountOpts = { discounts: [{ coupon: offer.stripeCouponId }] };
       }

@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS promo_redemptions (
 CREATE TABLE IF NOT EXISTS offers (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   plan ENUM('pro', 'business') NOT NULL,
+  billing_interval ENUM('month', 'year') NOT NULL DEFAULT 'month',
   offer_price DECIMAL(10,2) NOT NULL,
   label VARCHAR(120) NULL,
   starts_at DATETIME NULL,
@@ -129,7 +130,7 @@ CREATE TABLE IF NOT EXISTS offers (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  KEY idx_offers_active (plan, is_active)
+  KEY idx_offers_active (plan, billing_interval, is_active)
 ) ENGINE=InnoDB;
 
 -- Email invitations to join a workspace as a member. The token is the one-time

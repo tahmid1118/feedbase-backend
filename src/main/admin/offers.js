@@ -2,9 +2,10 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { stripe, isStripeConfigured } = require("../../common/stripe");
-const { PLANS } = require("../../consts/plans");
+const { listPrice } = require("../../consts/plans");
 
 const OFFER_PLANS = ["pro", "business"];
+const OFFER_INTERVALS = ["month", "year"];
 
 /** List all offers (admin view). */
 const listOffers = async (lg) => {
@@ -22,16 +23,19 @@ const listOffers = async (lg) => {
 };
 
 /**
- * Create a promotional offer for a paid plan. The offer sets a lower shown price
- * and is backed by a Stripe percent-off coupon auto-applied at checkout, so
- * customers actually pay the offer price. Only one active offer per plan.
+ * Create a promotional offer for a paid plan on a given interval (monthly or
+ * yearly). The offer sets a lower shown price and is backed by a Stripe
+ * amount-off coupon auto-applied at checkout, so customers actually pay the
+ * offer price. Only one active offer per (plan, interval) — for a yearly offer
+ * the price and list baseline are the yearly TOTALs.
  */
 const createOffer = async (data, adminId, lg) => {
   const plan = data?.plan;
   if (!OFFER_PLANS.includes(plan)) {
     return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "invalid_plan", lg));
   }
-  const originalPrice = PLANS[plan].price;
+  const interval = OFFER_INTERVALS.includes(data?.interval) ? data.interval : "month";
+  const originalPrice = listPrice(plan, interval);
   const offerPrice = Number(data?.offerPrice);
   if (!(offerPrice > 0) || offerPrice >= originalPrice) {
     return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "invalid_offer_price", lg));
@@ -70,7 +74,7 @@ const createOffer = async (data, adminId, lg) => {
           amount_off: amountOff,
           currency: "usd",
           duration: "forever",
-          name: `Offer ${plan} $${offerPrice.toFixed(2)}`,
+          name: `Offer ${plan} ${interval} $${offerPrice.toFixed(2)}`,
         });
         stripeCouponId = coupon.id;
       } catch (e) {
@@ -78,13 +82,16 @@ const createOffer = async (data, adminId, lg) => {
       }
     }
 
-    // Only one active offer per plan.
-    await pool.query("UPDATE offers SET is_active = 0 WHERE plan = ? AND is_active = 1", [plan]);
+    // Only one active offer per (plan, interval).
+    await pool.query(
+      "UPDATE offers SET is_active = 0 WHERE plan = ? AND billing_interval = ? AND is_active = 1",
+      [plan, interval]
+    );
 
     const [result] = await pool.query(
-      `INSERT INTO offers (plan, offer_price, label, starts_at, ends_at, stripe_coupon_id, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [plan, offerPrice, label, startsAt, endsAt, stripeCouponId, adminId]
+      `INSERT INTO offers (plan, billing_interval, offer_price, label, starts_at, ends_at, stripe_coupon_id, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [plan, interval, offerPrice, label, startsAt, endsAt, stripeCouponId, adminId]
     );
     return Promise.resolve(
       setServerResponse(API_STATUS_CODE.CREATED, "offer_created", lg, { id: result.insertId })

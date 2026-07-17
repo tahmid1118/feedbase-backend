@@ -102,6 +102,21 @@ const YEARLY_DISCOUNT = 0.2;
 /** Billing intervals we support. */
 const INTERVALS = ["month", "year"];
 
+/**
+ * The whole-dollar LIST price (USD) for a plan on a given interval:
+ *   - "month" → the monthly price,
+ *   - "year"  → the yearly TOTAL (monthly discounted to a whole dollar × 12),
+ * mirroring lib/plans.ts and the Stripe yearly price. Used as the baseline an
+ * offer discounts from. Returns 0 for free/unknown plans.
+ */
+const listPrice = (planKey, interval) => {
+  const monthly = PLANS[planKey]?.price || 0;
+  if (interval === "year") {
+    return Math.round(monthly * (1 - YEARLY_DISCOUNT)) * 12;
+  }
+  return monthly;
+};
+
 /** The Stripe Price ID for a plan on a given interval ("month" | "year"). */
 const priceIdFor = (planKey, interval) => {
   const p = PLANS[planKey];
@@ -136,6 +151,7 @@ module.exports = {
   YEARLY_DISCOUNT,
   INTERVALS,
   maxPlan,
+  listPrice,
   priceIdFor,
   planByPriceId,
   intervalByPriceId,
