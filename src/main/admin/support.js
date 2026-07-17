@@ -12,9 +12,12 @@ const MAX_BODY = 4000;
 
 /** Queue of sessions (default open first). `status` filters open|closed. */
 const listSessions = async (status, lg) => {
-  const where =
-    status === "open" ? "WHERE s.status = 'open'" :
-    status === "closed" ? "WHERE s.status = 'closed'" : "";
+  // Only surface sessions that actually have a message — a user who opens the
+  // widget but never sends creates no conversation worth showing/closing.
+  const conds = ["EXISTS (SELECT 1 FROM support_messages m WHERE m.session_id = s.id)"];
+  if (status === "open") conds.push("s.status = 'open'");
+  else if (status === "closed") conds.push("s.status = 'closed'");
+  const where = `WHERE ${conds.join(" AND ")}`;
   try {
     const [rows] = await pool.query(
       `SELECT s.id, s.tenant_id, s.user_id, s.user_email, s.user_name, s.status,
