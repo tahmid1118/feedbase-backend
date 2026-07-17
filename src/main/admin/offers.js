@@ -63,10 +63,14 @@ const createOffer = async (data, adminId, lg) => {
     let stripeCouponId = null;
     if (isStripeConfigured()) {
       try {
+        // Fixed amount-off (not percent) so a fractional offer price is charged
+        // EXACTLY — e.g. $12.50 off a $15 plan bills $12.50, not a rounded ~17%.
+        const amountOff = Math.round((originalPrice - offerPrice) * 100);
         const coupon = await stripe.coupons.create({
-          percent_off: percentOff,
+          amount_off: amountOff,
+          currency: "usd",
           duration: "forever",
-          name: `Offer ${plan} $${offerPrice}`,
+          name: `Offer ${plan} $${offerPrice.toFixed(2)}`,
         });
         stripeCouponId = coupon.id;
       } catch (e) {
