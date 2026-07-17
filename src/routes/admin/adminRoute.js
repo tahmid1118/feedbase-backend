@@ -44,6 +44,13 @@ const {
   listPostComments,
   deleteComment,
 } = require("../../main/admin/adminComments");
+const {
+  listSessions: listSupportSessions,
+  getSession: getSupportSession,
+  sendMessage: sendSupportMessage,
+  closeSession: closeSupportSession,
+  getInboxUnread: getSupportInboxUnread,
+} = require("../../main/admin/support");
 
 /** Standard { status, message, [key] } response shape. */
 function send(res, data, key = "data") {
@@ -108,6 +115,23 @@ adminRouter.get("/workspaces/:id/posts/:postId/comments", (req, res) =>
 );
 adminRouter.delete("/workspaces/:id/comments/:commentId", (req, res) =>
   deleteComment(req.params.id, req.params.commentId, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+
+// Support chat (admin talks to any workspace's users; closes sessions)
+adminRouter.get("/support/unread", (req, res) =>
+  getSupportInboxUnread(lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.get("/support/sessions", (req, res) =>
+  listSupportSessions(req.query?.status, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.get("/support/sessions/:id", (req, res) =>
+  getSupportSession(req.params.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.post("/support/sessions/:id/messages", (req, res) =>
+  sendSupportMessage(req.params.id, req.body?.body, req.admin.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.put("/support/sessions/:id/close", (req, res) =>
+  closeSupportSession(req.params.id, req.admin.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
 );
 
 // Users
