@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **Keep the SRS current.** A feature change here (new endpoint, or schema that backs a user-facing feature) must also be reflected in the product SRS at `D:\Development\Frontend\feedbase\feedbase_srs.txt`, *in the same change*. Keep it clean and professional — a structured requirements spec, not a changelog.
 
+> **Keep `API_FULL_LIST.md` current.** Whenever you add, remove, or change an endpoint (path, method, request/response shape, or auth), update the canonical API reference *in the same change*. There are two copies — this repo's `API_FULL_LIST.md` and the frontend's (`D:\Development\Frontend\feedbase\API_FULL_LIST.md`, the fuller one); keep **both** in sync. A drifted list is a bug.
+
 > **Always push after a change.** After completing and verifying a change, commit it and `git push` to the GitHub remote — do not leave finished work uncommitted or unpushed. The frontend and backend are separate repos; when a task touches both, commit and push **both**. (This guards against the working tree being reverted between sessions.)
 
 ## Commands

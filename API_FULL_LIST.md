@@ -267,25 +267,9 @@ Sample Response:
 
 ## 4) Vote APIs
 
-### POST /votes/add
-Sample Body:
-```json
-{"lg":"en","postId":101}
-```
-Sample Response:
-```json
-{"status":"success","message":"Vote added successfully"}
-```
-
-### DELETE /votes/remove/:postId
-Sample Body:
-```json
-{"lg":"en"}
-```
-Sample Response:
-```json
-{"status":"success","message":"Vote removed successfully"}
-```
+> Voting is **public-board-only** — a workspace's own owner/team cannot upvote. The authenticated `POST /votes/add` and `DELETE /votes/remove/:postId` were **removed**; `/votes` is read-only. Visitors vote via `POST /public/:subdomain/posts/:postId/vote`.
+>
+> **Note:** this backend copy is behind the fuller, canonical `API_FULL_LIST.md` in the frontend repo (which documents Billing, Invitations, Public/Portal, Admin, and Support). Prefer that one; keep both in sync per CLAUDE.md.
 
 ### POST /votes/post/:postId
 Sample Body:
