@@ -23,10 +23,13 @@ const setServerResponse = (code, msgKey, language, result = null) => {
         throw new Error('Unable to load translations file.');
     }
 
-    const langMessages = translations[language] || translations['en'];
+    const en = translations['en'] || {};
+    const langMessages = translations[language] || en;
 
-    // Get the message from the JSON using the key
-    const message = langMessages[msgKey] || 'Japanese Message is not found';
+    // Per-key fallback to English: a supported language may translate only some
+    // keys (the rest fall back to English), so a partial translation never shows
+    // a raw key or a placeholder. English is the source of truth.
+    const message = langMessages[msgKey] || en[msgKey] || msgKey;
 
     // Determine success or error status
     const statusType = code >= 200 && code < 300 ? 'success' : 'failed';

@@ -49,7 +49,7 @@ Route handlers call business logic directly (no service layer). Handlers return 
 
 Handlers build responses with `setServerResponse(code, msgKey, lg, result?)`, which returns `{ statusCode, status: "success"|"failed", message, result }`. Routes then send `{ status, message, data: result }` to the client (note the `result` → `data` rename happens in the route).
 
-Messages are looked up from **`src/common/response-message.json`** by key + language. The file has `en` and `bn` blocks — **add every new key to both**, or the lookup falls back to a "message not found" placeholder.
+Messages are looked up from **`src/common/response-message.json`** by key + language. It holds **English + the 24 official EU languages** (Bengali was removed). **English is the source of truth — add every new key to the `en` block.** `setServerResponse` falls back **per-key to English** (`langMessages[key] || en[key] || key`), so a language that only translates part of the file is safe and untranslated keys show English. `lg` comes from the request (the frontend sends the user's selected UI language); the other language blocks currently hold a machine-translated core and can be filled out over time.
 
 ### Multi-tenancy
 
