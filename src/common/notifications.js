@@ -21,31 +21,45 @@ const clip = (v, n) => (v == null ? null : String(v).slice(0, n));
  * @param {number} tenantId
  * @param {object} n
  * @param {string} n.type          notifications.notification_type enum value
- * @param {string} n.title
- * @param {string} [n.message]
+ * @param {string} n.title         English fallback (stored verbatim)
+ * @param {string} [n.message]     English fallback (stored verbatim)
+ * @param {object} [n.meta]        structured pieces of the text, e.g.
+ *   { key: "comment", postTitle, who, body }. The client renders these through
+ *   i18n so the notification reads in the RECIPIENT's language — `title` and
+ *   `message` are frozen English at write time and cannot be translated later.
  * @param {string} [n.referenceType] e.g. "post" (drives the client deep-link)
  * @param {number} [n.referenceId]
  * @param {number} [n.excludeUserId] don't notify this member (usually the actor)
  */
 const notifyTeam = async (
   tenantId,
-  { type, title, message = null, referenceType = null, referenceId = null, excludeUserId = null }
+  {
+    type,
+    title,
+    message = null,
+    meta = null,
+    referenceType = null,
+    referenceId = null,
+    excludeUserId = null,
+  }
 ) => {
   try {
     const recipients = await getTeamRecipients(tenantId, excludeUserId);
     if (recipients.length === 0) return;
+    const metaJson = meta ? JSON.stringify(meta) : null;
     const values = recipients.map((userId) => [
       tenantId,
       userId,
       type,
       clip(title, 160),
       clip(message, 2000),
+      metaJson,
       referenceType,
       referenceId,
     ]);
     await pool.query(
       `INSERT INTO notifications
-         (tenant_id, user_id, notification_type, title, message, reference_type, reference_id)
+         (tenant_id, user_id, notification_type, title, message, meta, reference_type, reference_id)
        VALUES ?`,
       [values]
     );

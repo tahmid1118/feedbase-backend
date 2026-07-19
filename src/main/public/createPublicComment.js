@@ -100,8 +100,17 @@ const createPublicComment = async (tenantId, postId, data, authUser, lg) => {
     const who = authUser?.fullName || submitterName || "Someone";
     notifyTeam(tenantId, {
       type: "comment_reply",
+      // English fallback…
       title: `New comment on “${truncate(postTitle, 70)}”`,
       message: `${who}: “${truncate(body, 140)}”`,
+      // …plus the structured pieces, so the client renders it in the reader's
+      // language rather than the language it happened to be written in.
+      meta: {
+        key: "comment",
+        postTitle: truncate(postTitle, 70),
+        who,
+        body: truncate(body, 140),
+      },
       referenceType: "post",
       referenceId: postId,
       excludeUserId: authorId,

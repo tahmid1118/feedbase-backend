@@ -353,6 +353,10 @@ CREATE TABLE IF NOT EXISTS notifications (
   notification_type ENUM('post_status', 'comment_reply', 'mention', 'changelog', 'system', 'new_feedback') NOT NULL,
   title VARCHAR(160) NOT NULL,
   message TEXT NULL,
+  -- Structured pieces of the notification text (e.g. {"key":"comment",...}) so
+  -- the client can render it in the READER's language. title/message above stay
+  -- as the English fallback for rows written before this column existed.
+  meta JSON NULL,
   reference_type VARCHAR(50) NULL,
   reference_id BIGINT UNSIGNED NULL,
   is_read TINYINT(1) NOT NULL DEFAULT 0,
