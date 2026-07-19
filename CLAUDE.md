@@ -156,10 +156,30 @@ Photo/video on a feedback post, a **Pro+** capability (`limits.attachments`). Ha
 - `checkIfFileSavePathExist` middleware creates the directory if missing
 - **`POST /uploader/upload-image` is a GENERIC uploader** (`insertImageData`): it only stores the file and returns its path. It must **not** mutate the user's `avatar_url` — the same endpoint uploads the profile avatar *and* the Branding company logo, so writing the avatar there would leak the logo into the uploader's profile photo. The avatar is set only by the profile save (`updateUserData` with `avatarUrl`); the logo is saved as the tenant's `branding_logo_url`.
 
+### Resilience & abuse protection
+
+The public API is unauthenticated and internet-facing, so these are load-bearing — **do not remove them to "simplify" a route**.
+
+- **Rate limiting** (`src/middlewares/security/rateLimiters.js`), four tiers, all env-tunable:
+  - `apiLimiter` — global net, 300/min/IP, mounted before body parsing so a flood is rejected before we spend CPU parsing it.
+  - `authLimiter` — 10 **failures**/15min on `/users/login`, `/users/register`, `/admin/auth/login`. `skipSuccessfulRequests` means normal users are never locked out. Each attempt costs a ~100ms bcrypt hash, so this is a CPU-exhaustion control as much as an account-security one.
+  - `publicWriteLimiter` — 15/min on the guest-writable portal routes (feedback, comments, votes, attachments). Keyed by **IP + tenant** so flooding one board can't exhaust the budget for other tenants behind the same NAT. Uses `ipKeyGenerator` (IPv6 /64 normalization) — a raw `req.ip` key lets one IPv6 host rotate addresses within its own prefix.
+  - `expensiveActionLimiter` — 30/hr on email/Stripe fan-out (`/invitations`, `/billing/checkout`).
+  - **Counters are per-process.** Under cluster mode the aggregate ceiling is workers × max. Still a hard bound; use `rate-limit-redis` if exact global limits are ever needed.
+- **`trust proxy` = 1 hop.** Behind a proxy every client would otherwise share one bucket. Trusting *all* hops is worse — a client could forge `X-Forwarded-For` and bypass limiting entirely.
+- **Timeouts** (slowloris): `server.requestTimeout` 30s, `headersTimeout` 20s, `keepAliveTimeout` 15s, `maxConnections` 2000, plus a per-request `res.setTimeout` → 503.
+- **Pagination is capped, twice.** `paginationData` clamps to `MAX_ITEMS_PER_PAGE` (100); `getPublicBoard` clamps independently to 50 **because the public board does not go through that middleware**. Uncapped, one request (`itemsPerPage: 1000000`) buffers millions of rows and OOMs the process.
+- **Crash guards** (`app.js`): `unhandledRejection` logs and keeps serving (one forgotten `.catch()` on a background email shouldn't kill a healthy server); `uncaughtException` shuts down cleanly for PM2 to restart (state is undefined — don't keep serving).
+- **Graceful shutdown** drains the DB pool and flushes logs. Skipping the drain leaves MySQL holding sockets; across repeated restarts that exhausts `max_connections`.
+- **Cluster mode** (`ecosystem.config.js`): `exec_mode: "cluster"`, `instances: "max"` (`PM2_INSTANCES` to pin). Node is single-threaded — fork mode used one core regardless of machine size. Measured ~54% more throughput on 2 workers. `kill_timeout: 20000` must stay above `SHUTDOWN_TIMEOUT_MS`.
+
 ### Performance
 
-- **Compression:** `compression()` gzips all compressible responses (JSON/text); binary `/uploads` are skipped by its content-type filter. It's the first middleware in `app.js`.
-- **Body parsing:** a single `express.json({ limit: "10mb" })` (don't re-add `body-parser` — `express.json` is the same thing). The bodyless-`req.body` guard runs right after the parsers.
+- **Caching** (`src/common/cache.js`): in-process TTL Map, capped at `CACHE_MAX_ENTRIES` (unbounded caches are their own memory leak). Deliberately **not Redis** — no such infra in this deployment, and a Map removes the round-trip entirely. The API mirrors a Redis client so swapping is a one-file change. Applied to `resolvePublicTenant`, the single hottest query (every portal request resolves the tenant first). **TTL is 10s on purpose:** explicit invalidation only reaches the worker that handled the write, so under cluster mode TTL — not invalidation — bounds staleness. 10s already collapses >99.9% of lookups under a burst; longer buys almost nothing and makes a stale logo linger. **Call `invalidateTenantCache(oldSub, newSub)` on any write that changes what the portal reads** (branding, name, subdomain, active, plan).
+- **N+1:** `getPublicBoard` previously ran **four correlated subqueries per row** (votes/comments/attachments/thumbnail) — and the `most_voted` sort forced them over *every* matching row before `LIMIT`. Now: one pre-aggregated derived table for `vote_count` (the sort needs it inline) plus three batched lookups over the page's ids, run concurrently. Query count is constant regardless of page size. Measured: **~22–25% faster at 500–2000 posts, ~20% slower below ~100** (four round-trips beat one when the subqueries are trivially cheap) — the trade is deliberate, since small boards are sub-millisecond either way.
+- **Compression:** `compression()` gzips all compressible responses (JSON/text); binary `/uploads` are skipped by its content-type filter.
+- **Async logging** (`src/common/logger.js`): morgan writes to a **buffered `fs.WriteStream`**, not stdout. Under PM2 stdout is a pipe, which Node writes **synchronously** — every log line blocks the event loop. Production also skips 2xx/3xx unless slower than `SLOW_REQUEST_MS`; logging every 200 OK is what fills a disk during an attack, and a full disk is a crash.
+- **Body parsing:** `express.json({ limit: "1mb" })` (was 10mb). Real bulk goes through multer on the upload routes and never touches this parser; 10mb just meant a few concurrent requests could pin hundreds of MB of heap. `parameterLimit` 1000 (was 10000 — enough for a CPU-burn payload).
 - **Connection pool** (`database/dbPool.js`): keep-alive enabled (prevents random `ECONNRESET`), idle recycling (`maxIdle`/`idleTimeout`), `connectTimeout`. Size via `DB_CONNECTION_LIMIT` / `DB_MAX_IDLE` env (default 15 / 10).
 - **Static assets:** `/uploads` served with `Cache-Control: public, max-age=7d, immutable` (upload filenames are timestamped, so caching is safe).
 - **Error handling:** a JSON 404 + central error handler are the last middlewares in `app.js` — unhandled errors return `{ status, message }`, never an HTML stack trace.
@@ -177,6 +197,9 @@ Post fields of note: `type` (feedback/feature/bug), `status` (`open`/`planned`/`
 ## Environment
 
 Copy `.env.example` to `.env`. Required variables include: `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SECRET_ACCESS_TOKEN`, `ACCESS_TOKEN_EXPIRE`, `FILE_UPLOAD_MAX_SIZE`, `FRONTEND_URL` (Stripe return URLs **and the invite link base**), and OAuth credentials. Stripe billing: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_BUSINESS` (the server boots without them; billing endpoints just return "not configured"). Optional pool tuning: `DB_CONNECTION_LIMIT` (default 15), `DB_MAX_IDLE` (default 10).
+
+**Resilience tuning** (all optional, sane defaults in code — see *Resilience & abuse protection*):
+`RATE_LIMIT_GLOBAL_MAX` (300/min), `RATE_LIMIT_AUTH_MAX` (10/15min), `RATE_LIMIT_PUBLIC_WRITE_MAX` (15/min), `RATE_LIMIT_EXPENSIVE_MAX` (30/hr), `TRUST_PROXY_HOPS` (1), `REQUEST_TIMEOUT_MS` (30000), `HEADERS_TIMEOUT_MS` (20000), `KEEPALIVE_TIMEOUT_MS` (15000), `MAX_CONNECTIONS` (2000), `SHUTDOWN_TIMEOUT_MS` (15000), `JSON_BODY_LIMIT` (1mb), `MAX_ITEMS_PER_PAGE` (100), `PUBLIC_MAX_ITEMS_PER_PAGE` (50), `CACHE_TTL_TENANT_MS` (10000), `CACHE_MAX_ENTRIES` (5000), `SLOW_REQUEST_MS` (1000), `PM2_INSTANCES` (`max`).
 
 **Email** (invitations) — all optional; with none set, invite emails are just logged to the console and the flow still works:
 - `RESEND_API_KEY` — preferred (HTTP API). `MAIL_FROM` (e.g. `Feedbase <invites@yourdomain.com>`; a transactional provider requires a **verified sender/domain**) and `MAIL_REPLY_TO` (defaults to `tahmidshahriar.bd@gmail.com`).

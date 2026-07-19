@@ -1,5 +1,8 @@
 const express = require("express");
 const publicRouter = express.Router();
+const {
+  publicWriteLimiter,
+} = require("../../middlewares/security/rateLimiters");
 
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
@@ -150,6 +153,7 @@ publicRouter.post("/:subdomain/posts", attachPublicTenant, async (req, res) => {
  */
 publicRouter.post(
   "/:subdomain/feedback",
+  publicWriteLimiter,
   attachPublicTenant,
   optionalAuth,
   async (req, res) => {
@@ -168,6 +172,7 @@ publicRouter.post(
  */
 publicRouter.post(
   "/:subdomain/attachments",
+  publicWriteLimiter,
   attachPublicTenant,
   requireAttachmentsPublic,
   attachmentValidator.single("file"),
@@ -224,6 +229,7 @@ publicRouter.post(
  */
 publicRouter.post(
   "/:subdomain/posts/:postId/vote",
+  publicWriteLimiter,
   attachPublicTenant,
   async (req, res) => {
     togglePublicVote(
@@ -243,6 +249,7 @@ publicRouter.post(
  */
 publicRouter.post(
   "/:subdomain/posts/:postId/comments",
+  publicWriteLimiter,
   attachPublicTenant,
   optionalAuth,
   async (req, res) => {

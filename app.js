@@ -6,6 +6,19 @@ const app = express();
 const cors = require("cors");
 const morgan = require("morgan");
 const compression = require("compression");
+const helmet = require("helmet");
+const { pool } = require("./database/dbPool");
+const {
+  apiLimiter,
+  authLimiter,
+  expensiveActionLimiter,
+} = require("./src/middlewares/security/rateLimiters");
+const {
+  morganFormat,
+  morganOptions,
+  requestTimer,
+  closeLogger,
+} = require("./src/common/logger");
 const { tenantRouter } = require("./src/routes/tenant/tenantRoute");
 const { userRouter } = require("./src/routes/users/usersRoute");
 const { postRouter } = require("./src/routes/post/postRoute");
@@ -27,11 +40,52 @@ const { invitationRouter } = require("./src/routes/invitations/invitationRoute")
 const { supportRouter } = require("./src/routes/support/supportRoute");
 const { stripeWebhookRouter } = require("./src/routes/webhooks/stripeWebhookRoute");
 // --- Middleware ---
+
+// Behind a reverse proxy / load balancer (nginx, Cloudflare, a PaaS router) the
+// socket address is the PROXY's, so every client would share one rate-limit
+// bucket and X-Forwarded-For would be ignored. Trust exactly one hop — trusting
+// all hops lets a client forge X-Forwarded-For and evade rate limiting entirely.
+app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS) || 1);
+
+// Security headers (HSTS, X-Content-Type-Options, frame denial, ...).
+// crossOriginResourcePolicy is relaxed because /uploads serves avatars and
+// attachments that the frontend loads from a different origin.
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: false, // API serves JSON + images, not HTML documents
+  })
+);
+
 // gzip/deflate all compressible responses (JSON, text). Binary uploads under
 // /uploads are skipped automatically by compression's content-type filter.
 app.use(compression());
 app.use(cors());
-app.use(morgan("combined"));
+
+// Async access logging — see src/common/logger.js for why stdout is unsafe here.
+// requestTimer must run first so the log filter can identify slow requests.
+app.use(requestTimer);
+app.use(morgan(morganFormat, morganOptions));
+
+// Global rate limit, applied before body parsing so a flood is rejected before
+// we spend CPU parsing its payloads.
+app.use(apiLimiter);
+
+/**
+ * Per-request timeout. Without one, a slow client (or a slowloris attack) can
+ * hold connections and pool slots open indefinitely until the server runs out
+ * of both. Responds 503 and lets the socket go.
+ */
+const REQUEST_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS) || 30_000;
+app.use((req, res, next) => {
+  res.setTimeout(REQUEST_TIMEOUT_MS, () => {
+    if (res.headersSent) return res.end();
+    res
+      .status(503)
+      .json({ status: "failed", message: "Request timed out. Please try again." });
+  });
+  next();
+});
 
 // Stripe webhooks need the RAW body for signature verification, so this route
 // is mounted BEFORE express.json and parses the body as a Buffer instead.
@@ -42,12 +96,19 @@ app.use(
 );
 
 // Single JSON body parser (express.json IS body-parser.json — no need for both).
-app.use(express.json({ limit: "10mb" }));
+//
+// 1MB, not 10MB: every JSON endpoint here carries text (titles, markdown,
+// settings), while real bulk — images and video — goes through multer on the
+// upload routes and never touches this parser. A 10MB ceiling just meant a
+// handful of concurrent requests could pin hundreds of MB of heap.
+const JSON_BODY_LIMIT = process.env.JSON_BODY_LIMIT || "1mb";
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
 app.use(
   express.urlencoded({
     extended: true,
-    limit: "10mb",
-    parameterLimit: 10000,
+    limit: JSON_BODY_LIMIT,
+    // 10k params was enough for a hash-collision / CPU-burn payload.
+    parameterLimit: 1000,
   })
 );
 
@@ -59,6 +120,20 @@ app.use((req, _res, next) => {
 });
 
 // --- Routes ---
+//
+// Targeted limiters mounted on the specific paths that need them. These run in
+// addition to the global limiter above.
+//
+// Credential endpoints: each attempt costs a bcrypt comparison (~100ms of CPU),
+// so an unthrottled login is both an account-security hole and a cheap way to
+// saturate the CPU. Counts failures only (see authLimiter).
+app.use("/users/login", authLimiter);
+app.use("/users/register", authLimiter);
+app.use("/admin/auth/login", authLimiter);
+// Fan-out to email / Stripe — expensive per call and abusable for spam.
+app.use("/invitations", expensiveActionLimiter);
+app.use("/billing/checkout", expensiveActionLimiter);
+
 app.use("/tenants", tenantRouter);
 app.use("/users", userRouter);
 app.use("/posts", postRouter);
@@ -119,21 +194,80 @@ const server = app
     process.exit(1);
   });
 
-// Graceful shutdown for nodemon restarts
-process.on("SIGTERM", () => {
-  console.log("SIGTERM signal received: closing HTTP server");
-  server.close(() => {
+/**
+ * Socket-level timeouts. These bound how long a client may hold a connection
+ * BEFORE Express ever sees a complete request, which is precisely the window a
+ * slowloris attack lives in (dribble headers forever, exhaust the connection
+ * table). Node's defaults are generous; these are not.
+ */
+server.requestTimeout = Number(process.env.REQUEST_TIMEOUT_MS) || 30_000;
+server.headersTimeout = Number(process.env.HEADERS_TIMEOUT_MS) || 20_000;
+server.keepAliveTimeout = Number(process.env.KEEPALIVE_TIMEOUT_MS) || 15_000;
+// Cap total concurrent sockets so a flood degrades (connections refused at the
+// edge) instead of driving the process into an out-of-memory kill.
+server.maxConnections = Number(process.env.MAX_CONNECTIONS) || 2000;
+
+/**
+ * Graceful shutdown: stop accepting new connections, let in-flight requests
+ * finish, then release the DB pool and flush logs. Without draining the pool,
+ * a restart can leave MySQL holding sockets until they time out — which, across
+ * repeated PM2 restarts, exhausts max_connections and takes the DB down for
+ * every worker.
+ */
+let shuttingDown = false;
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`${signal} received: shutting down gracefully`);
+
+  // Force-exit if a hung connection prevents a clean close.
+  const forceExit = setTimeout(() => {
+    console.error("Graceful shutdown timed out — forcing exit");
+    process.exit(1);
+  }, Number(process.env.SHUTDOWN_TIMEOUT_MS) || 15_000);
+  forceExit.unref();
+
+  server.close(async () => {
+    try {
+      await pool.end();
+      console.log("DB pool drained");
+    } catch (err) {
+      console.error("Error draining DB pool:", err.message);
+    }
+    try {
+      await closeLogger();
+    } catch {
+      /* logging must never block shutdown */
+    }
     console.log("HTTP server closed");
     process.exit(0);
   });
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+
+/**
+ * Last-resort crash guards.
+ *
+ * An unhandled promise rejection terminates the process by default in modern
+ * Node — so a single forgotten `.catch()` on a background task (an email send,
+ * a notification fan-out) could take down a server that was otherwise healthy.
+ * Log and keep serving: the request that triggered it already failed, but the
+ * other in-flight requests should not die with it.
+ */
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection (continuing):", reason);
 });
 
-process.on("SIGINT", () => {
-  console.log("SIGINT signal received: closing HTTP server");
-  server.close(() => {
-    console.log("HTTP server closed");
-    process.exit(0);
-  });
+/**
+ * An uncaught exception leaves the process in an undefined state, so unlike a
+ * rejection we do NOT continue serving. Shut down cleanly and let PM2 restart
+ * us — a fast, deliberate restart beats a process serving corrupt state.
+ */
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception — restarting:", err);
+  shutdown("uncaughtException");
 });
 
 // Development Scripts:

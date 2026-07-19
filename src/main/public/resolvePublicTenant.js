@@ -2,6 +2,7 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { getPlanLimits } = require("../../consts/plans");
+const cache = require("../../common/cache");
 
 /**
  * @description Look up an active tenant by its subdomain or custom domain.
@@ -28,9 +29,20 @@ const resolvePublicTenant = async (identifier, lg) => {
   `;
 
   try {
-    const [rows] = await pool.query(_query, [value]);
+    // Every public request (board, post, changelog, vote, comment) resolves the
+    // tenant first, so this is the single hottest query in the app and its
+    // result — branding + a plan flag — barely ever changes. Caching it removes
+    // one DB round-trip from EVERY portal request, which is what keeps the pool
+    // free for the queries that actually need it under a traffic spike.
+    // Invalidated on workspace update/delete (see invalidateTenantCache).
+    const rows = await cache.wrap(`tenant:${value}`, cache.TTL.TENANT, async () => {
+      const [result] = await pool.query(_query, [value]);
+      // Only cache a hit — caching "not found" would let a typo'd subdomain
+      // stay broken for the whole TTL after the workspace is created.
+      return result.length > 0 ? result : undefined;
+    });
 
-    if (rows.length === 0) {
+    if (!rows || rows.length === 0) {
       return Promise.reject(
         setServerResponse(API_STATUS_CODE.NOT_FOUND, "tenant_not_found", lg)
       );
@@ -60,4 +72,21 @@ const resolvePublicTenant = async (identifier, lg) => {
   }
 };
 
-module.exports = { resolvePublicTenant };
+/**
+ * Drop a tenant's cached portal record. MUST be called whenever anything the
+ * public portal reads changes — branding, name, subdomain, active flag, or the
+ * plan (which drives attachments_enabled) — otherwise the portal serves stale
+ * branding for up to TTL.TENANT.
+ *
+ * Pass the OLD subdomain too when it is being renamed, so the previous key does
+ * not keep resolving to the workspace.
+ * @param {...(string|null|undefined)} subdomains
+ */
+const invalidateTenantCache = (...subdomains) => {
+  for (const sub of subdomains) {
+    if (!sub) continue;
+    cache.invalidate(`tenant:${String(sub).trim().toLowerCase()}`);
+  }
+};
+
+module.exports = { resolvePublicTenant, invalidateTenantCache };

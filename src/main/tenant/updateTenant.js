@@ -1,6 +1,7 @@
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
+const { invalidateTenantCache } = require('../public/resolvePublicTenant');
 
 // Mirrors the create-workspace rules (src/main/users/workspaces.js).
 const RESERVED_SUBDOMAINS = new Set([
@@ -20,6 +21,10 @@ const updateTenant = async (id, tenantData, lg) => {
   // workspace (hiding it from the switcher and the public portal).
   const fields = [];
   const values = [];
+  // Track the subdomain(s) whose cached portal record this write invalidates.
+  // The OLD one matters as much as the new: after a rename the previous key
+  // must stop resolving to this workspace.
+  const touchedSubdomains = [];
   if (name !== undefined) {
     fields.push('name = ?');
     values.push(name);
@@ -38,6 +43,7 @@ const updateTenant = async (id, tenantData, lg) => {
         setServerResponse(API_STATUS_CODE.NOT_FOUND, 'tenant_not_found', lg)
       );
     }
+    touchedSubdomains.push(current.subdomain, sub);
     if (sub !== current.subdomain) {
       if (!SUBDOMAIN_RE.test(sub) || RESERVED_SUBDOMAINS.has(sub)) {
         return Promise.reject(
@@ -81,6 +87,18 @@ const updateTenant = async (id, tenantData, lg) => {
 
   try {
     await pool.query(_query, values);
+
+    // Branding/name/active changes must show on the public portal immediately,
+    // not after the cache TTL expires. When only non-subdomain fields changed we
+    // don't know the subdomain yet, so look it up once and drop that key.
+    if (touchedSubdomains.length === 0) {
+      const [[row]] = await pool.query(
+        "SELECT subdomain FROM tenants WHERE id = ?",
+        [id]
+      );
+      if (row) touchedSubdomains.push(row.subdomain);
+    }
+    invalidateTenantCache(...touchedSubdomains);
 
     return Promise.resolve(
       setServerResponse(
