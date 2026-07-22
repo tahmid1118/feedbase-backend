@@ -26,6 +26,11 @@ const {
   createWorkspace,
   switchWorkspace,
 } = require("../../main/users/workspaces");
+const {
+  requestPasswordReset,
+  validateResetToken,
+  resetPassword,
+} = require("../../main/users/passwordReset");
 
 /**
  * @description User login
@@ -131,6 +136,46 @@ userRouter.post("/register", languageValidator, async (req, res) => {
         message: message,
       });
     });
+});
+
+/**
+ * @description Password reset — all UNAUTHENTICATED (the user has forgotten
+ * their password and can't sign in). Rate limiting is applied per-path in app.js.
+ */
+
+// Request a reset link. Always returns success (no account enumeration).
+userRouter.post("/password/forgot", languageValidator, async (req, res) => {
+  const { email, lg } = req.body;
+  requestPasswordReset(email, lg, req)
+    .then(({ statusCode, status, message, result }) =>
+      res.status(statusCode).send({ status, message, data: result })
+    )
+    .catch(({ statusCode, status, message }) =>
+      res.status(statusCode).send({ status, message })
+    );
+});
+
+// Validate a reset token so the reset page can render (or show an error state).
+userRouter.get("/password/reset/:token", languageValidator, async (req, res) => {
+  validateResetToken(req.params.token, req.query.lg || "en")
+    .then(({ statusCode, status, message, result }) =>
+      res.status(statusCode).send({ status, message, data: result })
+    )
+    .catch(({ statusCode, status, message }) =>
+      res.status(statusCode).send({ status, message })
+    );
+});
+
+// Consume a token and set the new password.
+userRouter.post("/password/reset", languageValidator, async (req, res) => {
+  const { token, password, lg } = req.body;
+  resetPassword(token, password, lg)
+    .then(({ statusCode, status, message }) =>
+      res.status(statusCode).send({ status, message })
+    )
+    .catch(({ statusCode, status, message }) =>
+      res.status(statusCode).send({ status, message })
+    );
 });
 
 /**

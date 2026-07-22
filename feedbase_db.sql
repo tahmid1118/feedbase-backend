@@ -157,6 +157,23 @@ CREATE TABLE IF NOT EXISTS invitations (
   CONSTRAINT fk_invitations_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Self-service password reset. Stores a SHA-256 HASH of the emailed token (never
+-- the raw token — a DB read must not grant reset ability), keyed by account
+-- EMAIL. Tokens are single-use and expire after 1 hour.
+CREATE TABLE IF NOT EXISTS password_resets (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  email VARCHAR(190) NOT NULL,
+  token_hash VARCHAR(64) NOT NULL,
+  status ENUM('pending', 'used') NOT NULL DEFAULT 'pending',
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME NULL,
+  requested_ip VARCHAR(64) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_password_resets_token (token_hash),
+  KEY idx_password_resets_email (email, status)
+) ENGINE=InnoDB;
+
 -- Device sessions — the mechanism behind "one device at a time".
 -- Every issued user JWT carries an `sid` claim pointing here; `authenticateToken`
 -- rejects a token whose session was revoked, so a session can be killed

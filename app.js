@@ -130,6 +130,10 @@ app.use((req, _res, next) => {
 app.use("/users/login", authLimiter);
 app.use("/users/register", authLimiter);
 app.use("/admin/auth/login", authLimiter);
+// Password reset: the "forgot" request sends email (expensive/abusable for
+// spam); the "reset" submit is a credential action (brute-forceable token).
+app.use("/users/password/forgot", expensiveActionLimiter);
+app.use("/users/password/reset", authLimiter);
 // Fan-out to email / Stripe — expensive per call and abusable for spam.
 app.use("/invitations", expensiveActionLimiter);
 app.use("/billing/checkout", expensiveActionLimiter);
