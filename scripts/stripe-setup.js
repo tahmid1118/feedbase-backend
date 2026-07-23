@@ -19,8 +19,8 @@ const Stripe = require("stripe");
 const { YEARLY_DISCOUNT } = require("../src/consts/plans");
 
 const TIERS = [
-  { key: "pro", name: "Feedbase Pro", amount: 1000, envVar: "STRIPE_PRICE_PRO" },
-  { key: "business", name: "Feedbase Business", amount: 1500, envVar: "STRIPE_PRICE_BUSINESS" },
+  { key: "pro", name: "FeedBoard Pro", amount: 1000, envVar: "STRIPE_PRICE_PRO" },
+  { key: "business", name: "FeedBoard Business", amount: 1500, envVar: "STRIPE_PRICE_BUSINESS" },
 ];
 
 /**

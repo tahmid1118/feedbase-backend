@@ -61,7 +61,7 @@ const newFeedbackEmail = ({
     "Review it here:",
     postUrl,
     "",
-    "— Feedbase",
+    "— FeedBoard",
   ].join("\n");
 
   const html = `<!doctype html>
@@ -73,7 +73,7 @@ const newFeedbackEmail = ({
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid rgba(227,153,163,0.35);border-radius:16px;overflow:hidden;">
             <tr>
               <td style="background:linear-gradient(135deg,${INK} 0%,#7a2d38 55%,${BRAND} 100%);padding:24px 32px;">
-                <span style="color:#ffffff;font-size:18px;font-weight:700;">Feedbase</span>
+                <span style="color:#ffffff;font-size:18px;font-weight:700;">FeedBoard</span>
               </td>
             </tr>
 
@@ -117,7 +117,7 @@ const newFeedbackEmail = ({
             <tr>
               <td style="padding:16px 32px 24px;border-top:1px solid rgba(227,153,163,0.25);">
                 <p style="margin:0;font-size:12px;line-height:1.5;color:rgba(28,10,12,0.45);">
-                  You're receiving this because you own the <strong>${ws}</strong> workspace on Feedbase.
+                  You're receiving this because you own the <strong>${ws}</strong> workspace on FeedBoard.
                 </p>
               </td>
             </tr>

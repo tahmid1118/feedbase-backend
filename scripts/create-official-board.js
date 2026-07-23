@@ -1,10 +1,10 @@
 /**
- * One-off: create Feedbase's OWN public feedback board — the workspace where
+ * One-off: create FeedBoard's OWN public feedback board — the workspace where
  * users of this app report bugs and request features (dogfooding).
  *
  *   node scripts/create-official-board.js [subdomain] [name]
  *
- * Defaults to subdomain "feedback", name "Feedbase".
+ * Defaults to subdomain "feedback", name "FeedBoard".
  *
  * The workspace is owned by the platform admin's own account: it copies the
  * `users` row that already exists for the admin's email, so the admin signs in
@@ -23,7 +23,7 @@ require("dotenv").config();
 const { pool } = require("../database/dbPool");
 
 const SUBDOMAIN = (process.argv[2] || "feedback").toLowerCase();
-const NAME = process.argv[3] || "Feedbase";
+const NAME = process.argv[3] || "FeedBoard";
 
 // Mirrors proxy.ts RESERVED_SUBDOMAINS — these never route to a portal.
 const RESERVED = new Set(["www", "app", "admin", "dashboard", "api"]);

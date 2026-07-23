@@ -1,6 +1,6 @@
-# Feedbase Backend
+# FeedBoard Backend
 
-Feedbase Backend is a multi-tenant Node.js API for feedback collection, roadmap planning, changelog publishing, notifications, and tenant/user management.
+FeedBoard Backend is a multi-tenant Node.js API for feedback collection, roadmap planning, changelog publishing, notifications, and tenant/user management.
 
 ## Highlights
 

@@ -609,7 +609,7 @@ INSERT IGNORE INTO notifications (
   (1, 1, 1, 'post_status', 'Post moved to planned', 'Add dark mode is now planned.', 'post', 1, 1, NOW()),
   (2, 1, 3, 'comment_reply', 'New reply on your post', 'Admin replied to your dark mode request.', 'comment', 2, 0, NULL),
   (3, 1, 2, 'changelog', 'New changelog published', 'April 2026 Update is live.', 'changelog', 1, 0, NULL),
-  (4, 2, 4, 'system', 'Welcome to Feedbase', 'Your tenant is ready to use.', NULL, NULL, 1, NOW());
+  (4, 2, 4, 'system', 'Welcome to FeedBoard', 'Your tenant is ready to use.', NULL, NULL, 1, NOW());
 
 INSERT IGNORE INTO api_keys (
   id, tenant_id, created_by, key_name, key_prefix, key_hash, scopes, last_used_at, expires_at, is_revoked

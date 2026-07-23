@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Feedbase Backend API (APIdog Import)",
+    "title": "FeedBoard Backend API (APIdog Import)",
     "version": "1.0.0",
     "description": "APIdog import file generated from API_FULL_LIST.md."
   },

@@ -8,11 +8,11 @@
  *      any action link) to the console. This keeps the whole invite flow testable
  *      locally before credentials exist; it never throws.
  *
- * `MAIL_FROM` is the sender (e.g. `Feedbase <invites@yourdomain.com>`); a
+ * `MAIL_FROM` is the sender (e.g. `FeedBoard <invites@yourdomain.com>`); a
  * transactional provider requires a verified sender/domain. `MAIL_REPLY_TO`
  * (e.g. tahmidshahriar.bd@gmail.com) is where replies land.
  */
-const MAIL_FROM = process.env.MAIL_FROM || "Feedbase <onboarding@resend.dev>";
+const MAIL_FROM = process.env.MAIL_FROM || "FeedBoard <onboarding@resend.dev>";
 const MAIL_REPLY_TO = process.env.MAIL_REPLY_TO || "tahmidshahriar.bd@gmail.com";
 
 const isResendConfigured = () => Boolean(process.env.RESEND_API_KEY);

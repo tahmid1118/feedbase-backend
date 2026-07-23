@@ -25,12 +25,12 @@ const invitationEmail = ({ workspaceName, inviterName, acceptUrl, expiresInDays 
   const who = esc(inviterName || "A teammate");
   const url = esc(acceptUrl);
 
-  const subject = `${who} invited you to join ${workspaceName} on Feedbase`;
+  const subject = `${who} invited you to join ${workspaceName} on FeedBoard`;
 
   const text = [
-    `${who} invited you to join the "${workspaceName}" workspace on Feedbase.`,
+    `${who} invited you to join the "${workspaceName}" workspace on FeedBoard.`,
     "",
-    "Feedbase is where the team collects product feedback, prioritises it by votes,",
+    "FeedBoard is where the team collects product feedback, prioritises it by votes,",
     "and shares a public roadmap and changelog.",
     "",
     "Accept your invitation:",
@@ -50,7 +50,7 @@ const invitationEmail = ({ workspaceName, inviterName, acceptUrl, expiresInDays 
             <!-- header -->
             <tr>
               <td style="background:linear-gradient(135deg,${INK} 0%,#7a2d38 55%,${BRAND} 100%);padding:28px 32px;">
-                <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.2px;">Feedbase</span>
+                <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.2px;">FeedBoard</span>
               </td>
             </tr>
 
@@ -62,7 +62,7 @@ const invitationEmail = ({ workspaceName, inviterName, acceptUrl, expiresInDays 
                 </h1>
                 <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:rgba(28,10,12,0.72);">
                   <strong style="color:${INK};">${who}</strong> invited you to join the
-                  <strong style="color:${INK};">${ws}</strong> workspace on Feedbase — where the team
+                  <strong style="color:${INK};">${ws}</strong> workspace on FeedBoard — where the team
                   collects product feedback, prioritises it by votes, and shares a public roadmap.
                 </p>
 
@@ -104,7 +104,7 @@ const invitationEmail = ({ workspaceName, inviterName, acceptUrl, expiresInDays 
             </tr>
           </table>
 
-          <p style="margin:16px 0 0;font-size:11px;color:rgba(28,10,12,0.35);">Powered by Feedbase</p>
+          <p style="margin:16px 0 0;font-size:11px;color:rgba(28,10,12,0.35);">Powered by FeedBoard</p>
         </td>
       </tr>
     </table>

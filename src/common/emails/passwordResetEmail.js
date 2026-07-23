@@ -22,10 +22,10 @@ const passwordResetEmail = ({ resetUrl, expiresInMinutes }) => {
   const url = esc(resetUrl);
   const mins = Number(expiresInMinutes) || 60;
 
-  const subject = "Reset your Feedbase password";
+  const subject = "Reset your FeedBoard password";
 
   const text = [
-    "We received a request to reset the password for your Feedbase account.",
+    "We received a request to reset the password for your FeedBoard account.",
     "",
     "Reset your password:",
     resetUrl,
@@ -45,7 +45,7 @@ const passwordResetEmail = ({ resetUrl, expiresInMinutes }) => {
             <!-- header -->
             <tr>
               <td style="background:linear-gradient(135deg,${INK} 0%,#7a2d38 55%,${BRAND} 100%);padding:28px 32px;">
-                <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.2px;">Feedbase</span>
+                <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.2px;">FeedBoard</span>
               </td>
             </tr>
 
@@ -56,7 +56,7 @@ const passwordResetEmail = ({ resetUrl, expiresInMinutes }) => {
                   Reset your <span style="color:${BRAND};">password</span>
                 </h1>
                 <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:rgba(28,10,12,0.72);">
-                  We received a request to reset the password for your Feedbase account.
+                  We received a request to reset the password for your FeedBoard account.
                   Click the button below to choose a new one.
                 </p>
 
@@ -99,7 +99,7 @@ const passwordResetEmail = ({ resetUrl, expiresInMinutes }) => {
             </tr>
           </table>
 
-          <p style="margin:16px 0 0;font-size:11px;color:rgba(28,10,12,0.35);">Powered by Feedbase</p>
+          <p style="margin:16px 0 0;font-size:11px;color:rgba(28,10,12,0.35);">Powered by FeedBoard</p>
         </td>
       </tr>
     </table>
