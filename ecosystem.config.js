@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "feedbase-server",
+      name: "feedboard-server",
       script: "app.js",
 
       /**

@@ -36,7 +36,7 @@ npm install
 2. Create a MySQL database and import the schema.
 
 ```bash
-mysql -u root -p < feedbase_db.sql
+mysql -u root -p < feedboard_db.sql
 ```
 
 3. Create a `.env` file in the project root.
@@ -49,7 +49,7 @@ DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
 DB_PASSWORD=your_password
-DB_NAME=feedbase_db
+DB_NAME=feedboard_db
 
 SECRET_ACCESS_TOKEN=your_secret_key
 ACCESS_TOKEN_EXPIRE=24h
@@ -68,11 +68,11 @@ npm run dev
 | `npm run dev` | `nodemon app.js` | Run locally with hot reload |
 | `npm run staging` | `pm2 start ecosystem.config.js --env staging` | Start staging process |
 | `npm start` | `pm2 start ecosystem.config.js --env production` | Start production process |
-| `npm run restart` | `pm2 restart feedbase-server --env production` | Restart production process |
-| `npm run restart:staging` | `pm2 restart feedbase-server --env staging` | Restart staging process |
-| `npm run logs` | `pm2 logs feedbase-server` | Tail PM2 logs |
-| `npm run stop` | `pm2 stop feedbase-server` | Stop PM2 process |
-| `npm run delete` | `pm2 delete feedbase-server` | Remove PM2 process |
+| `npm run restart` | `pm2 restart feedboard-server --env production` | Restart production process |
+| `npm run restart:staging` | `pm2 restart feedboard-server --env staging` | Restart staging process |
+| `npm run logs` | `pm2 logs feedboard-server` | Tail PM2 logs |
+| `npm run stop` | `pm2 stop feedboard-server` | Stop PM2 process |
+| `npm run delete` | `pm2 delete feedboard-server` | Remove PM2 process |
 
 ## Mounted Route Groups
 
@@ -107,7 +107,7 @@ feedbase-backend/
 |   |-- middlewares/
 |   `-- routes/
 |-- uploads/
-|-- feedbase_db.sql
+|-- feedboard_db.sql
 |-- apidog-import-openapi.json
 `-- postman-apidog-collection.json
 ```

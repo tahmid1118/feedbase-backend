@@ -160,7 +160,7 @@ Deleted unnecessary modules from the previous project:
 
 ### 4. Database Schema
 
-Created comprehensive database schema (`feedbase_db.sql`) with:
+Created comprehensive database schema (`feedboard_db.sql`) with:
 - 16 tables with proper relationships
 - Foreign key constraints
 - Indexes for performance
@@ -256,8 +256,8 @@ feedbase-backend/
 ├── app.js              # Updated with new routes
 ├── ecosystem.config.js # Updated project name
 ├── package.json        # Updated project name
-├── feedbase_db.sql     # New database schema
-├── feedbase_srs.txt    # Requirements spec
+├── feedboard_db.sql     # New database schema
+├── feedboard_srs.txt    # Requirements spec
 ├── README.md           # Comprehensive docs
 ├── API_DOCUMENTATION.md
 ├── QUICK_START.md
@@ -353,7 +353,7 @@ The project is ready for:
    - Set JWT secret
 
 2. **Database Setup**
-   - Import `feedbase_db.sql`
+   - Import `feedboard_db.sql`
    - Verify seed data
 
 3. **Testing**

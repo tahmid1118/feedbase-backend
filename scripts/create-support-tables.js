@@ -9,7 +9,7 @@
  * see it, but the admin keeps the transcript forever — so nothing here cascades
  * from users/tenants (user_id/tenant_id are SET NULL on delete, and the display
  * identity is denormalized so history survives an account deletion). Mirrored in
- * feedbase_db.sql. Idempotent (CREATE TABLE IF NOT EXISTS).
+ * feedboard_db.sql. Idempotent (CREATE TABLE IF NOT EXISTS).
  */
 require("dotenv").config();
 const { pool } = require("../database/dbPool");

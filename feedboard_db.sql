@@ -1,11 +1,11 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
-CREATE DATABASE IF NOT EXISTS feedbase_db
+CREATE DATABASE IF NOT EXISTS feedboard_db
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
-USE feedbase_db;
+USE feedboard_db;
 
 CREATE TABLE IF NOT EXISTS tenants (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -630,7 +630,7 @@ INSERT IGNORE INTO integrations (
   id, tenant_id, integration_type, config, is_active
 ) VALUES
   (1, 1, 'slack', JSON_OBJECT('webhookUrl', 'https://hooks.slack.com/services/T000/B000/XXX', 'channel', '#product-feedback'), 1),
-  (2, 1, 'webhook', JSON_OBJECT('url', 'https://example.com/webhooks/feedbase', 'secret', 'whsec_demo'), 1),
+  (2, 1, 'webhook', JSON_OBJECT('url', 'https://example.com/webhooks/feedboard', 'secret', 'whsec_demo'), 1),
   (3, 2, 'discord', JSON_OBJECT('webhookUrl', 'https://discord.com/api/webhooks/demo'), 0);
 
 INSERT IGNORE INTO file_uploads (

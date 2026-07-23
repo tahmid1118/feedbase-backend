@@ -6,7 +6,7 @@
  *   node scripts/add-offer-interval.js
  *
  * Existing offers default to 'month' (their prior behavior). Mirrored in
- * feedbase_db.sql. Idempotent.
+ * feedboard_db.sql. Idempotent.
  */
 require("dotenv").config();
 const { pool } = require("../database/dbPool");

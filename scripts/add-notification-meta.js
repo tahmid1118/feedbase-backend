@@ -11,7 +11,7 @@
  *
  * `title`/`message` are kept as the English fallback for rows written before
  * this column existed (and for any non-i18n consumer). Mirrored in
- * feedbase_db.sql. Idempotent.
+ * feedboard_db.sql. Idempotent.
  */
 require("dotenv").config();
 const { pool } = require("../database/dbPool");

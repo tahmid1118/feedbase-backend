@@ -7,7 +7,7 @@
  * HASH of a random token (never the raw token — a DB read must not grant the
  * ability to reset a password), keyed by account EMAIL (an account may own
  * several `users` rows, all sharing one password hash). Tokens are single-use
- * and expire after 1 hour. Mirrored in feedbase_db.sql. Idempotent.
+ * and expire after 1 hour. Mirrored in feedboard_db.sql. Idempotent.
  */
 require("dotenv").config();
 const { pool } = require("../database/dbPool");
