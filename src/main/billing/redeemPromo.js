@@ -1,6 +1,7 @@
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
+const { stripe, isStripeConfigured } = require("../../common/stripe");
 
 /**
  * Redeem a promo code for the authenticated workspace (owner only).
@@ -52,8 +53,26 @@ const redeemPromo = async (code, authData) => {
           : new Date(
               Date.now() + (promo.duration_months || 1) * 30 * 24 * 60 * 60 * 1000
             );
+
+      // If the workspace is on a live paid Stripe subscription, cancel it before
+      // comping — otherwise Stripe keeps charging while the app shows a comped
+      // plan (and reconcileTenantSubscription then skips comped tenants forever).
+      // Mirrors the admin comp path in admin/workspaces.js.
+      const [[current]] = await pool.query(
+        "SELECT stripe_subscription_id FROM tenants WHERE id = ?",
+        [tenantId]
+      );
+      if (current?.stripe_subscription_id && isStripeConfigured()) {
+        try {
+          await stripe.subscriptions.cancel(current.stripe_subscription_id);
+        } catch (e) {
+          // Already cancelled / not found is fine — we clear it locally anyway.
+          console.error("promo free-plan comp: cancel sub (non-fatal):", e.message);
+        }
+      }
+
       await pool.query(
-        "UPDATE tenants SET plan_name = ?, subscription_status = 'comped', current_period_end = ? WHERE id = ?",
+        "UPDATE tenants SET plan_name = ?, subscription_status = 'comped', stripe_subscription_id = NULL, current_period_end = ? WHERE id = ?",
         [promo.plan_grant, periodEnd, tenantId]
       );
       await pool.query(

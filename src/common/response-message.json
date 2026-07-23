@@ -263,7 +263,8 @@
     "reset_email_sent": "If an account exists for that email, we've sent a reset link.",
     "invalid_or_expired_reset_token": "This reset link is invalid or has expired.",
     "password_reset_successful": "Your password has been reset. You can now sign in.",
-    "something_went_wrong": "Something went wrong. Please try again."
+    "something_went_wrong": "Something went wrong. Please try again.",
+    "promo_plan_mismatch": "This promo code doesn't apply to the selected plan."
   },
   "de": {
     "success": "Erfolg",
@@ -282,7 +283,8 @@
     "reset_email_sent": "Falls ein Konto mit dieser E-Mail existiert, haben wir einen Link zum Zurücksetzen gesendet.",
     "invalid_or_expired_reset_token": "Dieser Link zum Zurücksetzen ist ungültig oder abgelaufen.",
     "password_reset_successful": "Ihr Passwort wurde zurückgesetzt. Sie können sich jetzt anmelden.",
-    "something_went_wrong": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut."
+    "something_went_wrong": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+    "promo_plan_mismatch": "Dieser Promo-Code gilt nicht für den ausgewählten Tarif."
   },
   "fr": {
     "success": "Succès",
@@ -301,7 +303,8 @@
     "reset_email_sent": "Si un compte existe pour cet e-mail, nous avons envoyé un lien de réinitialisation.",
     "invalid_or_expired_reset_token": "Ce lien de réinitialisation est invalide ou a expiré.",
     "password_reset_successful": "Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter.",
-    "something_went_wrong": "Une erreur s'est produite. Veuillez réessayer."
+    "something_went_wrong": "Une erreur s'est produite. Veuillez réessayer.",
+    "promo_plan_mismatch": "Ce code promo ne s'applique pas au forfait sélectionné."
   },
   "es": {
     "success": "Éxito",
@@ -320,7 +323,8 @@
     "reset_email_sent": "Si existe una cuenta para ese correo, hemos enviado un enlace de restablecimiento.",
     "invalid_or_expired_reset_token": "Este enlace de restablecimiento no es válido o ha caducado.",
     "password_reset_successful": "Tu contraseña se ha restablecido. Ya puedes iniciar sesión.",
-    "something_went_wrong": "Algo salió mal. Inténtalo de nuevo."
+    "something_went_wrong": "Algo salió mal. Inténtalo de nuevo.",
+    "promo_plan_mismatch": "Este código promocional no se aplica al plan seleccionado."
   },
   "it": {
     "success": "Successo",
@@ -339,7 +343,8 @@
     "reset_email_sent": "Se esiste un account per quell'e-mail, abbiamo inviato un link di reimpostazione.",
     "invalid_or_expired_reset_token": "Questo link di reimpostazione non è valido o è scaduto.",
     "password_reset_successful": "La tua password è stata reimpostata. Ora puoi accedere.",
-    "something_went_wrong": "Qualcosa è andato storto. Riprova."
+    "something_went_wrong": "Qualcosa è andato storto. Riprova.",
+    "promo_plan_mismatch": "Questo codice promozionale non è valido per il piano selezionato."
   },
   "pt": {
     "success": "Sucesso",
@@ -358,7 +363,8 @@
     "reset_email_sent": "Se existir uma conta para esse e-mail, enviámos uma ligação de reposição.",
     "invalid_or_expired_reset_token": "Esta ligação de reposição é inválida ou expirou.",
     "password_reset_successful": "A sua palavra-passe foi reposta. Já pode iniciar sessão.",
-    "something_went_wrong": "Algo correu mal. Tente novamente."
+    "something_went_wrong": "Algo correu mal. Tente novamente.",
+    "promo_plan_mismatch": "Este código promocional não se aplica ao plano selecionado."
   },
   "nl": {
     "success": "Succes",
@@ -377,7 +383,8 @@
     "reset_email_sent": "Als er een account bestaat voor dat e-mailadres, hebben we een resetlink verzonden.",
     "invalid_or_expired_reset_token": "Deze resetlink is ongeldig of verlopen.",
     "password_reset_successful": "Uw wachtwoord is opnieuw ingesteld. U kunt nu inloggen.",
-    "something_went_wrong": "Er is iets misgegaan. Probeer het opnieuw."
+    "something_went_wrong": "Er is iets misgegaan. Probeer het opnieuw.",
+    "promo_plan_mismatch": "Deze promocode geldt niet voor het geselecteerde abonnement."
   },
   "pl": {
     "success": "Sukces",
@@ -396,6 +403,7 @@
     "reset_email_sent": "Jeśli istnieje konto dla tego adresu e-mail, wysłaliśmy link do resetowania.",
     "invalid_or_expired_reset_token": "Ten link do resetowania jest nieprawidłowy lub wygasł.",
     "password_reset_successful": "Twoje hasło zostało zresetowane. Możesz się teraz zalogować.",
-    "something_went_wrong": "Coś poszło nie tak. Spróbuj ponownie."
+    "something_went_wrong": "Coś poszło nie tak. Spróbuj ponownie.",
+    "promo_plan_mismatch": "Ten kod promocyjny nie dotyczy wybranego planu."
   }
 }

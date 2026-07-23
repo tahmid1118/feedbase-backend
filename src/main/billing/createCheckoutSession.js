@@ -40,6 +40,27 @@ const createCheckoutSession = async (plan, authData, promotionCode, interval) =>
     );
   }
 
+  // Enforce a promo's plan restriction HERE — the Stripe coupon behind a
+  // percent-off code carries no product restriction, so without this a code
+  // scoped to one plan (applies_to_plan) would discount any plan the client
+  // sends. Server-side is the only trustworthy place to check it.
+  if (promotionCode) {
+    const [[promoRow]] = await pool.query(
+      "SELECT applies_to_plan FROM promo_codes WHERE stripe_promotion_code_id = ? LIMIT 1",
+      [promotionCode]
+    );
+    if (
+      promoRow &&
+      promoRow.applies_to_plan &&
+      promoRow.applies_to_plan !== "any" &&
+      promoRow.applies_to_plan !== plan
+    ) {
+      return Promise.reject(
+        setServerResponse(API_STATUS_CODE.BAD_REQUEST, "promo_plan_mismatch", lg)
+      );
+    }
+  }
+
   try {
     const [rows] = await pool.query(
       "SELECT id, name, stripe_customer_id FROM tenants WHERE id = ?",
