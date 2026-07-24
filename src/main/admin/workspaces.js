@@ -1,7 +1,9 @@
+const jwt = require("jsonwebtoken");
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { stripe, isStripeConfigured } = require("../../common/stripe");
+const { startSession } = require("../../common/sessions");
 
 const PLANS = ["free", "pro", "business"];
 
@@ -174,10 +176,78 @@ const deleteWorkspace = async (id, lg) => {
   }
 };
 
+/**
+ * "Open in dashboard": mint a tenant-scoped USER token so a platform admin can
+ * jump straight into a workspace's real dashboard. This is NOT impersonation of
+ * another person — it only works for a workspace where the admin already has
+ * their OWN active user account (matched by the admin's email), e.g. the
+ * official dogfooding board they own. The admin session can't reach the tenant
+ * dashboard (it's redirected to /admin), so we hand back a user token the client
+ * swaps its NextAuth session to.
+ */
+const enterWorkspace = async (id, admin, req, lg) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.id, u.email, u.tenant_id, u.role, u.full_name, u.avatar_url
+         FROM users u JOIN tenants t ON u.tenant_id = t.id
+        WHERE u.email = ? AND u.tenant_id = ? AND u.is_active = 1 AND t.is_active = 1
+        LIMIT 1`,
+      [admin.email, id]
+    );
+    if (rows.length === 0) {
+      return Promise.reject(
+        setServerResponse(API_STATUS_CODE.FORBIDDEN, "admin_not_member", lg)
+      );
+    }
+    const user = rows[0];
+
+    // A fresh device session, exactly like a login: respects one-device-at-a-time
+    // on Free/Pro (the official board is Business, so it never blocks here).
+    const session = await startSession(user, req);
+    if (session.blocked) {
+      return Promise.reject(
+        setServerResponse(API_STATUS_CODE.CONFLICT, "already_logged_in_elsewhere", lg)
+      );
+    }
+
+    const token = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        tenantId: user.tenant_id,
+        role: user.role,
+        sid: session.sessionId,
+      },
+      process.env.SECRET_ACCESS_TOKEN,
+      { expiresIn: process.env.ACCESS_TOKEN_EXPIRE }
+    );
+
+    return Promise.resolve(
+      setServerResponse(API_STATUS_CODE.OK, "workspace_switched_successfully", lg, {
+        token,
+        user: {
+          id: user.id,
+          tenantId: user.tenant_id,
+          role: user.role,
+          fullName: user.full_name,
+          email: user.email,
+          imageUrl: user.avatar_url,
+        },
+      })
+    );
+  } catch (error) {
+    console.error("admin enterWorkspace error:", error);
+    return Promise.reject(
+      setServerResponse(API_STATUS_CODE.INTERNAL_SERVER_ERROR, "internal_server_error", lg)
+    );
+  }
+};
+
 module.exports = {
   listWorkspaces,
   getWorkspace,
   updateWorkspace,
   setWorkspacePlan,
   deleteWorkspace,
+  enterWorkspace,
 };

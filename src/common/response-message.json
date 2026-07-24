@@ -264,7 +264,8 @@
     "invalid_or_expired_reset_token": "This reset link is invalid or has expired.",
     "password_reset_successful": "Your password has been reset. You can now sign in.",
     "something_went_wrong": "Something went wrong. Please try again.",
-    "promo_plan_mismatch": "This promo code doesn't apply to the selected plan."
+    "promo_plan_mismatch": "This promo code doesn't apply to the selected plan.",
+    "admin_not_member": "You don't have a member account in this workspace."
   },
   "de": {
     "success": "Erfolg",
@@ -284,7 +285,8 @@
     "invalid_or_expired_reset_token": "Dieser Link zum Zurücksetzen ist ungültig oder abgelaufen.",
     "password_reset_successful": "Ihr Passwort wurde zurückgesetzt. Sie können sich jetzt anmelden.",
     "something_went_wrong": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
-    "promo_plan_mismatch": "Dieser Promo-Code gilt nicht für den ausgewählten Tarif."
+    "promo_plan_mismatch": "Dieser Promo-Code gilt nicht für den ausgewählten Tarif.",
+    "admin_not_member": "Sie haben kein Mitgliedskonto in diesem Workspace."
   },
   "fr": {
     "success": "Succès",
@@ -304,7 +306,8 @@
     "invalid_or_expired_reset_token": "Ce lien de réinitialisation est invalide ou a expiré.",
     "password_reset_successful": "Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter.",
     "something_went_wrong": "Une erreur s'est produite. Veuillez réessayer.",
-    "promo_plan_mismatch": "Ce code promo ne s'applique pas au forfait sélectionné."
+    "promo_plan_mismatch": "Ce code promo ne s'applique pas au forfait sélectionné.",
+    "admin_not_member": "Vous n'avez pas de compte membre dans cet espace de travail."
   },
   "es": {
     "success": "Éxito",
@@ -324,7 +327,8 @@
     "invalid_or_expired_reset_token": "Este enlace de restablecimiento no es válido o ha caducado.",
     "password_reset_successful": "Tu contraseña se ha restablecido. Ya puedes iniciar sesión.",
     "something_went_wrong": "Algo salió mal. Inténtalo de nuevo.",
-    "promo_plan_mismatch": "Este código promocional no se aplica al plan seleccionado."
+    "promo_plan_mismatch": "Este código promocional no se aplica al plan seleccionado.",
+    "admin_not_member": "No tienes una cuenta de miembro en este espacio de trabajo."
   },
   "it": {
     "success": "Successo",
@@ -344,7 +348,8 @@
     "invalid_or_expired_reset_token": "Questo link di reimpostazione non è valido o è scaduto.",
     "password_reset_successful": "La tua password è stata reimpostata. Ora puoi accedere.",
     "something_went_wrong": "Qualcosa è andato storto. Riprova.",
-    "promo_plan_mismatch": "Questo codice promozionale non è valido per il piano selezionato."
+    "promo_plan_mismatch": "Questo codice promozionale non è valido per il piano selezionato.",
+    "admin_not_member": "Non hai un account membro in questo spazio di lavoro."
   },
   "pt": {
     "success": "Sucesso",
@@ -364,7 +369,8 @@
     "invalid_or_expired_reset_token": "Esta ligação de reposição é inválida ou expirou.",
     "password_reset_successful": "A sua palavra-passe foi reposta. Já pode iniciar sessão.",
     "something_went_wrong": "Algo correu mal. Tente novamente.",
-    "promo_plan_mismatch": "Este código promocional não se aplica ao plano selecionado."
+    "promo_plan_mismatch": "Este código promocional não se aplica ao plano selecionado.",
+    "admin_not_member": "Não tem uma conta de membro neste espaço de trabalho."
   },
   "nl": {
     "success": "Succes",
@@ -384,7 +390,8 @@
     "invalid_or_expired_reset_token": "Deze resetlink is ongeldig of verlopen.",
     "password_reset_successful": "Uw wachtwoord is opnieuw ingesteld. U kunt nu inloggen.",
     "something_went_wrong": "Er is iets misgegaan. Probeer het opnieuw.",
-    "promo_plan_mismatch": "Deze promocode geldt niet voor het geselecteerde abonnement."
+    "promo_plan_mismatch": "Deze promocode geldt niet voor het geselecteerde abonnement.",
+    "admin_not_member": "U heeft geen lidmaatschapsaccount in deze werkruimte."
   },
   "pl": {
     "success": "Sukces",
@@ -404,6 +411,7 @@
     "invalid_or_expired_reset_token": "Ten link do resetowania jest nieprawidłowy lub wygasł.",
     "password_reset_successful": "Twoje hasło zostało zresetowane. Możesz się teraz zalogować.",
     "something_went_wrong": "Coś poszło nie tak. Spróbuj ponownie.",
-    "promo_plan_mismatch": "Ten kod promocyjny nie dotyczy wybranego planu."
+    "promo_plan_mismatch": "Ten kod promocyjny nie dotyczy wybranego planu.",
+    "admin_not_member": "Nie masz konta członka w tym obszarze roboczym."
   }
 }

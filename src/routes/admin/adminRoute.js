@@ -11,6 +11,7 @@ const {
   updateWorkspace,
   setWorkspacePlan,
   deleteWorkspace,
+  enterWorkspace,
 } = require("../../main/admin/workspaces");
 const {
   listAllUsers,
@@ -93,6 +94,11 @@ adminRouter.put("/workspaces/:id/plan", (req, res) =>
 );
 adminRouter.delete("/workspaces/:id", (req, res) =>
   deleteWorkspace(req.params.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+// "Open in dashboard": mint a user token for the admin's own account in this
+// workspace so they can drop straight into its dashboard (official board).
+adminRouter.post("/workspaces/:id/enter", (req, res) =>
+  enterWorkspace(req.params.id, req.admin, req, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
 );
 
 // Moderate a workspace's posts (admin acts across any tenant).
