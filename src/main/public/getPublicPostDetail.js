@@ -16,7 +16,7 @@ const getPublicPostDetail = async (tenantId, postId, lg) => {
            p.is_pinned, p.duplicate_of_post_id, p.created_at, p.author_id, p.guest_id,
            COALESCE(u.full_name, p.submitter_name, 'Anonymous') AS author_name,
            u.avatar_url AS author_avatar,
-           EXISTS (SELECT 1 FROM admins a WHERE a.email = u.email AND a.is_active = 1) AS author_is_admin,
+           EXISTS (SELECT 1 FROM users a WHERE a.email = u.email AND a.is_platform_admin = 1 AND a.is_active = 1) AS author_is_admin,
            (SELECT COUNT(*) FROM votes WHERE post_id = p.id) AS vote_count,
            (SELECT COUNT(*) FROM comments WHERE post_id = p.id) AS comment_count
     FROM posts p
@@ -36,7 +36,7 @@ const getPublicPostDetail = async (tenantId, postId, lg) => {
            c.created_at, c.author_id, c.guest_id,
            COALESCE(u.full_name, c.submitter_name, 'Anonymous') AS author_name,
            u.avatar_url AS author_avatar,
-           EXISTS (SELECT 1 FROM admins a WHERE a.email = u.email AND a.is_active = 1) AS author_is_admin
+           EXISTS (SELECT 1 FROM users a WHERE a.email = u.email AND a.is_platform_admin = 1 AND a.is_active = 1) AS author_is_admin
     FROM comments c
     LEFT JOIN users u ON c.author_id = u.id
     WHERE c.tenant_id = ? AND c.post_id = ?

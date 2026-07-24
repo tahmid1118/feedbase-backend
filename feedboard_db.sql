@@ -42,9 +42,11 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NULL,
   full_name VARCHAR(150) NOT NULL,
   contact_no VARCHAR(20) NULL,
-  -- Tenant roles: 'owner' manages the workspace, 'user' is a member. The
-  -- platform operator ("admin") is NOT a tenant role — it lives in `admins`.
+  -- Tenant roles: 'owner' manages the workspace, 'user' is a member.
   role ENUM('owner', 'user') NOT NULL DEFAULT 'user',
+  -- Platform-admin ROLE (the app operator). Keyed by email across the account's
+  -- rows; authenticated at /admin-login. A normal login (/login) ignores it.
+  is_platform_admin TINYINT(1) NOT NULL DEFAULT 0,
   avatar_url VARCHAR(500) NULL,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   last_login_at DATETIME NULL,
@@ -53,25 +55,14 @@ CREATE TABLE IF NOT EXISTS users (
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_tenant_email (tenant_id, email),
   KEY idx_users_tenant_role (tenant_id, role),
+  KEY idx_users_platform_admin (is_platform_admin),
   CONSTRAINT fk_users_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- Platform operators (the app owner). Deliberately SEPARATE from `users` so the
--- same email can be both a platform admin and an ordinary tenant customer. Admin
--- auth issues a JWT with scope='admin' (see src/main/admin/adminLogin.js).
-CREATE TABLE IF NOT EXISTS admins (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  email VARCHAR(190) NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  full_name VARCHAR(150) NOT NULL,
-  avatar_url VARCHAR(500) NULL,
-  is_active TINYINT(1) NOT NULL DEFAULT 1,
-  last_login_at DATETIME NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_admins_email (email)
-) ENGINE=InnoDB;
+-- Platform admin is a ROLE on a `users` account (users.is_platform_admin), not a
+-- separate table. The same email can be a normal tenant customer AND a platform
+-- admin; /admin-login checks the flag and issues a scope='admin' JWT
+-- (src/main/admin/adminLogin.js). Bootstrap with scripts/create-admin.js.
 
 -- Admin-generated promo codes. `percent_off` codes are backed by a Stripe
 -- coupon + promotion code (applied at Checkout); `free_plan` codes are
@@ -497,7 +488,7 @@ CREATE TABLE IF NOT EXISTS support_sessions (
   KEY idx_support_sessions_status_last (status, last_message_at),
   CONSTRAINT fk_support_sessions_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE SET NULL,
   CONSTRAINT fk_support_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-  CONSTRAINT fk_support_sessions_admin FOREIGN KEY (closed_by_admin_id) REFERENCES admins(id) ON DELETE SET NULL
+  CONSTRAINT fk_support_sessions_admin FOREIGN KEY (closed_by_admin_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS support_messages (
@@ -512,7 +503,7 @@ CREATE TABLE IF NOT EXISTS support_messages (
   KEY idx_support_messages_session (session_id, created_at),
   CONSTRAINT fk_support_messages_session FOREIGN KEY (session_id) REFERENCES support_sessions(id) ON DELETE CASCADE,
   CONSTRAINT fk_support_messages_user FOREIGN KEY (sender_user_id) REFERENCES users(id) ON DELETE SET NULL,
-  CONSTRAINT fk_support_messages_admin FOREIGN KEY (sender_admin_id) REFERENCES admins(id) ON DELETE SET NULL
+  CONSTRAINT fk_support_messages_admin FOREIGN KEY (sender_admin_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- -----------------------------------------------------

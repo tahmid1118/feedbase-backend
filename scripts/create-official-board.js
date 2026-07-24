@@ -35,27 +35,21 @@ const RESERVED = new Set(["www", "app", "admin", "dashboard", "api"]);
     );
   }
 
-  // 1. The platform admin whose account will own the board.
-  const [admins] = await pool.query(
-    "SELECT id, email, full_name FROM admins WHERE is_active = 1 ORDER BY id LIMIT 1"
-  );
-  if (admins.length === 0) throw new Error("No active admin found — run scripts/create-admin.js first.");
-  const admin = admins[0];
-
-  // 2. That admin's tenant-user account, so the board is owned by a real login.
+  // 1. The platform-admin account (a `users` row flagged is_platform_admin) that
+  //    will own the board. Platform admin is now a role on the users account.
   const [accounts] = await pool.query(
     `SELECT id, email, password_hash, full_name, avatar_url
-       FROM users WHERE email = ? AND password_hash IS NOT NULL
-      ORDER BY id LIMIT 1`,
-    [admin.email]
+       FROM users
+      WHERE is_platform_admin = 1 AND is_active = 1 AND password_hash IS NOT NULL
+      ORDER BY id LIMIT 1`
   );
   if (accounts.length === 0) {
     throw new Error(
-      `No users row for ${admin.email}. Sign up in the app with that email first, ` +
-        `so the board can be owned by a real, loginable account.`
+      "No platform-admin account found — run scripts/create-admin.js first."
     );
   }
   const account = accounts[0];
+  const admin = account;
 
   const conn = await pool.getConnection();
   try {

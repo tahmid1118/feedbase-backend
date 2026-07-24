@@ -34,7 +34,7 @@ const { pool } = require("../database/dbPool");
       KEY idx_support_sessions_status_last (status, last_message_at),
       CONSTRAINT fk_support_sessions_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE SET NULL,
       CONSTRAINT fk_support_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-      CONSTRAINT fk_support_sessions_admin FOREIGN KEY (closed_by_admin_id) REFERENCES admins(id) ON DELETE SET NULL
+      CONSTRAINT fk_support_sessions_admin FOREIGN KEY (closed_by_admin_id) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB
   `);
   console.log("support_sessions ready.");
@@ -52,7 +52,7 @@ const { pool } = require("../database/dbPool");
       KEY idx_support_messages_session (session_id, created_at),
       CONSTRAINT fk_support_messages_session FOREIGN KEY (session_id) REFERENCES support_sessions(id) ON DELETE CASCADE,
       CONSTRAINT fk_support_messages_user FOREIGN KEY (sender_user_id) REFERENCES users(id) ON DELETE SET NULL,
-      CONSTRAINT fk_support_messages_admin FOREIGN KEY (sender_admin_id) REFERENCES admins(id) ON DELETE SET NULL
+      CONSTRAINT fk_support_messages_admin FOREIGN KEY (sender_admin_id) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB
   `);
   console.log("support_messages ready.");

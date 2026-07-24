@@ -162,10 +162,10 @@ adminRouter.post("/admins", (req, res) =>
   createAdmin(req.body, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
 );
 adminRouter.put("/admins/:id/active", (req, res) =>
-  setAdminActive(req.params.id, req.body?.isActive, req.admin.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+  setAdminActive(req.params.id, req.body?.isActive, req.admin.email, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
 );
 adminRouter.delete("/admins/:id", (req, res) =>
-  deleteAdmin(req.params.id, req.admin.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+  deleteAdmin(req.params.id, req.admin.email, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
 );
 
 // Promo codes

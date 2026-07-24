@@ -5,14 +5,18 @@ const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 
 /**
- * Platform administrators live in a SEPARATE `admins` table (independent of
- * `users`), so the same email can be both an admin and a normal customer. Admin
- * tokens carry `scope:'admin'` so `authenticateAdmin` can tell them apart from
- * ordinary user tokens.
+ * Platform-admin login. "Platform admin" is now a ROLE on a `users` account
+ * (`users.is_platform_admin`), not a separate `admins` table — one account can
+ * act as a normal user (via /login) OR as an admin (via this door). The token
+ * still carries `scope:'admin'` so the rest of the app (authenticateAdmin, the
+ * frontend admin session) is unchanged.
+ *
+ * An account's `users` rows share one `password_hash`, so any active flagged row
+ * verifies the credential.
  */
-const generateAdminToken = (admin) =>
+const generateAdminToken = (account) =>
   jwt.sign(
-    { adminId: admin.id, email: admin.email, scope: "admin" },
+    { adminId: account.id, adminUserId: account.id, email: account.email, scope: "admin" },
     process.env.SECRET_ACCESS_TOKEN,
     { expiresIn: process.env.ACCESS_TOKEN_EXPIRE }
   );
@@ -30,7 +34,10 @@ const adminLogin = async (userData, lg) => {
 
   try {
     const [rows] = await pool.query(
-      "SELECT id, email, full_name, password_hash, avatar_url FROM admins WHERE email = ? AND is_active = 1 LIMIT 1",
+      `SELECT id, email, full_name, password_hash, avatar_url
+         FROM users
+        WHERE email = ? AND is_platform_admin = 1 AND is_active = 1
+        ORDER BY id LIMIT 1`,
       [email]
     );
     if (rows.length === 0) {
@@ -39,23 +46,24 @@ const adminLogin = async (userData, lg) => {
       );
     }
 
-    const admin = rows[0];
-    const ok = await bcrypt.compare(password, admin.password_hash);
+    const account = rows[0];
+    const ok = await bcrypt.compare(password, account.password_hash);
     if (!ok) {
       return Promise.reject(
         setServerResponse(API_STATUS_CODE.BAD_REQUEST, "invalid_email_or_password", language)
       );
     }
 
-    await pool.query("UPDATE admins SET last_login_at = NOW() WHERE id = ?", [admin.id]);
+    // Stamp last login across the account's rows (keyed by email like sessions).
+    await pool.query("UPDATE users SET last_login_at = NOW() WHERE email = ?", [email]);
 
     return Promise.resolve(
       setServerResponse(API_STATUS_CODE.OK, "user_logged_in_successfully", language, {
-        token: generateAdminToken(admin),
-        id: admin.id,
-        email: admin.email,
-        fullName: admin.full_name,
-        imageUrl: admin.avatar_url,
+        token: generateAdminToken(account),
+        id: account.id,
+        email: account.email,
+        fullName: account.full_name,
+        imageUrl: account.avatar_url,
       })
     );
   } catch (error) {
