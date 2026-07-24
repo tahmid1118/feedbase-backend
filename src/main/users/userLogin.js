@@ -35,7 +35,8 @@ const userLoginQuery = async (email, tenantId = null) => {
             email,
             role,
             password_hash,
-            avatar_url
+            avatar_url,
+            is_platform_admin
         FROM
             users
         WHERE
@@ -170,6 +171,7 @@ const userLogin = async (userData, lg, req) => {
         email: userInfo.email,
         role: userInfo.role,
         imageUrl: userInfo.avatar_url,
+        isPlatformAdmin: userInfo.is_platform_admin === 1,
     }
 
     return Promise.resolve(
