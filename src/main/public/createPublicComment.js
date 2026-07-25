@@ -6,25 +6,25 @@ const { getTenantPlan } = require("../../common/planGuard");
 const { getPlanLimits } = require("../../consts/plans");
 
 /**
- * Resolve the plan-gated "owner identity" for a comment.
- *   - named  → 1  ("Name (Owner)" + tick)   requires ownerBadge   (Pro+)
- *   - hidden → 2  ("Owner" only + tick)      requires ownerPrivacy (Business)
- * Returns 0 (show as self) unless the author truly owns the board AND the plan
- * permits the requested mode.
+ * Resolve the plan-gated owner comment for a board owner.
+ *   - Commenting on your OWN board with your owner account is a Pro+ capability
+ *     (`ownerBadge`). On Free it is BLOCKED entirely (`blocked: true`).
+ *   - Display mode: named → 1 ("Name (Owner)"), hidden → 2 ("Owner" only, needs
+ *     ownerPrivacy/Business), else 0 (plain name).
+ * A non-owner author is never gated here (they comment as a normal user).
  */
-const resolveOwnerMode = async (mode, authUser, tenantId) => {
-  if (
-    !mode ||
-    !authUser?.id ||
-    authUser.role !== "owner" ||
-    Number(authUser.tenantId) !== Number(tenantId)
-  ) {
-    return 0;
-  }
+const resolveOwner = async (mode, authUser, tenantId) => {
+  const isBoardOwner =
+    authUser?.id &&
+    authUser.role === "owner" &&
+    Number(authUser.tenantId) === Number(tenantId);
+  if (!isBoardOwner) return { asOwner: 0, blocked: false };
+
   const limits = getPlanLimits(await getTenantPlan(tenantId));
-  if (mode === "hidden" && limits.ownerPrivacy) return 2;
-  if (mode === "named" && limits.ownerBadge) return 1;
-  return 0;
+  if (!limits.ownerBadge) return { asOwner: 0, blocked: true }; // Free → no owner comments
+  if (mode === "hidden" && limits.ownerPrivacy) return { asOwner: 2, blocked: false };
+  if (mode === "named") return { asOwner: 1, blocked: false };
+  return { asOwner: 0, blocked: false };
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -112,7 +112,12 @@ const createPublicComment = async (tenantId, postId, data, authUser, lg) => {
       rootParentId = current.id;
     }
 
-    const asOwner = await resolveOwnerMode(data?.ownerMode, authUser, tenantId);
+    const { asOwner, blocked } = await resolveOwner(data?.ownerMode, authUser, tenantId);
+    if (blocked) {
+      return Promise.reject(
+        setServerResponse(API_STATUS_CODE.PAYMENT_REQUIRED, "owner_comment_pro", lg)
+      );
+    }
 
     const [result] = await pool.query(
       `INSERT INTO comments
