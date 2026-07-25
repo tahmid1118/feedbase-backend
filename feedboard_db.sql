@@ -270,6 +270,9 @@ CREATE TABLE IF NOT EXISTS comments (
   -- Persistent per-browser id for guest comments → one stable pseudonymous
   -- identity (name + colour) per guest across the portal.
   guest_id VARCHAR(64) NULL,
+  -- Board OWNER chose to show as "Owner" (+ verified tick) instead of their real
+  -- name. Read handlers then hide the real name/avatar for this comment.
+  as_owner TINYINT(1) NOT NULL DEFAULT 0,
   parent_comment_id BIGINT UNSIGNED NULL,
   body TEXT NOT NULL,
   is_edited TINYINT(1) NOT NULL DEFAULT 0,

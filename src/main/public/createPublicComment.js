@@ -35,6 +35,15 @@ const createPublicComment = async (tenantId, postId, data, authUser, lg) => {
   const guestId = authorId
     ? null
     : (data?.guestId || "").toString().trim().slice(0, 64) || null;
+  // A board OWNER may choose to show as "Owner" (+ tick) instead of their name.
+  // Only honored when the logged-in author is actually the owner of THIS board.
+  const asOwner =
+    authorId &&
+    data?.asOwner &&
+    authUser?.role === "owner" &&
+    Number(authUser?.tenantId) === Number(tenantId)
+      ? 1
+      : 0;
   const parentCommentId = data?.parentCommentId || null;
 
   if (!body) {
@@ -90,9 +99,9 @@ const createPublicComment = async (tenantId, postId, data, authUser, lg) => {
 
     const [result] = await pool.query(
       `INSERT INTO comments
-         (tenant_id, post_id, author_id, submitter_name, submitter_email, guest_id, parent_comment_id, body)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [tenantId, postId, authorId, submitterName, submitterEmail, guestId, rootParentId, body]
+         (tenant_id, post_id, author_id, submitter_name, submitter_email, guest_id, as_owner, parent_comment_id, body)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [tenantId, postId, authorId, submitterName, submitterEmail, guestId, asOwner, rootParentId, body]
     );
 
     // In-app notification to the team (except the commenter, if a member).

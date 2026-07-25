@@ -4,10 +4,12 @@ const { setServerResponse } = require('../../common/setServerResponse');
 
 const createComment = async (commentData, authData) => {
   const { postId, body, parentCommentId } = commentData;
-  const { id: authorId, tenantId, lg } = authData;
-  const _query = 'INSERT INTO comments (tenant_id, post_id, author_id, parent_comment_id, body) VALUES (?, ?, ?, ?, ?)';
+  const { id: authorId, tenantId, role, lg } = authData;
+  // Owners may show as "Owner" (+ tick) instead of their real name.
+  const asOwner = commentData.asOwner && role === 'owner' ? 1 : 0;
+  const _query = 'INSERT INTO comments (tenant_id, post_id, author_id, as_owner, parent_comment_id, body) VALUES (?, ?, ?, ?, ?, ?)';
   try {
-    const [result] = await pool.query(_query, [tenantId, postId, authorId, parentCommentId || null, body]);
+    const [result] = await pool.query(_query, [tenantId, postId, authorId, asOwner, parentCommentId || null, body]);
     return Promise.resolve(setServerResponse(API_STATUS_CODE.CREATED, 'comment_created_successfully', lg, { id: result.insertId }));
   } catch (error) {
     console.error('Error creating comment:', error);
