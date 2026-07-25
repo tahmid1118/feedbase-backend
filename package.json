@@ -31,9 +31,9 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
     "mysql2": "^3.14.2",
-    "nodemailer": "^7.0.5",
+    "nodemailer": "^9.0.3",
     "path": "^0.12.7",
-    "sharp": "^0.34.3",
+    "sharp": "^0.35.3",
     "stripe": "^22.3.0"
   },
   "devDependencies": {
