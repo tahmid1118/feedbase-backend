@@ -122,9 +122,9 @@ const createWorkspace = async (data, authData) => {
     );
   }
 
-  // Per-account cap on OWNED workspaces (governed by the account's tier — the
-  // best plan it already owns). A fresh account owns 0, so its first workspace
-  // is always allowed. To raise the cap, upgrade an owned workspace to Pro/Business.
+  // Per-account cap on OWNED workspaces (governed by the account's subscription
+  // tier: Free owns 1, Pro 3, Business unlimited). A fresh account owns 0, so its
+  // first workspace is always allowed. To raise the cap, upgrade the account.
   const usage = await getAccountWorkspaceUsage(email);
   if (!usage.canCreate) {
     return Promise.reject(
