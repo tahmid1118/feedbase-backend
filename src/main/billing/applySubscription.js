@@ -107,6 +107,18 @@ const reconcileTenantSubscription = async (tenantId) => {
   } else {
     await applySubscription(chosen);
   }
+
+  // A scheduled downgrade has taken effect once the live plan matches the pending
+  // target (or the schedule is gone) — clear the pending markers so the UI stops
+  // showing "changes to X on Y".
+  await pool.query(
+    `UPDATE tenants
+        SET pending_plan = NULL, pending_interval = NULL, pending_effective_at = NULL
+      WHERE id = ?
+        AND pending_plan IS NOT NULL
+        AND (plan_name = pending_plan OR ? = 0)`,
+    [tenantId, chosen.schedule ? 1 : 0]
+  );
 };
 
 module.exports = { applySubscription, resetToFree, reconcileTenantSubscription };

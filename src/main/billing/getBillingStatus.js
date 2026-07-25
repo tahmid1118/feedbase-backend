@@ -24,7 +24,7 @@ const getBillingStatus = async (authData) => {
 
     const [rows] = await pool.query(
       `SELECT plan_name, subscription_status, billing_interval, current_period_end,
-              stripe_subscription_id
+              stripe_subscription_id, pending_plan, pending_interval, pending_effective_at
        FROM tenants WHERE id = ?`,
       [tenantId]
     );
@@ -42,6 +42,10 @@ const getBillingStatus = async (authData) => {
       billingInterval: t.billing_interval || null, // 'month' | 'year' | null
       currentPeriodEnd: t.current_period_end || null,
       hasSubscription: Boolean(t.stripe_subscription_id),
+      // A scheduled (period-end) downgrade, if any — for the "changes to X on Y" note.
+      pendingPlan: t.pending_plan || null,
+      pendingInterval: t.pending_interval || null,
+      pendingEffectiveAt: t.pending_effective_at || null,
       limits: getPlanLimits(planName),
       // Active promotional offers keyed by plan (for the diagonal-strike price).
       offers: await getActiveOffers(),

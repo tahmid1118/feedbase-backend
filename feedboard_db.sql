@@ -23,6 +23,11 @@ CREATE TABLE IF NOT EXISTS tenants (
   -- Billing interval of the active subscription ('month' | 'year'); NULL on free.
   billing_interval ENUM('month', 'year') NULL,
   current_period_end DATETIME NULL,
+  -- A SCHEDULED plan change (a downgrade at period end, held as a Stripe
+  -- Subscription Schedule). Shown as "changes to <plan> on <date>".
+  pending_plan VARCHAR(20) NULL,
+  pending_interval ENUM('month', 'year') NULL,
+  pending_effective_at DATETIME NULL,
   branding_logo_url VARCHAR(500) NULL,
   branding_primary_color VARCHAR(20) NULL,
   is_active TINYINT(1) NOT NULL DEFAULT 1,

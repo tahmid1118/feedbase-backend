@@ -265,7 +265,13 @@
     "password_reset_successful": "Your password has been reset. You can now sign in.",
     "something_went_wrong": "Something went wrong. Please try again.",
     "promo_plan_mismatch": "This promo code doesn't apply to the selected plan.",
-    "admin_not_member": "You don't have a member account in this workspace."
+    "admin_not_member": "You don't have a member account in this workspace.",
+    "already_on_plan": "You're already on this plan.",
+    "plan_change_previewed": "Plan change previewed.",
+    "plan_changed": "Plan updated.",
+    "plan_change_scheduled": "Plan change scheduled.",
+    "plan_change_cancelled": "Scheduled change cancelled.",
+    "plan_change_failed": "Couldn't change the plan. Please try again."
   },
   "de": {
     "success": "Erfolg",
@@ -286,7 +292,13 @@
     "password_reset_successful": "Ihr Passwort wurde zurückgesetzt. Sie können sich jetzt anmelden.",
     "something_went_wrong": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
     "promo_plan_mismatch": "Dieser Promo-Code gilt nicht für den ausgewählten Tarif.",
-    "admin_not_member": "Sie haben kein Mitgliedskonto in diesem Workspace."
+    "admin_not_member": "Sie haben kein Mitgliedskonto in diesem Workspace.",
+    "already_on_plan": "Sie nutzen diesen Tarif bereits.",
+    "plan_change_previewed": "Tarifänderung in der Vorschau.",
+    "plan_changed": "Tarif aktualisiert.",
+    "plan_change_scheduled": "Tarifänderung geplant.",
+    "plan_change_cancelled": "Geplante Änderung abgebrochen.",
+    "plan_change_failed": "Tarif konnte nicht geändert werden. Bitte erneut versuchen."
   },
   "fr": {
     "success": "Succès",
@@ -307,7 +319,13 @@
     "password_reset_successful": "Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter.",
     "something_went_wrong": "Une erreur s'est produite. Veuillez réessayer.",
     "promo_plan_mismatch": "Ce code promo ne s'applique pas au forfait sélectionné.",
-    "admin_not_member": "Vous n'avez pas de compte membre dans cet espace de travail."
+    "admin_not_member": "Vous n'avez pas de compte membre dans cet espace de travail.",
+    "already_on_plan": "Vous êtes déjà sur ce forfait.",
+    "plan_change_previewed": "Aperçu du changement de forfait.",
+    "plan_changed": "Forfait mis à jour.",
+    "plan_change_scheduled": "Changement de forfait programmé.",
+    "plan_change_cancelled": "Changement programmé annulé.",
+    "plan_change_failed": "Impossible de changer de forfait. Veuillez réessayer."
   },
   "es": {
     "success": "Éxito",
@@ -328,7 +346,13 @@
     "password_reset_successful": "Tu contraseña se ha restablecido. Ya puedes iniciar sesión.",
     "something_went_wrong": "Algo salió mal. Inténtalo de nuevo.",
     "promo_plan_mismatch": "Este código promocional no se aplica al plan seleccionado.",
-    "admin_not_member": "No tienes una cuenta de miembro en este espacio de trabajo."
+    "admin_not_member": "No tienes una cuenta de miembro en este espacio de trabajo.",
+    "already_on_plan": "Ya tienes este plan.",
+    "plan_change_previewed": "Vista previa del cambio de plan.",
+    "plan_changed": "Plan actualizado.",
+    "plan_change_scheduled": "Cambio de plan programado.",
+    "plan_change_cancelled": "Cambio programado cancelado.",
+    "plan_change_failed": "No se pudo cambiar el plan. Inténtalo de nuevo."
   },
   "it": {
     "success": "Successo",
@@ -349,7 +373,13 @@
     "password_reset_successful": "La tua password è stata reimpostata. Ora puoi accedere.",
     "something_went_wrong": "Qualcosa è andato storto. Riprova.",
     "promo_plan_mismatch": "Questo codice promozionale non è valido per il piano selezionato.",
-    "admin_not_member": "Non hai un account membro in questo spazio di lavoro."
+    "admin_not_member": "Non hai un account membro in questo spazio di lavoro.",
+    "already_on_plan": "Sei già su questo piano.",
+    "plan_change_previewed": "Anteprima della modifica del piano.",
+    "plan_changed": "Piano aggiornato.",
+    "plan_change_scheduled": "Modifica del piano pianificata.",
+    "plan_change_cancelled": "Modifica pianificata annullata.",
+    "plan_change_failed": "Impossibile modificare il piano. Riprova."
   },
   "pt": {
     "success": "Sucesso",
@@ -370,7 +400,13 @@
     "password_reset_successful": "A sua palavra-passe foi reposta. Já pode iniciar sessão.",
     "something_went_wrong": "Algo correu mal. Tente novamente.",
     "promo_plan_mismatch": "Este código promocional não se aplica ao plano selecionado.",
-    "admin_not_member": "Não tem uma conta de membro neste espaço de trabalho."
+    "admin_not_member": "Não tem uma conta de membro neste espaço de trabalho.",
+    "already_on_plan": "Já está neste plano.",
+    "plan_change_previewed": "Pré-visualização da alteração do plano.",
+    "plan_changed": "Plano atualizado.",
+    "plan_change_scheduled": "Alteração do plano agendada.",
+    "plan_change_cancelled": "Alteração agendada cancelada.",
+    "plan_change_failed": "Não foi possível alterar o plano. Tente novamente."
   },
   "nl": {
     "success": "Succes",
@@ -391,7 +427,13 @@
     "password_reset_successful": "Uw wachtwoord is opnieuw ingesteld. U kunt nu inloggen.",
     "something_went_wrong": "Er is iets misgegaan. Probeer het opnieuw.",
     "promo_plan_mismatch": "Deze promocode geldt niet voor het geselecteerde abonnement.",
-    "admin_not_member": "U heeft geen lidmaatschapsaccount in deze werkruimte."
+    "admin_not_member": "U heeft geen lidmaatschapsaccount in deze werkruimte.",
+    "already_on_plan": "U heeft dit abonnement al.",
+    "plan_change_previewed": "Voorbeeld van abonnementswijziging.",
+    "plan_changed": "Abonnement bijgewerkt.",
+    "plan_change_scheduled": "Abonnementswijziging gepland.",
+    "plan_change_cancelled": "Geplande wijziging geannuleerd.",
+    "plan_change_failed": "Kon het abonnement niet wijzigen. Probeer het opnieuw."
   },
   "pl": {
     "success": "Sukces",
@@ -412,6 +454,12 @@
     "password_reset_successful": "Twoje hasło zostało zresetowane. Możesz się teraz zalogować.",
     "something_went_wrong": "Coś poszło nie tak. Spróbuj ponownie.",
     "promo_plan_mismatch": "Ten kod promocyjny nie dotyczy wybranego planu.",
-    "admin_not_member": "Nie masz konta członka w tym obszarze roboczym."
+    "admin_not_member": "Nie masz konta członka w tym obszarze roboczym.",
+    "already_on_plan": "Masz już ten plan.",
+    "plan_change_previewed": "Podgląd zmiany planu.",
+    "plan_changed": "Plan zaktualizowany.",
+    "plan_change_scheduled": "Zaplanowano zmianę planu.",
+    "plan_change_cancelled": "Anulowano zaplanowaną zmianę.",
+    "plan_change_failed": "Nie udało się zmienić planu. Spróbuj ponownie."
   }
 }

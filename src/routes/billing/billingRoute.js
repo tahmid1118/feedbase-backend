@@ -6,6 +6,11 @@ const { getBillingStatus } = require("../../main/billing/getBillingStatus");
 const { createCheckoutSession } = require("../../main/billing/createCheckoutSession");
 const { createPortalSession } = require("../../main/billing/createPortalSession");
 const { redeemPromo } = require("../../main/billing/redeemPromo");
+const {
+  previewPlanChange,
+  applyPlanChange,
+  cancelScheduledChange,
+} = require("../../main/billing/changePlan");
 
 /**
  * @description Current subscription status for the authenticated tenant.
@@ -46,6 +51,53 @@ billingRouter.post("/checkout", authenticateToken, languageValidator, async (req
  */
 billingRouter.post("/redeem", authenticateToken, languageValidator, async (req, res) => {
   redeemPromo(req.body?.code, { ...req.auth, lg: req.body.lg })
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({ status, message, data: result });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
+    });
+});
+
+/**
+ * @description Preview an in-app plan change (exact prorated charge for upgrades)
+ * WITHOUT applying it. Body: { plan, interval?, lg }
+ */
+billingRouter.post("/change/preview", authenticateToken, languageValidator, async (req, res) => {
+  previewPlanChange(req.body?.plan, req.body?.interval, { ...req.auth, lg: req.body.lg })
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({ status, message, data: result });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
+    });
+});
+
+/**
+ * @description Apply an in-app plan change. Upgrade = prorated charge now;
+ * downgrade = scheduled at period end. Body: { plan, interval?, lg }
+ */
+billingRouter.post("/change", authenticateToken, languageValidator, async (req, res) => {
+  applyPlanChange(req.body?.plan, req.body?.interval, { ...req.auth, lg: req.body.lg })
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({ status, message, data: result });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
+    });
+});
+
+/**
+ * @description Cancel a scheduled (pending) downgrade — keep the current plan.
+ */
+billingRouter.post("/change/cancel", authenticateToken, languageValidator, async (req, res) => {
+  cancelScheduledChange({ ...req.auth, lg: req.body.lg })
     .then((data) => {
       const { statusCode, status, message, result } = data;
       return res.status(statusCode).send({ status, message, data: result });
