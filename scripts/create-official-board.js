@@ -21,6 +21,7 @@
  */
 require("dotenv").config();
 const { pool } = require("../database/dbPool");
+const { ensureBrandAsset } = require("../src/common/brand-asset");
 
 const SUBDOMAIN = (process.argv[2] || "feedback").toLowerCase();
 const NAME = process.argv[3] || "FeedBoard";
@@ -51,6 +52,10 @@ const RESERVED = new Set(["www", "app", "admin", "dashboard", "api"]);
   const account = accounts[0];
   const admin = account;
 
+  // FeedBoard's brand icon — used as the board's logo and the admin's avatar so
+  // the app icon represents the platform on the official board and in comments.
+  const logoPath = ensureBrandAsset();
+
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -61,13 +66,14 @@ const RESERVED = new Set(["www", "app", "admin", "dashboard", "api"]);
     if (existing.length > 0) {
       tenantId = existing[0].id;
       console.log(`tenant "${SUBDOMAIN}" already exists (id=${tenantId}) — reusing`);
+      await conn.query("UPDATE tenants SET branding_logo_url = ? WHERE id = ?", [logoPath, tenantId]);
     } else {
       const [t] = await conn.query(
         `INSERT INTO tenants
            (name, slug, subdomain, custom_domain, website, plan_name,
-            subscription_status, branding_primary_color, is_active)
-         VALUES (?, ?, ?, NULL, NULL, 'business', 'comped', '#c74959', 1)`,
-        [NAME, SUBDOMAIN, SUBDOMAIN]
+            subscription_status, branding_logo_url, branding_primary_color, is_active)
+         VALUES (?, ?, ?, NULL, NULL, 'business', 'comped', ?, '#c74959', 1)`,
+        [NAME, SUBDOMAIN, SUBDOMAIN, logoPath]
       );
       tenantId = t.insertId;
       console.log(`created tenant "${SUBDOMAIN}" (id=${tenantId}) on Business (comped)`);
@@ -84,10 +90,15 @@ const RESERVED = new Set(["www", "app", "admin", "dashboard", "api"]);
       const [o] = await conn.query(
         `INSERT INTO users (tenant_id, email, password_hash, full_name, role, avatar_url, is_active)
          VALUES (?, ?, ?, ?, 'owner', ?, 1)`,
-        [tenantId, account.email, account.password_hash, account.full_name, account.avatar_url]
+        [tenantId, account.email, account.password_hash, account.full_name, logoPath]
       );
       console.log(`added owner ${admin.email} (user id=${o.insertId})`);
     }
+
+    // The app icon is the platform admin's profile picture across every workspace
+    // they belong to, so their comments render it as their avatar.
+    const [av] = await conn.query("UPDATE users SET avatar_url = ? WHERE email = ?", [logoPath, admin.email]);
+    console.log(`set admin avatar (app icon) on ${av.affectedRows} row(s)`);
 
     // 5. Default roadmap columns (same three createWorkspace seeds).
     const [cols] = await conn.query(
