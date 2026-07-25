@@ -1,13 +1,18 @@
 /**
  * One-off helper: create the Pro and Business Products + their monthly AND
- * yearly Prices in your Stripe account (test mode), then print the Price IDs to
- * paste into `.env`.
+ * yearly Prices in your Stripe account, then print the Price IDs to paste into
+ * `.env`. Runs in whatever mode the key is — TEST (sk_test_…) or LIVE (sk_live_…);
+ * it prints the mode before creating anything.
+ *
+ * IMPORTANT: test-mode and live-mode prices are SEPARATE. When you go live, run
+ * this again with the LIVE key and replace the STRIPE_PRICE_* values in .env —
+ * a test price id used against a live key (or vice-versa) makes checkout fail.
  *
  * The yearly price is the monthly price × 12 with YEARLY_DISCOUNT (20%) off, so
  * it's a genuinely cheaper price rather than a coupon.
  *
  * Usage:
- *   1. Set STRIPE_SECRET_KEY in .env (a test key, sk_test_...).
+ *   1. Set STRIPE_SECRET_KEY in .env (sk_test_… for sandbox, sk_live_… for prod).
  *   2. node scripts/stripe-setup.js
  *   3. Copy STRIPE_PRICE_PRO / _BUSINESS and STRIPE_PRICE_PRO_YEARLY /
  *      _BUSINESS_YEARLY into .env.
@@ -60,6 +65,9 @@ async function ensurePrice(stripe, product, amount, interval) {
     process.exit(1);
   }
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
+
+  const mode = process.env.STRIPE_SECRET_KEY.startsWith("sk_live_") ? "LIVE" : "TEST";
+  console.log(`▶ Creating products/prices in Stripe ${mode} mode.\n`);
 
   const out = {};
   for (const tier of TIERS) {
