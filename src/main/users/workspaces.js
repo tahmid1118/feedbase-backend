@@ -3,6 +3,7 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { getAccountWorkspaceUsage } = require("../../common/planGuard");
+const { ensureAccount, mirrorAccountToTenants } = require("../../common/accountBilling");
 
 const RESERVED_SUBDOMAINS = new Set([
   "www",
@@ -185,6 +186,12 @@ const createWorkspace = async (data, authData) => {
       );
       ownerUserId = owner.insertId;
     }
+
+    // A subscription is per ACCOUNT and covers every workspace it owns, so the
+    // new workspace inherits the owner's account plan (a Business account's new
+    // board is Business at once). Mirrors onto the just-inserted owner row.
+    await ensureAccount(account.email, conn);
+    await mirrorAccountToTenants(account.email, conn);
 
     // Seed the default status-linked roadmap columns.
     await conn.query(

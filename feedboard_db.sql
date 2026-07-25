@@ -15,8 +15,13 @@ CREATE TABLE IF NOT EXISTS tenants (
   custom_domain VARCHAR(255) NULL,
   -- The company's website (informational); NOT the unique portal custom_domain.
   website VARCHAR(255) NULL,
+  -- Effective plan of this workspace = its OWNER's account plan, MIRRORED here
+  -- from billing_accounts (see src/common/accountBilling.js). Subscriptions are
+  -- per-account, not per-workspace; these columns are a denormalized copy so the
+  -- many readers of tenants.plan_name keep working. The tenant-level Stripe ids
+  -- are legacy/unused (billing lives on billing_accounts) and stay NULL.
   plan_name VARCHAR(50) NOT NULL DEFAULT 'free',
-  -- Stripe billing state (set by checkout + the webhook; never by clients).
+  -- Legacy Stripe columns — no longer the source of truth (kept for history).
   stripe_customer_id VARCHAR(255) NULL,
   stripe_subscription_id VARCHAR(255) NULL,
   subscription_status VARCHAR(50) NULL,
@@ -37,6 +42,31 @@ CREATE TABLE IF NOT EXISTS tenants (
   UNIQUE KEY uq_tenants_slug (slug),
   UNIQUE KEY uq_tenants_subdomain (subdomain),
   UNIQUE KEY uq_tenants_custom_domain (custom_domain)
+) ENGINE=InnoDB;
+
+-- Per-ACCOUNT subscription (keyed by email — the account identity). One account
+-- pays once and its plan covers EVERY workspace it owns; the plan is mirrored to
+-- each owned tenants.plan_name. This table is the billing source of truth (Stripe
+-- customer/subscription, comp status, scheduled changes). See accountBilling.js.
+CREATE TABLE IF NOT EXISTS billing_accounts (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  email VARCHAR(190) NOT NULL,
+  plan_name VARCHAR(50) NOT NULL DEFAULT 'free',
+  stripe_customer_id VARCHAR(255) NULL,
+  stripe_subscription_id VARCHAR(255) NULL,
+  subscription_status VARCHAR(50) NULL,
+  billing_interval ENUM('month', 'year') NULL,
+  current_period_end DATETIME NULL,
+  -- A SCHEDULED plan change (downgrade at period end), same semantics as tenants.
+  pending_plan VARCHAR(20) NULL,
+  pending_interval ENUM('month', 'year') NULL,
+  pending_effective_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_billing_accounts_email (email),
+  KEY idx_billing_accounts_customer (stripe_customer_id),
+  KEY idx_billing_accounts_subscription (stripe_subscription_id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS users (

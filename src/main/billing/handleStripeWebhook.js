@@ -1,5 +1,5 @@
 const { stripe } = require("../../common/stripe");
-const { applySubscription, resetToFree } = require("./applySubscription");
+const { applyAccountSubscription } = require("../../common/accountBilling");
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
 
@@ -26,19 +26,20 @@ const handleStripeWebhook = async (rawBody, signature) => {
         const session = event.data.object;
         if (session.subscription) {
           const sub = await stripe.subscriptions.retrieve(session.subscription);
-          if (!sub.metadata?.tenantId && session.metadata?.tenantId) {
-            sub.metadata = { ...sub.metadata, tenantId: session.metadata.tenantId };
+          // Carry the account identity from the session onto the sub if missing.
+          if (!sub.metadata?.accountEmail && session.metadata?.accountEmail) {
+            sub.metadata = { ...sub.metadata, accountEmail: session.metadata.accountEmail };
           }
-          await applySubscription(sub);
+          await applyAccountSubscription(sub);
         }
         break;
       }
       case "customer.subscription.created":
       case "customer.subscription.updated":
-        await applySubscription(event.data.object);
-        break;
       case "customer.subscription.deleted":
-        await resetToFree(event.data.object);
+        // applyAccountSubscription resolves the account and writes free on a
+        // canceled/deleted subscription, so one path handles all three.
+        await applyAccountSubscription(event.data.object);
         break;
       default:
         break;

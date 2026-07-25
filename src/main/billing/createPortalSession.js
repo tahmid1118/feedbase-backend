@@ -7,12 +7,12 @@ const BILLING_ROLES = ["owner"];
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 /**
- * @description Create a Stripe Billing Portal session so the tenant can manage
- * (upgrade / downgrade / cancel / update card) their subscription.
- * @param {object} authData { tenantId, role, lg }
+ * @description Create a Stripe Billing Portal session so the account owner can
+ * manage (update card / cancel) their ACCOUNT subscription.
+ * @param {object} authData { email, role, lg }
  */
 const createPortalSession = async (authData) => {
-  const { tenantId, role, lg } = authData;
+  const { email, role, lg } = authData;
 
   if (!BILLING_ROLES.includes(role)) {
     return Promise.reject(
@@ -27,8 +27,8 @@ const createPortalSession = async (authData) => {
 
   try {
     const [rows] = await pool.query(
-      "SELECT stripe_customer_id FROM tenants WHERE id = ?",
-      [tenantId]
+      "SELECT stripe_customer_id FROM billing_accounts WHERE email = ?",
+      [email]
     );
     const customerId = rows[0]?.stripe_customer_id;
     if (!customerId) {

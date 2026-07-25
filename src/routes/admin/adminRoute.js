@@ -9,10 +9,10 @@ const {
   listWorkspaces,
   getWorkspace,
   updateWorkspace,
-  setWorkspacePlan,
   deleteWorkspace,
   enterWorkspace,
 } = require("../../main/admin/workspaces");
+const { listAccounts, setAccountPlanAdmin } = require("../../main/admin/accounts");
 const {
   listAllUsers,
   updateUser,
@@ -89,8 +89,17 @@ adminRouter.get("/workspaces/:id", (req, res) =>
 adminRouter.put("/workspaces/:id", (req, res) =>
   updateWorkspace(req.params.id, req.body, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
 );
-adminRouter.put("/workspaces/:id/plan", (req, res) =>
-  setWorkspacePlan(req.params.id, req.body?.plan, req.body?.durationMonths, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+// Accounts (subscriptions are per account — the plan covers all owned workspaces).
+adminRouter.get("/accounts", (req, res) =>
+  listAccounts(req.query?.search, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.put("/accounts/:email/plan", (req, res) =>
+  setAccountPlanAdmin(
+    decodeURIComponent(req.params.email),
+    req.body?.plan,
+    req.body?.durationMonths,
+    lgOf(req)
+  ).then((d) => send(res, d)).catch((e) => send(res, e))
 );
 adminRouter.delete("/workspaces/:id", (req, res) =>
   deleteWorkspace(req.params.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))

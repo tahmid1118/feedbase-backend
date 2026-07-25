@@ -2,23 +2,24 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { getPlanLimits } = require("../../consts/plans");
-const { reconcileTenantSubscription } = require("./applySubscription");
+const { reconcileAccount } = require("../../common/accountBilling");
 const { getActiveOffers } = require("../../common/offers");
 const { stripe, isStripeConfigured } = require("../../common/stripe");
 
 /**
- * @description Return the authenticated tenant's current subscription state for
- * the Billing settings tab.
- * @param {object} authData { tenantId, lg }
+ * @description Return the caller's ACCOUNT subscription state for the Billing tab.
+ * The subscription is per account (email) and covers every workspace the account
+ * owns; this reads billing_accounts, not the tenant.
+ * @param {object} authData { email, lg }
  */
 const getBillingStatus = async (authData) => {
-  const { tenantId, lg } = authData;
+  const { email, lg } = authData;
   try {
     // Reconcile from Stripe first so the plan reflects a just-completed checkout
     // or cancellation even when webhooks aren't delivered (e.g. local dev). A
     // Stripe failure here is non-fatal — we fall back to the stored values.
     try {
-      await reconcileTenantSubscription(tenantId);
+      await reconcileAccount(email);
     } catch (reconcileErr) {
       console.error("Billing reconcile failed (non-fatal):", reconcileErr.message);
     }
@@ -26,16 +27,11 @@ const getBillingStatus = async (authData) => {
     const [rows] = await pool.query(
       `SELECT plan_name, subscription_status, billing_interval, current_period_end,
               stripe_subscription_id, pending_plan, pending_interval, pending_effective_at
-       FROM tenants WHERE id = ?`,
-      [tenantId]
+       FROM billing_accounts WHERE email = ?`,
+      [email]
     );
-    if (rows.length === 0) {
-      return Promise.reject(
-        setServerResponse(API_STATUS_CODE.NOT_FOUND, "tenant_not_found", lg)
-      );
-    }
-
-    const t = rows[0];
+    // No billing_accounts row yet ⇒ a free account (never subscribed).
+    const t = rows[0] || { plan_name: "free" };
     const planName = t.plan_name || "free";
 
     // Whether a live Stripe subscription is set to cancel at period end. Lets the

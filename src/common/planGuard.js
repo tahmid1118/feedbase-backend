@@ -1,5 +1,5 @@
 const { pool } = require("../../database/dbPool");
-const { getPlanLimits, maxPlan } = require("../consts/plans");
+const { getPlanLimits } = require("../consts/plans");
 
 /** Current plan name for a tenant (defaults to 'free' if missing). */
 const getTenantPlan = async (tenantId) => {
@@ -11,19 +11,17 @@ const getTenantPlan = async (tenantId) => {
 };
 
 /**
- * An account's effective tier — the highest plan among the workspaces it OWNS
- * (identity is the email). Plans are per-workspace, so this is the only coherent
- * per-account tier: to unlock more workspaces an account upgrades one it owns.
- * An account that owns nothing (a fresh signup, or a pure member) is 'free'.
+ * An account's tier — its plan, straight from `billing_accounts` (the per-account
+ * subscription is the source of truth). An account with no billing row (a fresh
+ * signup, or a pure member who never subscribed) is 'free'.
  */
 const getAccountTier = async (email) => {
+  if (!email) return "free";
   const [rows] = await pool.query(
-    `SELECT t.plan_name
-       FROM users u JOIN tenants t ON u.tenant_id = t.id
-      WHERE u.email = ? AND u.role = 'owner' AND u.is_active = 1 AND t.is_active = 1`,
+    "SELECT plan_name FROM billing_accounts WHERE email = ?",
     [email]
   );
-  return maxPlan(rows.map((r) => r.plan_name));
+  return rows[0]?.plan_name || "free";
 };
 
 /**
@@ -34,7 +32,7 @@ const getAccountTier = async (email) => {
  */
 const getAccountWorkspaceUsage = async (email) => {
   const [rows] = await pool.query(
-    `SELECT u.role, t.plan_name
+    `SELECT u.role
        FROM users u JOIN tenants t ON u.tenant_id = t.id
       WHERE u.email = ? AND u.is_active = 1 AND t.is_active = 1`,
     [email]
@@ -42,7 +40,8 @@ const getAccountWorkspaceUsage = async (email) => {
   const owned = rows.filter((r) => r.role === "owner");
   const ownedCount = owned.length;
   const memberCount = rows.length - ownedCount;
-  const tier = maxPlan(owned.map((r) => r.plan_name));
+  // Tier is the account's own subscription plan, not derived from workspaces.
+  const tier = await getAccountTier(email);
   const limits = getPlanLimits(tier);
   const ownLimit = limits.ownWorkspaces;
   const joinLimit = limits.joinWorkspaces;

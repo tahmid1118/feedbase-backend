@@ -4,6 +4,7 @@ const { setServerResponse } = require("../../common/setServerResponse");
 const { stripe, isStripeConfigured } = require("../../common/stripe");
 const { PLANS, priceIdFor } = require("../../consts/plans");
 const { getActiveOfferForPlanInterval } = require("../../common/offers");
+const { ensureAccount } = require("../../common/accountBilling");
 
 const BILLING_ROLES = ["owner"];
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
@@ -18,7 +19,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
  * @param {string} [interval] "month" (default) | "year" — yearly is ~20% cheaper
  */
 const createCheckoutSession = async (plan, authData, promotionCode, interval) => {
-  const { tenantId, role, email, lg } = authData;
+  const { role, email, lg } = authData;
   const billingInterval = interval === "year" ? "year" : "month";
 
   if (!BILLING_ROLES.includes(role)) {
@@ -62,28 +63,26 @@ const createCheckoutSession = async (plan, authData, promotionCode, interval) =>
   }
 
   try {
-    const [rows] = await pool.query(
-      "SELECT id, name, stripe_customer_id FROM tenants WHERE id = ?",
-      [tenantId]
-    );
-    if (rows.length === 0) {
+    if (!email) {
       return Promise.reject(
-        setServerResponse(API_STATUS_CODE.NOT_FOUND, "tenant_not_found", lg)
+        setServerResponse(API_STATUS_CODE.BAD_REQUEST, "invalid_plan", lg)
       );
     }
-    const tenant = rows[0];
+    // The subscription belongs to the ACCOUNT (email), not the workspace — one
+    // Stripe customer per account, covering every workspace the account owns.
+    const account = await ensureAccount(email);
 
-    let customerId = tenant.stripe_customer_id;
+    let customerId = account.stripe_customer_id;
     if (!customerId) {
       const customer = await stripe.customers.create({
-        name: tenant.name,
-        email: email || undefined,
-        metadata: { tenantId: String(tenantId) },
+        name: email,
+        email,
+        metadata: { accountEmail: email },
       });
       customerId = customer.id;
       await pool.query(
-        "UPDATE tenants SET stripe_customer_id = ? WHERE id = ?",
-        [customerId, tenantId]
+        "UPDATE billing_accounts SET stripe_customer_id = ? WHERE email = ?",
+        [customerId, email]
       );
     }
 
@@ -107,8 +106,8 @@ const createCheckoutSession = async (plan, authData, promotionCode, interval) =>
       mode: "subscription",
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      metadata: { tenantId: String(tenantId), plan, interval: billingInterval },
-      subscription_data: { metadata: { tenantId: String(tenantId), plan } },
+      metadata: { accountEmail: email, plan, interval: billingInterval },
+      subscription_data: { metadata: { accountEmail: email, plan } },
       ...discountOpts,
       success_url: `${FRONTEND_URL}/dashboard/settings?tab=billing&checkout=success`,
       cancel_url: `${FRONTEND_URL}/dashboard/settings?tab=billing&checkout=cancelled`,

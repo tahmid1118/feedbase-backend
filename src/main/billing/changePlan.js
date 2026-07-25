@@ -1,9 +1,8 @@
-const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { stripe, isStripeConfigured } = require("../../common/stripe");
 const { PLANS, priceIdFor, PLAN_RANK } = require("../../consts/plans");
-const { reconcileTenantSubscription } = require("./applySubscription");
+const { getAccount, setAccountPlan, reconcileAccount } = require("../../common/accountBilling");
 
 const BILLING_ROLES = ["owner"];
 
@@ -28,9 +27,9 @@ const directionOf = (curPlan, curInterval, newPlan, newInterval) => {
   return newInterval === "year" ? "upgrade" : "downgrade";
 };
 
-/** Shared guards + loading. Resolves { tenant, sub, itemId, curPriceId, ... } or rejects. */
+/** Shared guards + loading. Resolves { email, sub, itemId, curPriceId, ... } or rejects. */
 const loadForChange = async (plan, interval, authData) => {
-  const { tenantId, role, lg } = authData;
+  const { email, role, lg } = authData;
   const billingInterval = interval === "year" ? "year" : "month";
 
   if (!BILLING_ROLES.includes(role)) {
@@ -44,34 +43,31 @@ const loadForChange = async (plan, interval, authData) => {
     throw setServerResponse(API_STATUS_CODE.BAD_REQUEST, "invalid_plan", lg);
   }
 
-  const [rows] = await pool.query(
-    "SELECT stripe_customer_id, stripe_subscription_id, plan_name, billing_interval, subscription_status FROM tenants WHERE id = ?",
-    [tenantId]
-  );
-  const t = rows[0];
-  // Only tenants with a LIVE Stripe subscription change here; free/comped tenants
+  // The subscription is on the ACCOUNT (email), not the workspace.
+  const acct = await getAccount(email);
+  // Only accounts with a LIVE Stripe subscription change here; free/comped accounts
   // start a fresh Checkout instead (no existing amount to prorate against).
-  if (!t || !t.stripe_subscription_id || t.subscription_status === "comped") {
+  if (!acct?.stripe_subscription_id || acct.subscription_status === "comped") {
     throw setServerResponse(API_STATUS_CODE.BAD_REQUEST, "no_active_subscription", lg);
   }
 
-  const sub = await stripe.subscriptions.retrieve(t.stripe_subscription_id);
+  const sub = await stripe.subscriptions.retrieve(acct.stripe_subscription_id);
   const item = sub.items?.data?.[0];
   if (!item) {
     throw setServerResponse(API_STATUS_CODE.BAD_REQUEST, "no_active_subscription", lg);
   }
 
-  const curPlan = t.plan_name || "free";
-  const curInterval = t.billing_interval || "month";
+  const curPlan = acct.plan_name || "free";
+  const curInterval = acct.billing_interval || "month";
   const direction = directionOf(curPlan, curInterval, plan, billingInterval);
   if (direction === "same") {
     throw setServerResponse(API_STATUS_CODE.BAD_REQUEST, "already_on_plan", lg);
   }
 
   return {
-    tenantId,
+    email,
     lg,
-    customerId: t.stripe_customer_id,
+    customerId: acct.stripe_customer_id,
     sub,
     itemId: item.id,
     curPriceId: item.price.id,
@@ -135,11 +131,12 @@ const previewPlanChange = async (plan, interval, authData) => {
 const scheduleIdOf = (sub) =>
   typeof sub.schedule === "string" ? sub.schedule : sub.schedule?.id || null;
 
-const clearPending = (tenantId) =>
-  pool.query(
-    "UPDATE tenants SET pending_plan = NULL, pending_interval = NULL, pending_effective_at = NULL WHERE id = ?",
-    [tenantId]
-  );
+const clearPending = (email) =>
+  setAccountPlan(email, {
+    pending_plan: null,
+    pending_interval: null,
+    pending_effective_at: null,
+  });
 
 /** Apply a change: upgrade immediately (prorated), downgrade at period end. */
 const applyPlanChange = async (plan, interval, authData) => {
@@ -167,8 +164,8 @@ const applyPlanChange = async (plan, interval, authData) => {
         proration_behavior: "always_invoice",
         payment_behavior: "error_if_incomplete",
       });
-      await clearPending(c.tenantId);
-      await reconcileTenantSubscription(c.tenantId);
+      await reconcileAccount(c.email); // pulls the new plan from Stripe + mirrors
+      await clearPending(c.email);
       return Promise.resolve(
         setServerResponse(API_STATUS_CODE.OK, "plan_changed", c.lg, {
           direction: "upgrade",
@@ -202,10 +199,11 @@ const applyPlanChange = async (plan, interval, authData) => {
     const effectiveAt = c.sub.current_period_end
       ? new Date(c.sub.current_period_end * 1000)
       : null;
-    await pool.query(
-      "UPDATE tenants SET pending_plan = ?, pending_interval = ?, pending_effective_at = ? WHERE id = ?",
-      [c.plan, c.interval, effectiveAt, c.tenantId]
-    );
+    await setAccountPlan(c.email, {
+      pending_plan: c.plan,
+      pending_interval: c.interval,
+      pending_effective_at: effectiveAt,
+    });
 
     return Promise.resolve(
       setServerResponse(API_STATUS_CODE.OK, "plan_change_scheduled", c.lg, {
@@ -226,7 +224,7 @@ const applyPlanChange = async (plan, interval, authData) => {
 
 /** Cancel a scheduled (pending) downgrade — release the schedule, keep current plan. */
 const cancelScheduledChange = async (authData) => {
-  const { tenantId, role, lg } = authData;
+  const { email, role, lg } = authData;
   if (!BILLING_ROLES.includes(role)) {
     return Promise.reject(setServerResponse(API_STATUS_CODE.FORBIDDEN, "billing_forbidden", lg));
   }
@@ -236,17 +234,14 @@ const cancelScheduledChange = async (authData) => {
     );
   }
   try {
-    const [rows] = await pool.query(
-      "SELECT stripe_subscription_id FROM tenants WHERE id = ?",
-      [tenantId]
-    );
-    const subId = rows[0]?.stripe_subscription_id;
+    const acct = await getAccount(email);
+    const subId = acct?.stripe_subscription_id;
     if (subId) {
       const sub = await stripe.subscriptions.retrieve(subId);
       const scheduleId = scheduleIdOf(sub);
       if (scheduleId) await stripe.subscriptionSchedules.release(scheduleId).catch(() => {});
     }
-    await clearPending(tenantId);
+    await clearPending(email);
     return Promise.resolve(
       setServerResponse(API_STATUS_CODE.OK, "plan_change_cancelled", lg, { ok: true })
     );

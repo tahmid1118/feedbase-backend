@@ -2,16 +2,18 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { stripe, isStripeConfigured } = require("../../common/stripe");
+const { getAccount, setAccountPlan } = require("../../common/accountBilling");
 
 /**
- * Redeem a promo code for the authenticated workspace (owner only).
+ * Redeem a promo code for the authenticated ACCOUNT (owner only). A free-plan
+ * comp applies to the account and therefore to every workspace it owns.
  *  - free_plan  → comp the plan immediately (no Stripe, no card). The reconcile
  *                 guard preserves 'comped' status so it isn't reset on load.
  *  - percent_off→ validate and return the Stripe promotion code id, which the
  *                 client passes into Checkout as a discount.
  */
 const redeemPromo = async (code, authData) => {
-  const { tenantId, role, id: userId, lg } = authData;
+  const { tenantId, role, id: userId, email, lg } = authData;
 
   if (role !== "owner") {
     return Promise.reject(setServerResponse(API_STATUS_CODE.FORBIDDEN, "billing_forbidden", lg));
@@ -38,9 +40,13 @@ const redeemPromo = async (code, authData) => {
     if (promo.max_redemptions && promo.times_redeemed >= promo.max_redemptions) {
       return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "promo_code_exhausted", lg));
     }
+    // One redemption per ACCOUNT (a comp is account-level now) — check across all
+    // of the account's workspaces by the redeeming user's email.
     const [already] = await pool.query(
-      "SELECT id FROM promo_redemptions WHERE promo_code_id = ? AND tenant_id = ?",
-      [promo.id, tenantId]
+      `SELECT r.id FROM promo_redemptions r
+         JOIN users u ON u.id = r.redeemed_by_user_id
+        WHERE r.promo_code_id = ? AND u.email = ? LIMIT 1`,
+      [promo.id, email]
     );
     if (already.length > 0) {
       return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "promo_already_redeemed", lg));
@@ -54,27 +60,31 @@ const redeemPromo = async (code, authData) => {
               Date.now() + (promo.duration_months || 1) * 30 * 24 * 60 * 60 * 1000
             );
 
-      // If the workspace is on a live paid Stripe subscription, cancel it before
+      // If the ACCOUNT is on a live paid Stripe subscription, cancel it before
       // comping — otherwise Stripe keeps charging while the app shows a comped
-      // plan (and reconcileTenantSubscription then skips comped tenants forever).
-      // Mirrors the admin comp path in admin/workspaces.js.
-      const [[current]] = await pool.query(
-        "SELECT stripe_subscription_id FROM tenants WHERE id = ?",
-        [tenantId]
-      );
-      if (current?.stripe_subscription_id && isStripeConfigured()) {
+      // plan (and reconcileAccount then skips comped accounts forever). Mirrors
+      // the admin comp path in admin/workspaces.js.
+      const acct = await getAccount(email);
+      if (acct?.stripe_subscription_id && isStripeConfigured()) {
         try {
-          await stripe.subscriptions.cancel(current.stripe_subscription_id);
+          await stripe.subscriptions.cancel(acct.stripe_subscription_id);
         } catch (e) {
           // Already cancelled / not found is fine — we clear it locally anyway.
           console.error("promo free-plan comp: cancel sub (non-fatal):", e.message);
         }
       }
 
-      await pool.query(
-        "UPDATE tenants SET plan_name = ?, subscription_status = 'comped', stripe_subscription_id = NULL, current_period_end = ? WHERE id = ?",
-        [promo.plan_grant, periodEnd, tenantId]
-      );
+      // Comp the account → mirrors onto every workspace it owns.
+      await setAccountPlan(email, {
+        plan_name: promo.plan_grant,
+        subscription_status: "comped",
+        billing_interval: null,
+        stripe_subscription_id: null,
+        current_period_end: periodEnd,
+        pending_plan: null,
+        pending_interval: null,
+        pending_effective_at: null,
+      });
       await pool.query(
         `INSERT INTO promo_redemptions
            (promo_code_id, tenant_id, redeemed_by_user_id, plan_granted, expires_at)
