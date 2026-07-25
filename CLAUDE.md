@@ -209,4 +209,6 @@ Copy `.env.example` to `.env`. Required variables include: `DB_HOST`, `DB_USER`,
 - `RESEND_API_KEY` — preferred (HTTP API). `MAIL_FROM` (e.g. `FeedBoard <invites@yourdomain.com>`; a transactional provider requires a **verified sender/domain**) and `MAIL_REPLY_TO` (defaults to `tahmidshahriar.bd@gmail.com`).
 - SMTP fallback: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` (Gmail needs an **App Password**, not the account password).
 
-Production/staging processes are managed by PM2 via `ecosystem.config.js`.
+**CORS** (`app.js`): the browser calls this API cross-origin from the app domain and every tenant portal subdomain; auth is **Bearer** (no cookies), so there's no credentialed cross-site risk. With `NODE_ENV=production` **and** `ROOT_DOMAIN` set, CORS is restricted to `FRONTEND_URL` + the root domain + any subdomain of it (`*.ROOT_DOMAIN`), plus optional `CORS_EXTRA_ORIGINS` (comma-separated). Otherwise (dev / unconfigured) it allows all, so nothing breaks locally. No-Origin requests (server-to-server, `<img>`) are always allowed.
+
+Production/staging processes are managed by PM2 via `ecosystem.config.js`. **Full production deploy (Hostinger VPS: Nginx wildcard-subdomain reverse proxy, MySQL, wildcard TLS, Stripe webhook, one-time setup scripts) is documented in `DEPLOYMENT.md` in the frontend repo.**

@@ -60,7 +60,42 @@ app.use(
 // gzip/deflate all compressible responses (JSON, text). Binary uploads under
 // /uploads are skipped automatically by compression's content-type filter.
 app.use(compression());
-app.use(cors());
+
+// CORS. The browser calls this API cross-origin from the app domain (dashboard
+// client) and from every tenant portal subdomain (votes/comments/uploads). Auth
+// is Bearer (Authorization header), not cookies, so there's no credentialed
+// cross-site risk. In PRODUCTION with ROOT_DOMAIN set we restrict to the app
+// origin + any subdomain of the root domain (+ CORS_EXTRA_ORIGINS); otherwise
+// (dev, or unconfigured) we allow all so nothing breaks. Requests with no Origin
+// (server-to-server, curl, <img>) are always allowed.
+const buildCorsOptions = () => {
+  const rootDomain = (process.env.ROOT_DOMAIN || "").replace(/^https?:\/\//, "").replace(/\/.*$/, "").toLowerCase();
+  const restrict = process.env.NODE_ENV === "production" && rootDomain;
+  if (!restrict) return {}; // default cors(): reflect any origin
+
+  const extra = (process.env.CORS_EXTRA_ORIGINS || "")
+    .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  const frontendUrl = (process.env.FRONTEND_URL || "").toLowerCase().replace(/\/$/, "");
+
+  const isAllowed = (origin) => {
+    let host;
+    try { host = new URL(origin).host.toLowerCase(); } catch { return false; }
+    if (extra.includes(origin.toLowerCase())) return true;
+    if (frontendUrl && origin.toLowerCase() === frontendUrl) return true;
+    // The root domain itself and any subdomain of it (portals), port-agnostic.
+    const bare = rootDomain.replace(/:\d+$/, "");
+    const hostNoPort = host.replace(/:\d+$/, "");
+    return hostNoPort === bare || hostNoPort.endsWith(`.${bare}`);
+  };
+
+  return {
+    origin: (origin, cb) => {
+      if (!origin || isAllowed(origin)) return cb(null, true);
+      return cb(new Error(`CORS: origin not allowed: ${origin}`));
+    },
+  };
+};
+app.use(cors(buildCorsOptions()));
 
 // Async access logging — see src/common/logger.js for why stdout is unsafe here.
 // requestTimer must run first so the log filter can identify slow requests.
