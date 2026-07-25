@@ -48,9 +48,14 @@ const resolvePublicTenant = async (identifier, lg) => {
       );
     }
 
-    // Expose only whether attachments are allowed — never the raw plan/billing.
+    // Expose only plan-derived booleans — never the raw plan/billing.
     const { plan_name, ...tenant } = rows[0];
-    tenant.attachments_enabled = Boolean(getPlanLimits(plan_name).attachments);
+    const limits = getPlanLimits(plan_name);
+    tenant.attachments_enabled = Boolean(limits.attachments);
+    // Owner comment identity: badge = "Name (Owner)" (Pro+); privacy = "Owner"
+    // only / anonymous (Business). Drive the portal composer's options.
+    tenant.owner_badge_enabled = Boolean(limits.ownerBadge);
+    tenant.owner_privacy_enabled = Boolean(limits.ownerPrivacy);
 
     return Promise.resolve(
       setServerResponse(

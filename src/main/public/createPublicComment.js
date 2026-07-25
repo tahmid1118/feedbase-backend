@@ -2,6 +2,30 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { notifyTeam } = require("../../common/notifications");
+const { getTenantPlan } = require("../../common/planGuard");
+const { getPlanLimits } = require("../../consts/plans");
+
+/**
+ * Resolve the plan-gated "owner identity" for a comment.
+ *   - named  → 1  ("Name (Owner)" + tick)   requires ownerBadge   (Pro+)
+ *   - hidden → 2  ("Owner" only + tick)      requires ownerPrivacy (Business)
+ * Returns 0 (show as self) unless the author truly owns the board AND the plan
+ * permits the requested mode.
+ */
+const resolveOwnerMode = async (mode, authUser, tenantId) => {
+  if (
+    !mode ||
+    !authUser?.id ||
+    authUser.role !== "owner" ||
+    Number(authUser.tenantId) !== Number(tenantId)
+  ) {
+    return 0;
+  }
+  const limits = getPlanLimits(await getTenantPlan(tenantId));
+  if (mode === "hidden" && limits.ownerPrivacy) return 2;
+  if (mode === "named" && limits.ownerBadge) return 1;
+  return 0;
+};
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const truncate = (s, n) => {
@@ -35,15 +59,6 @@ const createPublicComment = async (tenantId, postId, data, authUser, lg) => {
   const guestId = authorId
     ? null
     : (data?.guestId || "").toString().trim().slice(0, 64) || null;
-  // A board OWNER may choose to show as "Owner" (+ tick) instead of their name.
-  // Only honored when the logged-in author is actually the owner of THIS board.
-  const asOwner =
-    authorId &&
-    data?.asOwner &&
-    authUser?.role === "owner" &&
-    Number(authUser?.tenantId) === Number(tenantId)
-      ? 1
-      : 0;
   const parentCommentId = data?.parentCommentId || null;
 
   if (!body) {
@@ -96,6 +111,8 @@ const createPublicComment = async (tenantId, postId, data, authUser, lg) => {
       }
       rootParentId = current.id;
     }
+
+    const asOwner = await resolveOwnerMode(data?.ownerMode, authUser, tenantId);
 
     const [result] = await pool.query(
       `INSERT INTO comments

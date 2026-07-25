@@ -34,10 +34,10 @@ const getPublicPostDetail = async (tenantId, postId, lg) => {
   const _commentQuery = `
     SELECT c.id, c.post_id, c.parent_comment_id, c.body, c.is_edited,
            c.created_at, c.author_id, c.guest_id,
-           (c.as_owner = 1 AND u.role = 'owner' AND u.tenant_id = c.tenant_id) AS author_as_owner,
-           CASE WHEN c.as_owner = 1 AND u.role = 'owner' AND u.tenant_id = c.tenant_id
+           (CASE WHEN u.role = 'owner' AND u.tenant_id = c.tenant_id THEN c.as_owner ELSE 0 END) AS author_as_owner,
+           CASE WHEN c.as_owner = 2 AND u.role = 'owner' AND u.tenant_id = c.tenant_id
                 THEN NULL ELSE COALESCE(u.full_name, c.submitter_name, 'Anonymous') END AS author_name,
-           CASE WHEN c.as_owner = 1 AND u.role = 'owner' AND u.tenant_id = c.tenant_id
+           CASE WHEN c.as_owner = 2 AND u.role = 'owner' AND u.tenant_id = c.tenant_id
                 THEN NULL ELSE u.avatar_url END AS author_avatar,
            EXISTS (SELECT 1 FROM users a WHERE a.email = u.email AND a.is_platform_admin = 1 AND a.is_active = 1) AS author_is_admin
     FROM comments c

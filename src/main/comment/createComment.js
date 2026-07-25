@@ -1,12 +1,20 @@
 const { pool } = require('../../../database/dbPool');
 const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
+const { getTenantPlan } = require('../../common/planGuard');
+const { getPlanLimits } = require('../../consts/plans');
 
 const createComment = async (commentData, authData) => {
   const { postId, body, parentCommentId } = commentData;
   const { id: authorId, tenantId, role, lg } = authData;
-  // Owners may show as "Owner" (+ tick) instead of their real name.
-  const asOwner = commentData.asOwner && role === 'owner' ? 1 : 0;
+  // Owner identity, plan-gated: named ("Name (Owner)") needs ownerBadge (Pro+);
+  // hidden ("Owner" only) needs ownerPrivacy (Business).
+  let asOwner = 0;
+  if (role === 'owner' && (commentData.ownerMode === 'named' || commentData.ownerMode === 'hidden')) {
+    const limits = getPlanLimits(await getTenantPlan(tenantId));
+    if (commentData.ownerMode === 'hidden' && limits.ownerPrivacy) asOwner = 2;
+    else if (commentData.ownerMode === 'named' && limits.ownerBadge) asOwner = 1;
+  }
   const _query = 'INSERT INTO comments (tenant_id, post_id, author_id, as_owner, parent_comment_id, body) VALUES (?, ?, ?, ?, ?, ?)';
   try {
     const [result] = await pool.query(_query, [tenantId, postId, authorId, asOwner, parentCommentId || null, body]);

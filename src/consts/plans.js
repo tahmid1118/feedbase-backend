@@ -38,6 +38,10 @@ const PLANS = {
       attachments: false,
       contactSubmitter: false,
       multiDevice: false,
+      // Owner comment identity: ownerBadge = show as "Name (Owner)" + tick;
+      // ownerPrivacy = also hide the name ("Owner" + tick) or post anonymously.
+      ownerBadge: false,
+      ownerPrivacy: false,
     },
   },
   pro: {
@@ -56,6 +60,8 @@ const PLANS = {
       attachments: true,
       contactSubmitter: true,
       multiDevice: false,
+      ownerBadge: true,
+      ownerPrivacy: false,
     },
   },
   business: {
@@ -74,6 +80,8 @@ const PLANS = {
       attachments: true,
       contactSubmitter: true,
       multiDevice: true,
+      ownerBadge: true,
+      ownerPrivacy: true,
     },
   },
 };
