@@ -1,0 +1,21 @@
+# Build/run config for Nixpacks-based platforms (Dokploy, Railway, Coolify).
+#
+# Two things this fixes versus the defaults:
+#
+# 1. Node version. Nixpacks defaults to Node 18 when the repo declares none;
+#    pin 22 to match the frontend and .nvmrc.
+#
+# 2. Start command. `pnpm start` is the VPS/PM2 entrypoint
+#    (`pm2 start ecosystem.config.js`) and is WRONG in a container: pm2 isn't a
+#    dependency (the VPS installs it globally), and `pm2 start` daemonizes, so
+#    the foreground process exits and the container stops. Docker already does
+#    what PM2 gives us here -- supervision and restarts -- and horizontal
+#    scaling is the platform's replica count, so run the app directly.
+#
+# APP_PORT must be set in the platform's env: app.js reads it with no fallback.
+
+[phases.setup]
+nixPkgs = ["nodejs_22", "pnpm-10_x"]
+
+[start]
+cmd = "node app.js"
