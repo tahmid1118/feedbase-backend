@@ -50,9 +50,32 @@ const createOffer = async (data, adminId, lg) => {
   // would be shifted to UTC by the pool and land the offer hours off). Accept a
   // `datetime-local` value ("YYYY-MM-DDTHH:mm[:ss]") verbatim, or a date-only
   // value which becomes the start / end of that local day.
+  /**
+   * Normalise an admin-supplied start/end into something `starts_at <= NOW()`
+   * can be compared against — NOW() being the DB SERVER's clock.
+   *
+   * A ZONED value (…Z or ±HH:MM) names an exact instant, so it is returned as a
+   * Date and mysql2 (pool `timezone: "local"`) writes it in the server's zone.
+   * That is the path the admin UI uses.
+   *
+   * Previously every value was treated as naive wall-clock text: "T" was swapped
+   * for a space and stored as-is. An admin in UTC+6 picking "now" therefore got
+   * an offer that only began SIX HOURS LATER — it simply never appeared on the
+   * pricing page, with is_active = 1 and nothing in the logs. Invisible in dev,
+   * where the browser and the database share a timezone.
+   *
+   * Naive input is still accepted (older clients, a hand-written date) and keeps
+   * the old meaning: server-local wall clock.
+   */
   const toLocalDateTime = (v, endOfDayIfDateOnly) => {
     if (!v) return null;
     const s = String(v).trim();
+
+    if (/(Z|[+-]\d{2}:\d{2})$/.test(s)) {
+      const d = new Date(s);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+
     if (s.includes("T")) {
       const dt = s.replace("T", " ");
       return (dt.length === 16 ? `${dt}:00` : dt).slice(0, 19);
