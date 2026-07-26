@@ -1,0 +1,63 @@
+# Local MySQL matching PRODUCTION (MySQL 8.4), for development only.
+#
+# Why: dev has historically been MariaDB 10.4, which accepts SQL that production
+# MySQL 8.4 rejects. database/dbPool.js now pins `sql_mode` so the big one
+# (ONLY_FULL_GROUP_BY / STRICT_TRANS_TABLES) is caught on any engine, but the
+# engines still differ elsewhere — MariaDB's JSON is an alias for LONGTEXT, and
+# JSON/CTE/window-function behaviour and collations are not identical. Running the
+# same server as production removes the remaining guesswork.
+#
+#   docker compose -f docker-compose.dev.yml up -d     (or: npm run db:up)
+#
+# Then point .env at it — note the NON-DEFAULT PORT, which lets this run
+# alongside an existing local MySQL/MariaDB on 3306 instead of fighting it:
+#
+#   DB_HOST=127.0.0.1
+#   DB_PORT=3307
+#   DB_USER=feedboard
+#   DB_PASSWORD=feedboard
+#   DB_NAME=feedboard_db
+#
+# database/schema.sql is imported automatically on FIRST start (the MySQL image
+# runs everything in /docker-entrypoint-initdb.d against MYSQL_DATABASE). It has
+# no CREATE DATABASE/USE, which is exactly why that works. Afterwards, create a
+# login:  node scripts/create-admin.js you@example.com 'password' 'Admin'
+#
+# `npm run db:reset` destroys the volume and re-imports from scratch.
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: feedboard-mysql-dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: devroot
+      MYSQL_DATABASE: feedboard_db
+      MYSQL_USER: feedboard
+      MYSQL_PASSWORD: feedboard
+      # Keep the SERVER's timezone equal to the app process's. dbPool.js uses
+      # `timezone: "local"` because DATETIME columns are written by MySQL's
+      # CURRENT_TIMESTAMP in the server's zone; a UTC container read by a
+      # UTC+6 Node process mislabels every timestamp (a "35 min ago" event
+      # renders as "in 6 hours"). Override via a TZ env var if you are not UTC+6.
+      TZ: ${TZ:-Asia/Dhaka}
+    command:
+      # This is MySQL 8.4's own default list, stated explicitly so a future
+      # server-default change cannot silently loosen local checks.
+      - --sql-mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      # host:container — 3307 avoids clashing with an existing local server.
+      - "3307:3306"
+    volumes:
+      - feedboard-mysql-dev-data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  feedboard-mysql-dev-data:

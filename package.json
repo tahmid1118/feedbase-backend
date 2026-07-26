@@ -12,7 +12,11 @@
     "stop": "pm2 stop feedboard-server",
     "delete": "pm2 delete feedboard-server",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start:container": "pm2-runtime start ecosystem.config.js --env production"
+    "start:container": "pm2-runtime start ecosystem.config.js --env production",
+    "db:up": "docker compose -f docker-compose.dev.yml up -d",
+    "db:down": "docker compose -f docker-compose.dev.yml down",
+    "db:reset": "docker compose -f docker-compose.dev.yml down -v && docker compose -f docker-compose.dev.yml up -d",
+    "db:logs": "docker compose -f docker-compose.dev.yml logs -f mysql"
   },
   "keywords": [],
   "author": "",

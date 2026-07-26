@@ -36,6 +36,48 @@ const pool = mysql.createPool({
   connectTimeout: 10000,
 });
 
+/**
+ * Pin `sql_mode` on every pooled connection so all environments enforce the
+ * SAME rules as production.
+ *
+ * Production (MySQL 8.4) enables ONLY_FULL_GROUP_BY and STRICT_TRANS_TABLES by
+ * default. A dev MariaDB / older MySQL does not, so invalid SQL passes locally
+ * and 500s only in production — that is exactly how a broken analytics
+ * `GROUP BY` shipped (`ER_WRONG_FIELD_WITH_GROUP`), surfacing in the dashboard
+ * as the wholly misleading "backend unreachable". Setting it here means dev
+ * fails identically to prod, on the same line, before you deploy.
+ *
+ * This is the mode list MySQL 8.4 applies by default; naming it explicitly also
+ * protects against a future server default drifting.
+ *
+ * Applied via the pool's `connection` event, which mysql2 emits when a new
+ * connection is established — the SET is queued on that connection ahead of the
+ * caller's first query. Failure is non-fatal: an engine that rejects one of
+ * these names must not take the API down, so we warn and carry on.
+ */
+const SQL_MODE = [
+  "ONLY_FULL_GROUP_BY",
+  "STRICT_TRANS_TABLES",
+  "NO_ZERO_IN_DATE",
+  "NO_ZERO_DATE",
+  "ERROR_FOR_DIVISION_BY_ZERO",
+  "NO_ENGINE_SUBSTITUTION",
+].join(",");
+
+// `mysql2/promise` wraps the callback pool; the raw pool is the event emitter.
+const rawPool = pool.pool || pool;
+rawPool.on("connection", (connection) => {
+  connection.query("SET SESSION sql_mode = ?", [SQL_MODE], (err) => {
+    if (err) {
+      console.warn(
+        `Could not pin sql_mode (${err.code || err.message}) — this connection ` +
+          `keeps the server default, so dev/prod SQL strictness may differ.`
+      );
+    }
+  });
+});
+
 module.exports = {
   pool,
+  SQL_MODE,
 };
