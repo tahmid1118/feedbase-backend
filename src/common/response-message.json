@@ -272,7 +272,9 @@
     "plan_change_scheduled": "Plan change scheduled.",
     "plan_change_cancelled": "Scheduled change cancelled.",
     "plan_change_failed": "Couldn't change the plan. Please try again.",
-    "owner_comment_pro": "Replying to feedback as the workspace owner requires the Pro plan or higher. Please upgrade."
+    "owner_comment_pro": "Replying to feedback as the workspace owner requires the Pro plan or higher. Please upgrade.",
+    "subscription_cancelled": "Subscription cancelled — it ends at the end of your billing period.",
+    "subscription_resumed": "Subscription resumed — it will renew as usual."
   },
   "de": {
     "success": "Erfolg",
@@ -300,7 +302,9 @@
     "plan_change_scheduled": "Tarifänderung geplant.",
     "plan_change_cancelled": "Geplante Änderung abgebrochen.",
     "plan_change_failed": "Tarif konnte nicht geändert werden. Bitte erneut versuchen.",
-    "owner_comment_pro": "Auf Feedback als Workspace-Inhaber zu antworten erfordert den Pro-Tarif oder höher. Bitte upgraden."
+    "owner_comment_pro": "Auf Feedback als Workspace-Inhaber zu antworten erfordert den Pro-Tarif oder höher. Bitte upgraden.",
+    "subscription_cancelled": "Abo gekündigt – es endet am Ende deines Abrechnungszeitraums.",
+    "subscription_resumed": "Abo fortgesetzt – es wird wie gewohnt verlängert."
   },
   "fr": {
     "success": "Succès",
@@ -328,7 +332,9 @@
     "plan_change_scheduled": "Changement de forfait programmé.",
     "plan_change_cancelled": "Changement programmé annulé.",
     "plan_change_failed": "Impossible de changer de forfait. Veuillez réessayer.",
-    "owner_comment_pro": "Répondre aux retours en tant que propriétaire de l'espace de travail nécessite le forfait Pro ou supérieur. Veuillez mettre à niveau."
+    "owner_comment_pro": "Répondre aux retours en tant que propriétaire de l'espace de travail nécessite le forfait Pro ou supérieur. Veuillez mettre à niveau.",
+    "subscription_cancelled": "Abonnement annulé — il se termine à la fin de votre période de facturation.",
+    "subscription_resumed": "Abonnement repris — il se renouvellera normalement."
   },
   "es": {
     "success": "Éxito",
@@ -356,7 +362,9 @@
     "plan_change_scheduled": "Cambio de plan programado.",
     "plan_change_cancelled": "Cambio programado cancelado.",
     "plan_change_failed": "No se pudo cambiar el plan. Inténtalo de nuevo.",
-    "owner_comment_pro": "Responder a los comentarios como propietario del espacio de trabajo requiere el plan Pro o superior. Actualiza tu plan."
+    "owner_comment_pro": "Responder a los comentarios como propietario del espacio de trabajo requiere el plan Pro o superior. Actualiza tu plan.",
+    "subscription_cancelled": "Suscripción cancelada: finaliza al término de tu período de facturación.",
+    "subscription_resumed": "Suscripción reanudada: se renovará con normalidad."
   },
   "it": {
     "success": "Successo",
@@ -384,7 +392,9 @@
     "plan_change_scheduled": "Modifica del piano pianificata.",
     "plan_change_cancelled": "Modifica pianificata annullata.",
     "plan_change_failed": "Impossibile modificare il piano. Riprova.",
-    "owner_comment_pro": "Rispondere ai feedback come proprietario dello spazio di lavoro richiede il piano Pro o superiore. Esegui l'upgrade."
+    "owner_comment_pro": "Rispondere ai feedback come proprietario dello spazio di lavoro richiede il piano Pro o superiore. Esegui l'upgrade.",
+    "subscription_cancelled": "Abbonamento annullato: termina alla fine del periodo di fatturazione.",
+    "subscription_resumed": "Abbonamento ripreso: si rinnoverà normalmente."
   },
   "pt": {
     "success": "Sucesso",
@@ -412,7 +422,9 @@
     "plan_change_scheduled": "Alteração do plano agendada.",
     "plan_change_cancelled": "Alteração agendada cancelada.",
     "plan_change_failed": "Não foi possível alterar o plano. Tente novamente.",
-    "owner_comment_pro": "Responder a feedback como proprietário do espaço de trabalho requer o plano Pro ou superior. Faça upgrade."
+    "owner_comment_pro": "Responder a feedback como proprietário do espaço de trabalho requer o plano Pro ou superior. Faça upgrade.",
+    "subscription_cancelled": "Assinatura cancelada — termina no fim do seu período de faturamento.",
+    "subscription_resumed": "Assinatura retomada — será renovada normalmente."
   },
   "nl": {
     "success": "Succes",
@@ -440,7 +452,9 @@
     "plan_change_scheduled": "Abonnementswijziging gepland.",
     "plan_change_cancelled": "Geplande wijziging geannuleerd.",
     "plan_change_failed": "Kon het abonnement niet wijzigen. Probeer het opnieuw.",
-    "owner_comment_pro": "Reageren op feedback als eigenaar van de werkruimte vereist het Pro-abonnement of hoger. Upgrade alstublieft."
+    "owner_comment_pro": "Reageren op feedback als eigenaar van de werkruimte vereist het Pro-abonnement of hoger. Upgrade alstublieft.",
+    "subscription_cancelled": "Abonnement opgezegd — het eindigt aan het einde van je factureringsperiode.",
+    "subscription_resumed": "Abonnement hervat — het wordt normaal verlengd."
   },
   "pl": {
     "success": "Sukces",
@@ -468,6 +482,8 @@
     "plan_change_scheduled": "Zaplanowano zmianę planu.",
     "plan_change_cancelled": "Anulowano zaplanowaną zmianę.",
     "plan_change_failed": "Nie udało się zmienić planu. Spróbuj ponownie.",
-    "owner_comment_pro": "Odpowiadanie na opinie jako właściciel obszaru roboczego wymaga planu Pro lub wyższego. Ulepsz plan."
+    "owner_comment_pro": "Odpowiadanie na opinie jako właściciel obszaru roboczego wymaga planu Pro lub wyższego. Ulepsz plan.",
+    "subscription_cancelled": "Subskrypcja anulowana — kończy się z końcem okresu rozliczeniowego.",
+    "subscription_resumed": "Subskrypcja wznowiona — odnowi się normalnie."
   }
 }

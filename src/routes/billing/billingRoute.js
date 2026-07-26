@@ -11,6 +11,10 @@ const {
   applyPlanChange,
   cancelScheduledChange,
 } = require("../../main/billing/changePlan");
+const {
+  cancelSubscription,
+  resumeSubscription,
+} = require("../../main/billing/cancelSubscription");
 
 /**
  * @description Current subscription status for the authenticated tenant.
@@ -98,6 +102,37 @@ billingRouter.post("/change", authenticateToken, languageValidator, async (req, 
  */
 billingRouter.post("/change/cancel", authenticateToken, languageValidator, async (req, res) => {
   cancelScheduledChange({ ...req.auth, lg: req.body.lg })
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({ status, message, data: result });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
+    });
+});
+
+/**
+ * @description Cancel the subscription at period end (keep access until then, no
+ * further charge). Reverts to Free when the period ends.
+ */
+billingRouter.post("/cancel", authenticateToken, languageValidator, async (req, res) => {
+  cancelSubscription({ ...req.auth, lg: req.body.lg })
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({ status, message, data: result });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
+    });
+});
+
+/**
+ * @description Resume a subscription that was set to cancel at period end.
+ */
+billingRouter.post("/resume", authenticateToken, languageValidator, async (req, res) => {
+  resumeSubscription({ ...req.auth, lg: req.body.lg })
     .then((data) => {
       const { statusCode, status, message, result } = data;
       return res.status(statusCode).send({ status, message, data: result });
