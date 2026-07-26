@@ -21,7 +21,19 @@ const uploadImageValidator = multer({
         if (fileTypes.includes(file.mimetype)) {
             cb(null, true);
         } else {
-            cb(new Error("Only image files (PNG, JPEG, JPG, WEBP) are allowed!"));
+            // Derive the list from fileTypes so the message can never drift from
+            // what is actually accepted, and name the type that was rejected —
+            // "Only image files are allowed" on a file the user believes IS an
+            // image is impossible to act on.
+            const allowed = fileTypes
+                .map((t) => t.replace("image/", "").toUpperCase())
+                .filter((t, i, a) => a.indexOf(t) === i)
+                .join(", ");
+            cb(
+                new Error(
+                    `${file.mimetype || "That file type"} is not supported. Allowed image types: ${allowed}.`
+                )
+            );
         }
     },
     limits: {
