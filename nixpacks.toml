@@ -1,21 +1,26 @@
 # Build/run config for Nixpacks-based platforms (Dokploy, Railway, Coolify).
 #
-# Two things this fixes versus the defaults:
-#
 # 1. Node version. Nixpacks defaults to Node 18 when the repo declares none;
-#    pin 22 to match the frontend and .nvmrc.
+#    pin 22 to match the frontend and .nvmrc. (Install uses npm — package-lock.json
+#    is this repo's lockfile — and npm ships with nodejs_22.)
 #
-# 2. Start command. `pnpm start` is the VPS/PM2 entrypoint
-#    (`pm2 start ecosystem.config.js`) and is WRONG in a container: pm2 isn't a
-#    dependency (the VPS installs it globally), and `pm2 start` daemonizes, so
-#    the foreground process exits and the container stops. Docker already does
-#    what PM2 gives us here -- supervision and restarts -- and horizontal
-#    scaling is the platform's replica count, so run the app directly.
+# 2. Start command: `npm run start:container` → `pm2-runtime`, NOT `pm2 start`.
+#    Same ecosystem.config.js and the same cluster mode as the VPS, but
+#    pm2-runtime stays in the FOREGROUND as PID 1. Plain `pm2 start` spawns a
+#    background daemon and returns, so the container's main process exits and
+#    Docker stops it — that is what `pnpm start` would do here.
+#    pm2-runtime also forwards SIGTERM for the graceful shutdown in app.js and
+#    streams worker logs to stdout, so `docker logs` / the Dokploy log view work.
 #
-# APP_PORT must be set in the platform's env: app.js reads it with no fallback.
+# Set these in the platform env:
+#   APP_PORT       — app.js reads it with no fallback; ecosystem.config.js now
+#                    passes it through instead of overriding with 4562.
+#   PM2_INSTANCES  — pin it. `instances: "max"` counts the HOST's cores, not the
+#                    container's CPU limit, so "max" over-forks on a shared box
+#                    (each worker is a full V8 heap). 2 is a sane start.
 
 [phases.setup]
-nixPkgs = ["nodejs_22", "pnpm-10_x"]
+nixPkgs = ["nodejs_22"]
 
 [start]
-cmd = "node app.js"
+cmd = "npm run start:container"

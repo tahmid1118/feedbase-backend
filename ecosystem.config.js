@@ -42,17 +42,25 @@ module.exports = {
       wait_ready: false,
       listen_timeout: 10000,
 
+      /**
+       * PM2 applies these OVER the inherited environment, so a hardcoded
+       * APP_PORT here beats one set by the platform — on Dokploy/Docker the app
+       * would bind 4562 no matter what the service config says, and the proxy
+       * would never reach it. Honour an explicit APP_PORT when present and fall
+       * back to the per-environment default (the VPS/Nginx layout in
+       * DEPLOYMENT.md §6, where nothing sets it and 4562 is correct).
+       */
       env: {
         NODE_ENV: "development",
-        APP_PORT: 4560,
+        APP_PORT: Number(process.env.APP_PORT) || 4560,
       },
       env_staging: {
         NODE_ENV: "staging",
-        APP_PORT: 4561,
+        APP_PORT: Number(process.env.APP_PORT) || 4561,
       },
       env_production: {
         NODE_ENV: "production",
-        APP_PORT: 4562,
+        APP_PORT: Number(process.env.APP_PORT) || 4562,
       },
       error_file: "./logs/err.log",
       out_file: "./logs/out.log",

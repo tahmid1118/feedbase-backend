@@ -11,7 +11,8 @@
     "logs": "pm2 logs feedboard-server",
     "stop": "pm2 stop feedboard-server",
     "delete": "pm2 delete feedboard-server",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start:container": "pm2-runtime start ecosystem.config.js --env production"
   },
   "keywords": [],
   "author": "",
@@ -33,6 +34,7 @@
     "mysql2": "^3.14.2",
     "nodemailer": "^9.0.3",
     "path": "^0.12.7",
+    "pm2": "^7.0.3",
     "sharp": "^0.35.3",
     "stripe": "^22.3.0"
   },
