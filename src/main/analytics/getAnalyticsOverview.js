@@ -45,10 +45,19 @@ const getAnalyticsOverview = async (authData) => {
         .query(
           // Return a clean 'YYYY-MM-DD' string per day (no timezone ambiguity)
           // for the days that HAD posts; the full 30-day series is filled below.
-          `SELECT DATE_FORMAT(DATE(created_at), '%Y-%m-%d') AS date, COUNT(*) AS count
+          //
+          // GROUP BY must repeat the SELECTed expression VERBATIM. Grouping by
+          // `DATE(created_at)` while selecting `DATE_FORMAT(DATE(created_at), …)`
+          // is a different expression, so MySQL's functional-dependency check
+          // rejects it under ONLY_FULL_GROUP_BY — which is ON BY DEFAULT in
+          // MySQL 8.x. That made this whole endpoint 500 in production (the
+          // dashboard then reported it as "backend unreachable") while passing
+          // on a dev server with a laxer sql_mode.
+          `SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS date, COUNT(*) AS count
            FROM posts
            WHERE tenant_id = ? AND created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
-           GROUP BY DATE(created_at)`,
+           GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
+           ORDER BY date`,
           [tenantId]
         )
         .then(([rows]) => rows),
