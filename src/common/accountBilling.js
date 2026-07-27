@@ -98,6 +98,8 @@ const setAccountPlan = async (email, fields = {}, outerConn = null) => {
       "plan_name",
       "stripe_customer_id",
       "stripe_subscription_id",
+      "paddle_customer_id",
+      "paddle_subscription_id",
       "subscription_status",
       "billing_interval",
       "current_period_end",

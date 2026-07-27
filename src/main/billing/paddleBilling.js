@@ -89,9 +89,17 @@ const fetchSubscription = async (email) => {
     const sub = await paddle.subscriptions.get(acct.paddle_subscription_id);
     return normalizeSub(sub);
   }
-  if (acct?.paddle_customer_id) {
+  // Resolve the Paddle customer id (stored, else look it up by email) so we can
+  // find a subscription created via a checkout whose customer id wasn't persisted.
+  let customerId = acct?.paddle_customer_id || null;
+  if (!customerId) {
+    const found = await collect(paddle.customers.list({ email: [email] }));
+    customerId = found[0]?.id || null;
+    if (customerId) await setAccountPlan(email, { paddle_customer_id: customerId });
+  }
+  if (customerId) {
     const subs = await collect(
-      paddle.subscriptions.list({ customerId: [acct.paddle_customer_id], status: ["active", "trialing", "past_due"] })
+      paddle.subscriptions.list({ customerId: [customerId], status: ["active", "trialing", "past_due"] })
     );
     if (subs[0]) {
       await setAccountPlan(email, { paddle_subscription_id: subs[0].id });

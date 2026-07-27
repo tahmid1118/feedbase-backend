@@ -4,7 +4,9 @@ const { setServerResponse } = require("../../common/setServerResponse");
 const { getPlanLimits } = require("../../consts/plans");
 const { reconcileAccount } = require("../../common/accountBilling");
 const { getActiveOffers } = require("../../common/offers");
+const { getBillingProvider } = require("../../common/billingProvider");
 const { stripe, isStripeConfigured } = require("../../common/stripe");
+const { paddle, isPaddleConfigured } = require("../../common/paddle");
 
 /**
  * @description Return the caller's ACCOUNT subscription state for the Billing tab.
@@ -26,19 +28,31 @@ const getBillingStatus = async (authData) => {
 
     const [rows] = await pool.query(
       `SELECT plan_name, subscription_status, billing_interval, current_period_end,
-              stripe_subscription_id, pending_plan, pending_interval, pending_effective_at
+              stripe_subscription_id, paddle_subscription_id,
+              pending_plan, pending_interval, pending_effective_at
        FROM billing_accounts WHERE email = ?`,
       [email]
     );
     // No billing_accounts row yet ⇒ a free account (never subscribed).
     const t = rows[0] || { plan_name: "free" };
     const planName = t.plan_name || "free";
+    const paddleActive = getBillingProvider() === "paddle";
+    const subscriptionId = paddleActive ? t.paddle_subscription_id : t.stripe_subscription_id;
 
-    // Whether a live Stripe subscription is set to cancel at period end. Lets the
-    // UI say the plan "ends on" current_period_end (no further charge) instead of
-    // "renews on" it. Read live from Stripe; non-fatal, defaults to false.
+    // Whether the live subscription is set to cancel at period end. Lets the UI say
+    // the plan "ends on" current_period_end (no further charge) instead of "renews
+    // on" it. Read live from the active provider; non-fatal, defaults to false.
     let cancelAtPeriodEnd = false;
-    if (isStripeConfigured() && t.stripe_subscription_id) {
+    if (paddleActive) {
+      if (isPaddleConfigured() && t.paddle_subscription_id) {
+        try {
+          const sub = await paddle.subscriptions.get(t.paddle_subscription_id);
+          cancelAtPeriodEnd = sub.scheduledChange?.action === "cancel";
+        } catch (subErr) {
+          console.error("Fetch Paddle cancel state failed (non-fatal):", subErr.message);
+        }
+      }
+    } else if (isStripeConfigured() && t.stripe_subscription_id) {
       try {
         const sub = await stripe.subscriptions.retrieve(t.stripe_subscription_id);
         cancelAtPeriodEnd = Boolean(sub.cancel_at_period_end);
@@ -52,7 +66,7 @@ const getBillingStatus = async (authData) => {
       subscriptionStatus: t.subscription_status || null,
       billingInterval: t.billing_interval || null, // 'month' | 'year' | null
       currentPeriodEnd: t.current_period_end || null,
-      hasSubscription: Boolean(t.stripe_subscription_id),
+      hasSubscription: Boolean(subscriptionId),
       // True when the active subscription won't renew (set to cancel at period end).
       cancelAtPeriodEnd,
       // A scheduled (period-end) downgrade, if any — for the "changes to X on Y" note.
