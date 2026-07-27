@@ -46,14 +46,20 @@ CREATE TABLE IF NOT EXISTS tenants (
 
 -- Per-ACCOUNT subscription (keyed by email — the account identity). One account
 -- pays once and its plan covers EVERY workspace it owns; the plan is mirrored to
--- each owned tenants.plan_name. This table is the billing source of truth (Stripe
--- customer/subscription, comp status, scheduled changes). See accountBilling.js.
+-- each owned tenants.plan_name. This table is the billing source of truth. The
+-- ACTIVE payment provider is chosen by BILLING_PROVIDER (paddle | stripe); each
+-- provider keeps its own customer/subscription ids while the plan/status/interval/
+-- period/pending columns stay provider-agnostic. See accountBilling.js.
 CREATE TABLE IF NOT EXISTS billing_accounts (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   email VARCHAR(190) NOT NULL,
   plan_name VARCHAR(50) NOT NULL DEFAULT 'free',
+  -- Stripe ids (dormant when BILLING_PROVIDER=paddle; kept for a later switch back).
   stripe_customer_id VARCHAR(255) NULL,
   stripe_subscription_id VARCHAR(255) NULL,
+  -- Paddle ids (the active Merchant-of-Record provider).
+  paddle_customer_id VARCHAR(255) NULL,
+  paddle_subscription_id VARCHAR(255) NULL,
   subscription_status VARCHAR(50) NULL,
   billing_interval ENUM('month', 'year') NULL,
   current_period_end DATETIME NULL,
@@ -66,7 +72,9 @@ CREATE TABLE IF NOT EXISTS billing_accounts (
   PRIMARY KEY (id),
   UNIQUE KEY uq_billing_accounts_email (email),
   KEY idx_billing_accounts_customer (stripe_customer_id),
-  KEY idx_billing_accounts_subscription (stripe_subscription_id)
+  KEY idx_billing_accounts_subscription (stripe_subscription_id),
+  KEY idx_billing_accounts_paddle_customer (paddle_customer_id),
+  KEY idx_billing_accounts_paddle_subscription (paddle_subscription_id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS users (

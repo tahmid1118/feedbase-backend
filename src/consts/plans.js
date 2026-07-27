@@ -50,6 +50,8 @@ const PLANS = {
     price: 10,
     priceId: process.env.STRIPE_PRICE_PRO || null,
     priceIdYearly: process.env.STRIPE_PRICE_PRO_YEARLY || null,
+    paddlePriceId: process.env.PADDLE_PRICE_PRO || null,
+    paddlePriceIdYearly: process.env.PADDLE_PRICE_PRO_YEARLY || null,
     limits: {
       seats: 5,
       ownWorkspaces: 3,
@@ -70,6 +72,8 @@ const PLANS = {
     price: 15,
     priceId: process.env.STRIPE_PRICE_BUSINESS || null,
     priceIdYearly: process.env.STRIPE_PRICE_BUSINESS_YEARLY || null,
+    paddlePriceId: process.env.PADDLE_PRICE_BUSINESS || null,
+    paddlePriceIdYearly: process.env.PADDLE_PRICE_BUSINESS_YEARLY || null,
     limits: {
       seats: Infinity,
       ownWorkspaces: Infinity,
@@ -148,6 +152,29 @@ const intervalByPriceId = (priceId) => {
   return yearly ? "year" : "month";
 };
 
+/** The Paddle Price ID (pri_…) for a plan on a given interval. */
+const paddlePriceIdFor = (planKey, interval) => {
+  const p = PLANS[planKey];
+  if (!p) return null;
+  return interval === "year" ? p.paddlePriceIdYearly : p.paddlePriceId;
+};
+
+/** Map a Paddle Price ID back to a plan key — matches monthly OR yearly. */
+const planByPaddlePriceId = (priceId) => {
+  if (!priceId) return null;
+  const match = Object.values(PLANS).find(
+    (p) => p.paddlePriceId === priceId || p.paddlePriceIdYearly === priceId
+  );
+  return match ? match.key : null;
+};
+
+/** Whether a given Paddle Price ID is a yearly price → "year", else "month". */
+const intervalByPaddlePriceId = (priceId) => {
+  if (!priceId) return null;
+  const yearly = Object.values(PLANS).some((p) => p.paddlePriceIdYearly === priceId);
+  return yearly ? "year" : "month";
+};
+
 /** Limits for a plan name, falling back to the free tier for unknown values. */
 const getPlanLimits = (planName) =>
   (PLANS[planName] || PLANS.free).limits;
@@ -163,5 +190,8 @@ module.exports = {
   priceIdFor,
   planByPriceId,
   intervalByPriceId,
+  paddlePriceIdFor,
+  planByPaddlePriceId,
+  intervalByPaddlePriceId,
   getPlanLimits,
 };
