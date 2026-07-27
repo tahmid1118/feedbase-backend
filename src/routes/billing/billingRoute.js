@@ -2,160 +2,91 @@ const express = require("express");
 const billingRouter = express.Router();
 const { authenticateToken } = require("../../middlewares/jwt/jwt");
 const { languageValidator } = require("../../middlewares/common/languageValidator");
+const { getBillingProvider } = require("../../common/billingProvider");
+
 const { getBillingStatus } = require("../../main/billing/getBillingStatus");
+const { redeemPromo } = require("../../main/billing/redeemPromo");
+
+// Stripe (dormant) handlers — untouched; selected when BILLING_PROVIDER=stripe.
 const { createCheckoutSession } = require("../../main/billing/createCheckoutSession");
 const { createPortalSession } = require("../../main/billing/createPortalSession");
-const { redeemPromo } = require("../../main/billing/redeemPromo");
-const {
-  previewPlanChange,
-  applyPlanChange,
+const { previewPlanChange, applyPlanChange, cancelScheduledChange } = require("../../main/billing/changePlan");
+const { cancelSubscription, resumeSubscription } = require("../../main/billing/cancelSubscription");
+// Paddle (active) handlers.
+const paddle = require("../../main/billing/paddleBilling");
+
+// Normalized operations per provider (same signatures + setServerResponse shapes).
+const stripeOps = {
+  checkout: (plan, authData, promo, interval) => createCheckoutSession(plan, authData, promo, interval),
+  previewChange: (plan, interval, authData) => previewPlanChange(plan, interval, authData),
+  applyChange: (plan, interval, authData) => applyPlanChange(plan, interval, authData),
   cancelScheduledChange,
-} = require("../../main/billing/changePlan");
-const {
   cancelSubscription,
   resumeSubscription,
-} = require("../../main/billing/cancelSubscription");
+  portal: createPortalSession,
+};
+const paddleOps = {
+  checkout: (plan, authData, promo, interval) => paddle.createCheckout(plan, authData, promo, interval),
+  previewChange: (plan, interval, authData) => paddle.previewChange(plan, interval, authData),
+  applyChange: (plan, interval, authData) => paddle.applyChange(plan, interval, authData),
+  cancelScheduledChange: paddle.cancelScheduledChange,
+  cancelSubscription: paddle.cancelSubscription,
+  resumeSubscription: paddle.resumeSubscription,
+  portal: paddle.createPortalSession,
+};
+const ops = () => (getBillingProvider() === "stripe" ? stripeOps : paddleOps);
 
-/**
- * @description Current subscription status for the authenticated tenant.
- */
-billingRouter.post("/status", authenticateToken, languageValidator, async (req, res) => {
-  getBillingStatus({ ...req.auth, lg: req.body.lg })
-    .then((data) => {
-      const { statusCode, status, message, result } = data;
-      return res.status(statusCode).send({ status, message, data: result });
-    })
-    .catch((error) => {
-      const { statusCode, status, message } = error;
-      return res.status(statusCode).send({ status, message });
-    });
-});
+// Shared response shaping for a setServerResponse-returning promise.
+const reply = (promise, res) =>
+  promise
+    .then((d) => res.status(d.statusCode).send({ status: d.status, message: d.message, data: d.result }))
+    .catch((e) => res.status(e.statusCode || 500).send({ status: e.status || "error", message: e.message }));
 
-/**
- * @description Start a Stripe Checkout session for a paid plan.
- * Body: { plan: "pro" | "business", interval?: "month" | "year", promotionCode? }
- */
-billingRouter.post("/checkout", authenticateToken, languageValidator, async (req, res) => {
-  const { plan, lg, promotionCode, interval } = req.body;
-  createCheckoutSession(plan, { ...req.auth, lg }, promotionCode, interval)
-    .then((data) => {
-      const { statusCode, status, message, result } = data;
-      return res.status(statusCode).send({ status, message, data: result });
-    })
-    .catch((error) => {
-      const { statusCode, status, message } = error;
-      return res.status(statusCode).send({ status, message });
-    });
-});
+const auth = (req) => ({ ...req.auth, lg: req.body.lg });
 
-/**
- * @description Redeem a promo code (owner only). Free-plan codes comp the plan
- * instantly; percent-off codes return a Stripe promotion code for checkout.
- * Body: { code }
- */
-billingRouter.post("/redeem", authenticateToken, languageValidator, async (req, res) => {
-  redeemPromo(req.body?.code, { ...req.auth, lg: req.body.lg })
-    .then((data) => {
-      const { statusCode, status, message, result } = data;
-      return res.status(statusCode).send({ status, message, data: result });
-    })
-    .catch((error) => {
-      const { statusCode, status, message } = error;
-      return res.status(statusCode).send({ status, message });
-    });
-});
+// Current subscription state (reconciles from the active provider first).
+billingRouter.post("/status", authenticateToken, languageValidator, (req, res) =>
+  reply(getBillingStatus(auth(req)), res)
+);
 
-/**
- * @description Preview an in-app plan change (exact prorated charge for upgrades)
- * WITHOUT applying it. Body: { plan, interval?, lg }
- */
-billingRouter.post("/change/preview", authenticateToken, languageValidator, async (req, res) => {
-  previewPlanChange(req.body?.plan, req.body?.interval, { ...req.auth, lg: req.body.lg })
-    .then((data) => {
-      const { statusCode, status, message, result } = data;
-      return res.status(statusCode).send({ status, message, data: result });
-    })
-    .catch((error) => {
-      const { statusCode, status, message } = error;
-      return res.status(statusCode).send({ status, message });
-    });
-});
+// Start checkout. Stripe → { url } (redirect); Paddle → { transactionId } (overlay).
+billingRouter.post("/checkout", authenticateToken, languageValidator, (req, res) =>
+  reply(ops().checkout(req.body?.plan, auth(req), req.body?.promotionCode, req.body?.interval), res)
+);
 
-/**
- * @description Apply an in-app plan change. Upgrade = prorated charge now;
- * downgrade = scheduled at period end. Body: { plan, interval?, lg }
- */
-billingRouter.post("/change", authenticateToken, languageValidator, async (req, res) => {
-  applyPlanChange(req.body?.plan, req.body?.interval, { ...req.auth, lg: req.body.lg })
-    .then((data) => {
-      const { statusCode, status, message, result } = data;
-      return res.status(statusCode).send({ status, message, data: result });
-    })
-    .catch((error) => {
-      const { statusCode, status, message } = error;
-      return res.status(statusCode).send({ status, message });
-    });
-});
+// Redeem a promo code (owner only). Provider-agnostic comp / percent-off.
+billingRouter.post("/redeem", authenticateToken, languageValidator, (req, res) =>
+  reply(redeemPromo(req.body?.code, auth(req)), res)
+);
 
-/**
- * @description Cancel a scheduled (pending) downgrade — keep the current plan.
- */
-billingRouter.post("/change/cancel", authenticateToken, languageValidator, async (req, res) => {
-  cancelScheduledChange({ ...req.auth, lg: req.body.lg })
-    .then((data) => {
-      const { statusCode, status, message, result } = data;
-      return res.status(statusCode).send({ status, message, data: result });
-    })
-    .catch((error) => {
-      const { statusCode, status, message } = error;
-      return res.status(statusCode).send({ status, message });
-    });
-});
+// Preview an in-app plan change (prorated charge for upgrades).
+billingRouter.post("/change/preview", authenticateToken, languageValidator, (req, res) =>
+  reply(ops().previewChange(req.body?.plan, req.body?.interval, auth(req)), res)
+);
 
-/**
- * @description Cancel the subscription at period end (keep access until then, no
- * further charge). Reverts to Free when the period ends.
- */
-billingRouter.post("/cancel", authenticateToken, languageValidator, async (req, res) => {
-  cancelSubscription({ ...req.auth, lg: req.body.lg })
-    .then((data) => {
-      const { statusCode, status, message, result } = data;
-      return res.status(statusCode).send({ status, message, data: result });
-    })
-    .catch((error) => {
-      const { statusCode, status, message } = error;
-      return res.status(statusCode).send({ status, message });
-    });
-});
+// Apply an in-app plan change.
+billingRouter.post("/change", authenticateToken, languageValidator, (req, res) =>
+  reply(ops().applyChange(req.body?.plan, req.body?.interval, auth(req)), res)
+);
 
-/**
- * @description Resume a subscription that was set to cancel at period end.
- */
-billingRouter.post("/resume", authenticateToken, languageValidator, async (req, res) => {
-  resumeSubscription({ ...req.auth, lg: req.body.lg })
-    .then((data) => {
-      const { statusCode, status, message, result } = data;
-      return res.status(statusCode).send({ status, message, data: result });
-    })
-    .catch((error) => {
-      const { statusCode, status, message } = error;
-      return res.status(statusCode).send({ status, message });
-    });
-});
+// Cancel a scheduled (pending) downgrade — keep the current plan.
+billingRouter.post("/change/cancel", authenticateToken, languageValidator, (req, res) =>
+  reply(ops().cancelScheduledChange(auth(req)), res)
+);
 
-/**
- * @description Open the Stripe Billing Portal to manage the subscription.
- */
-billingRouter.post("/portal", authenticateToken, languageValidator, async (req, res) => {
-  createPortalSession({ ...req.auth, lg: req.body.lg })
-    .then((data) => {
-      const { statusCode, status, message, result } = data;
-      return res.status(statusCode).send({ status, message, data: result });
-    })
-    .catch((error) => {
-      const { statusCode, status, message } = error;
-      return res.status(statusCode).send({ status, message });
-    });
-});
+// Cancel the subscription at period end (keep access until then, no further charge).
+billingRouter.post("/cancel", authenticateToken, languageValidator, (req, res) =>
+  reply(ops().cancelSubscription(auth(req)), res)
+);
+
+// Resume a subscription set to cancel at period end.
+billingRouter.post("/resume", authenticateToken, languageValidator, (req, res) =>
+  reply(ops().resumeSubscription(auth(req)), res)
+);
+
+// Open the provider's customer portal to manage the subscription.
+billingRouter.post("/portal", authenticateToken, languageValidator, (req, res) =>
+  reply(ops().portal(auth(req)), res)
+);
 
 module.exports = { billingRouter };

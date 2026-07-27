@@ -1,11 +1,11 @@
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
-const { stripe, isStripeConfigured } = require("../../common/stripe");
 const {
   getAccount,
   setAccountPlan,
   resetAccountToFree,
+  cancelActiveSubscription,
 } = require("../../common/accountBilling");
 
 const PLANS = ["free", "pro", "business"];
@@ -66,15 +66,8 @@ const setAccountPlanAdmin = async (email, plan, durationMonths, lg) => {
   const months = Number(durationMonths);
   const timed = Number.isInteger(months) && months > 0;
   try {
-    // Cancel any live Stripe subscription on the account first.
-    const acct = await getAccount(email);
-    if (acct?.stripe_subscription_id && isStripeConfigured()) {
-      try {
-        await stripe.subscriptions.cancel(acct.stripe_subscription_id);
-      } catch (e) {
-        console.error("admin setAccountPlan: cancel sub (non-fatal):", e.message);
-      }
-    }
+    // Cancel any live subscription on the active provider first (Stripe/Paddle).
+    await cancelActiveSubscription(email);
 
     if (plan === "free") {
       await resetAccountToFree(email, null);
@@ -89,6 +82,7 @@ const setAccountPlanAdmin = async (email, plan, durationMonths, lg) => {
         subscription_status: "comped",
         billing_interval: null,
         stripe_subscription_id: null,
+        paddle_subscription_id: null,
         current_period_end: periodEnd,
         pending_plan: null,
         pending_interval: null,

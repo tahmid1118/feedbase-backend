@@ -199,7 +199,14 @@ const applyAccountSubscription = async (sub) => {
  * configured. Preserves comped accounts (lifetime kept; expired timed → free).
  */
 const reconcileAccount = async (email) => {
-  if (!email || !isStripeConfigured()) return;
+  if (!email) return;
+  // Dispatch to the ACTIVE provider. Paddle has its own reconcile (lazy-required
+  // to avoid a require cycle); the Stripe logic below runs when Stripe is active.
+  const { isPaddleActive } = require("./billingProvider");
+  if (isPaddleActive()) {
+    return require("../main/billing/paddleBilling").reconcile(email);
+  }
+  if (!isStripeConfigured()) return;
   const acct = await getAccount(email);
 
   if (acct.subscription_status === "comped") {
@@ -253,6 +260,26 @@ const reconcileAccount = async (email) => {
   }
 };
 
+/**
+ * Cancel the account's live subscription on the ACTIVE provider (best-effort).
+ * Used before an admin/promo comp so the customer stops being charged for the
+ * plan the comp replaces. Dispatches by BILLING_PROVIDER.
+ */
+const cancelActiveSubscription = async (email) => {
+  const { isPaddleActive } = require("./billingProvider");
+  if (isPaddleActive()) {
+    return require("../main/billing/paddleBilling").cancelLiveSubscription(email);
+  }
+  const acct = await getAccount(email);
+  if (acct?.stripe_subscription_id && isStripeConfigured()) {
+    try {
+      await stripe.subscriptions.cancel(acct.stripe_subscription_id);
+    } catch (e) {
+      console.error("cancelActiveSubscription stripe (non-fatal):", e.message);
+    }
+  }
+};
+
 module.exports = {
   ownerEmailOfTenant,
   getAccount,
@@ -262,4 +289,5 @@ module.exports = {
   resetAccountToFree,
   applyAccountSubscription,
   reconcileAccount,
+  cancelActiveSubscription,
 };

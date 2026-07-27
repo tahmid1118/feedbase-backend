@@ -274,7 +274,8 @@
     "plan_change_failed": "Couldn't change the plan. Please try again.",
     "owner_comment_pro": "Replying to feedback as the workspace owner requires the Pro plan or higher. Please upgrade.",
     "subscription_cancelled": "Subscription cancelled — it ends at the end of your billing period.",
-    "subscription_resumed": "Subscription resumed — it will renew as usual."
+    "subscription_resumed": "Subscription resumed — it will renew as usual.",
+    "downgrade_via_portal": "To downgrade, open Manage billing."
   },
   "de": {
     "success": "Erfolg",
@@ -304,7 +305,9 @@
     "plan_change_failed": "Tarif konnte nicht geändert werden. Bitte erneut versuchen.",
     "owner_comment_pro": "Auf Feedback als Workspace-Inhaber zu antworten erfordert den Pro-Tarif oder höher. Bitte upgraden.",
     "subscription_cancelled": "Abo gekündigt – es endet am Ende deines Abrechnungszeitraums.",
-    "subscription_resumed": "Abo fortgesetzt – es wird wie gewohnt verlängert."
+    "subscription_resumed": "Abo fortgesetzt – es wird wie gewohnt verlängert.",
+    "downgrade_via_portal": "Zum Herabstufen bitte „Abrechnung verwalten“ verwenden.",
+    "failed_to_create_checkout": "Checkout konnte nicht gestartet werden. Bitte versuche es erneut."
   },
   "fr": {
     "success": "Succès",
@@ -334,7 +337,9 @@
     "plan_change_failed": "Impossible de changer de forfait. Veuillez réessayer.",
     "owner_comment_pro": "Répondre aux retours en tant que propriétaire de l'espace de travail nécessite le forfait Pro ou supérieur. Veuillez mettre à niveau.",
     "subscription_cancelled": "Abonnement annulé — il se termine à la fin de votre période de facturation.",
-    "subscription_resumed": "Abonnement repris — il se renouvellera normalement."
+    "subscription_resumed": "Abonnement repris — il se renouvellera normalement.",
+    "downgrade_via_portal": "Pour rétrograder, utilisez « Gérer la facturation ».",
+    "failed_to_create_checkout": "Impossible de démarrer le paiement. Réessayez."
   },
   "es": {
     "success": "Éxito",
@@ -364,7 +369,9 @@
     "plan_change_failed": "No se pudo cambiar el plan. Inténtalo de nuevo.",
     "owner_comment_pro": "Responder a los comentarios como propietario del espacio de trabajo requiere el plan Pro o superior. Actualiza tu plan.",
     "subscription_cancelled": "Suscripción cancelada: finaliza al término de tu período de facturación.",
-    "subscription_resumed": "Suscripción reanudada: se renovará con normalidad."
+    "subscription_resumed": "Suscripción reanudada: se renovará con normalidad.",
+    "downgrade_via_portal": "Para bajar de plan, usa «Gestionar facturación».",
+    "failed_to_create_checkout": "No se pudo iniciar el pago. Inténtalo de nuevo."
   },
   "it": {
     "success": "Successo",
@@ -394,7 +401,9 @@
     "plan_change_failed": "Impossibile modificare il piano. Riprova.",
     "owner_comment_pro": "Rispondere ai feedback come proprietario dello spazio di lavoro richiede il piano Pro o superiore. Esegui l'upgrade.",
     "subscription_cancelled": "Abbonamento annullato: termina alla fine del periodo di fatturazione.",
-    "subscription_resumed": "Abbonamento ripreso: si rinnoverà normalmente."
+    "subscription_resumed": "Abbonamento ripreso: si rinnoverà normalmente.",
+    "downgrade_via_portal": "Per effettuare il downgrade, usa «Gestisci fatturazione».",
+    "failed_to_create_checkout": "Impossibile avviare il pagamento. Riprova."
   },
   "pt": {
     "success": "Sucesso",
@@ -424,7 +433,9 @@
     "plan_change_failed": "Não foi possível alterar o plano. Tente novamente.",
     "owner_comment_pro": "Responder a feedback como proprietário do espaço de trabalho requer o plano Pro ou superior. Faça upgrade.",
     "subscription_cancelled": "Assinatura cancelada — termina no fim do seu período de faturamento.",
-    "subscription_resumed": "Assinatura retomada — será renovada normalmente."
+    "subscription_resumed": "Assinatura retomada — será renovada normalmente.",
+    "downgrade_via_portal": "Para fazer downgrade, use «Gerenciar cobrança».",
+    "failed_to_create_checkout": "Não foi possível iniciar o checkout. Tente novamente."
   },
   "nl": {
     "success": "Succes",
@@ -454,7 +465,9 @@
     "plan_change_failed": "Kon het abonnement niet wijzigen. Probeer het opnieuw.",
     "owner_comment_pro": "Reageren op feedback als eigenaar van de werkruimte vereist het Pro-abonnement of hoger. Upgrade alstublieft.",
     "subscription_cancelled": "Abonnement opgezegd — het eindigt aan het einde van je factureringsperiode.",
-    "subscription_resumed": "Abonnement hervat — het wordt normaal verlengd."
+    "subscription_resumed": "Abonnement hervat — het wordt normaal verlengd.",
+    "downgrade_via_portal": "Gebruik 'Facturering beheren' om te downgraden.",
+    "failed_to_create_checkout": "Kan afrekenen niet starten. Probeer opnieuw."
   },
   "pl": {
     "success": "Sukces",
@@ -484,6 +497,8 @@
     "plan_change_failed": "Nie udało się zmienić planu. Spróbuj ponownie.",
     "owner_comment_pro": "Odpowiadanie na opinie jako właściciel obszaru roboczego wymaga planu Pro lub wyższego. Ulepsz plan.",
     "subscription_cancelled": "Subskrypcja anulowana — kończy się z końcem okresu rozliczeniowego.",
-    "subscription_resumed": "Subskrypcja wznowiona — odnowi się normalnie."
+    "subscription_resumed": "Subskrypcja wznowiona — odnowi się normalnie.",
+    "downgrade_via_portal": "Aby obniżyć plan, użyj „Zarządzaj płatnościami”.",
+    "failed_to_create_checkout": "Nie udało się rozpocząć płatności. Spróbuj ponownie."
   }
 }

@@ -1,8 +1,7 @@
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
-const { stripe, isStripeConfigured } = require("../../common/stripe");
-const { getAccount, setAccountPlan } = require("../../common/accountBilling");
+const { setAccountPlan, cancelActiveSubscription } = require("../../common/accountBilling");
 
 /**
  * Redeem a promo code for the authenticated ACCOUNT (owner only). A free-plan
@@ -60,19 +59,10 @@ const redeemPromo = async (code, authData) => {
               Date.now() + (promo.duration_months || 1) * 30 * 24 * 60 * 60 * 1000
             );
 
-      // If the ACCOUNT is on a live paid Stripe subscription, cancel it before
-      // comping — otherwise Stripe keeps charging while the app shows a comped
-      // plan (and reconcileAccount then skips comped accounts forever). Mirrors
-      // the admin comp path in admin/workspaces.js.
-      const acct = await getAccount(email);
-      if (acct?.stripe_subscription_id && isStripeConfigured()) {
-        try {
-          await stripe.subscriptions.cancel(acct.stripe_subscription_id);
-        } catch (e) {
-          // Already cancelled / not found is fine — we clear it locally anyway.
-          console.error("promo free-plan comp: cancel sub (non-fatal):", e.message);
-        }
-      }
+      // If the ACCOUNT has a live paid subscription on the active provider, cancel
+      // it before comping — otherwise the provider keeps charging while the app
+      // shows a comped plan (and reconcileAccount then skips comped accounts).
+      await cancelActiveSubscription(email);
 
       // Comp the account → mirrors onto every workspace it owns.
       await setAccountPlan(email, {
@@ -80,6 +70,7 @@ const redeemPromo = async (code, authData) => {
         subscription_status: "comped",
         billing_interval: null,
         stripe_subscription_id: null,
+        paddle_subscription_id: null,
         current_period_end: periodEnd,
         pending_plan: null,
         pending_interval: null,

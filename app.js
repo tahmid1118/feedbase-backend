@@ -39,6 +39,7 @@ const { adminRouter } = require("./src/routes/admin/adminRoute");
 const { invitationRouter } = require("./src/routes/invitations/invitationRoute");
 const { supportRouter } = require("./src/routes/support/supportRoute");
 const { stripeWebhookRouter } = require("./src/routes/webhooks/stripeWebhookRoute");
+const { paddleWebhookRouter } = require("./src/routes/webhooks/paddleWebhookRoute");
 // --- Middleware ---
 
 // Behind a reverse proxy / load balancer (nginx, Cloudflare, a PaaS router) the
@@ -128,6 +129,12 @@ app.use(
   "/webhooks/stripe",
   express.raw({ type: "application/json" }),
   stripeWebhookRouter
+);
+// Paddle webhooks likewise need the RAW body for signature verification.
+app.use(
+  "/webhooks/paddle",
+  express.raw({ type: "application/json" }),
+  paddleWebhookRouter
 );
 
 // Single JSON body parser (express.json IS body-parser.json — no need for both).
