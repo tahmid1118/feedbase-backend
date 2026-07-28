@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **Keep `API_FULL_LIST.md` current.** Whenever you add, remove, or change an endpoint (path, method, request/response shape, or auth), update the canonical API reference *in the same change*. It lives **only** in the frontend repo (`D:\Development\Frontend\feedbase\API_FULL_LIST.md`) — this backend repo no longer keeps its own copy. A drifted list is a bug.
 
+> **Keep the legal documents current.** If a change alters behaviour the legal pages describe — data handling/retention, auth sessions & cookies, billing/refunds/cancellation, account deletion, sub-processors/third parties (e.g. the payment provider or email service), or what personal data is stored — update the affected policy *in the same change*. The pages live in the **frontend** repo at `D:\Development\Frontend\feedbase\app\legal\{terms,privacy,cookies,refunds}`; also bump `lib/legal.ts` `lastUpdated`. These pages are legally operative — a policy that no longer matches actual behaviour is a real liability, not just a docs bug, so a backend change that affects them is not done until they're updated (commit + push both repos).
+
 > **Always push after a change.** After completing and verifying a change, commit it and `git push` to the GitHub remote — do not leave finished work uncommitted or unpushed. The frontend and backend are separate repos; when a task touches both, commit and push **both**. (This guards against the working tree being reverted between sessions.)
 
 ## Commands
