@@ -13,6 +13,7 @@
  *    to the Paddle customer portal, where Paddle schedules them to renewal.
  *  - Cancel-at-period-end + resume are native (scheduledChange action 'cancel').
  */
+const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { paddle, isPaddleConfigured } = require("../../common/paddle");
@@ -194,7 +195,29 @@ const loadForChange = async (authData) => {
   return { email, lg, subId: acct.paddle_subscription_id, curPlan: acct.plan_name || "free", curInterval: acct.billing_interval || "month" };
 };
 
-/** Preview a change. Upgrade → prorated charge now; downgrade → via portal (no in-app preview). */
+/**
+ * The exact amount charged TODAY for a subscription update (minor units) + the
+ * currency, read from the preview's immediate transaction — the authoritative,
+ * tax-inclusive, credit-applied figure (matches what `update` will charge). Falls
+ * back to the update-summary net, then 0 (e.g. a downgrade billed next period).
+ */
+const previewAmountDueNow = (preview) => {
+  const totals = preview.immediateTransaction?.details?.totals;
+  if (totals?.grandTotal != null) {
+    return { amount: Math.max(0, Number(totals.grandTotal)), currency: (totals.currencyCode || "USD").toUpperCase() };
+  }
+  const r = preview.updateSummary?.result;
+  if (r?.action === "charge") {
+    return { amount: Math.max(0, Number(r.amount)), currency: (r.currencyCode || "USD").toUpperCase() };
+  }
+  return { amount: 0, currency: (preview.currencyCode || "USD").toUpperCase() };
+};
+
+/**
+ * Preview a change. UPGRADE → the exact prorated charge now (prorated_immediately).
+ * DOWNGRADE → applied at renewal with `prorated_next_billing_period` (no charge
+ * now, unused time credited to the next bill), so `amountDueNow` is 0.
+ */
 const previewChange = async (plan, interval, authData) => {
   try {
     const c = await loadForChange(authData);
@@ -203,32 +226,21 @@ const previewChange = async (plan, interval, authData) => {
     if (direction === "same") {
       return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "already_on_plan", c.lg));
     }
-    if (direction === "downgrade") {
-      // Paddle downgrades are handled in its portal (scheduled to renewal). Signal
-      // the client to route through "Manage billing" rather than an in-app charge.
-      return Promise.resolve(
-        setServerResponse(API_STATUS_CODE.OK, "plan_change_previewed", c.lg, {
-          direction: "downgrade",
-          viaPortal: true,
-          amountDueNow: 0,
-          currency: "USD",
-          immediate: false,
-        })
-      );
-    }
     const priceId = paddlePriceIdFor(plan, billingInterval);
+    const prorationBillingMode = direction === "upgrade" ? "prorated_immediately" : "prorated_next_billing_period";
     const preview = await paddle.subscriptions.previewUpdate(c.subId, {
       items: [{ priceId, quantity: 1 }],
-      prorationBillingMode: "prorated_immediately",
+      prorationBillingMode,
     });
-    const r = preview.updateSummary?.result;
-    const amountDueNow = r?.action === "charge" ? Math.max(0, Number(r.amount)) : 0;
+    const { amount, currency } = previewAmountDueNow(preview);
     return Promise.resolve(
       setServerResponse(API_STATUS_CODE.OK, "plan_change_previewed", c.lg, {
-        direction: "upgrade",
-        amountDueNow,
-        currency: (r?.currencyCode || "USD").toUpperCase(),
-        immediate: true,
+        direction,
+        amountDueNow: amount,
+        currency,
+        // A downgrade takes effect at the next renewal (nextBilledAt); upgrades now.
+        effectiveAt: direction === "downgrade" ? preview.nextBilledAt || null : null,
+        immediate: direction === "upgrade",
       })
     );
   } catch (error) {
@@ -238,7 +250,13 @@ const previewChange = async (plan, interval, authData) => {
   }
 };
 
-/** Apply a change. Upgrade = prorated immediately; downgrade = rejected (use portal). */
+/**
+ * Apply a change. UPGRADE → `prorated_immediately` (charges the prorated diff now;
+ * `on_payment_failure` defaults to `prevent_change`, so the plan only switches if
+ * the charge succeeds). DOWNGRADE → `prorated_next_billing_period` (switches now,
+ * no charge, unused time credited to the next bill — Paddle can't defer an item
+ * change to period end, so this is the money-safe in-app pattern).
+ */
 const applyChange = async (plan, interval, authData) => {
   let c;
   try {
@@ -252,19 +270,16 @@ const applyChange = async (plan, interval, authData) => {
   if (direction === "same") {
     return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "already_on_plan", c.lg));
   }
-  if (direction === "downgrade") {
-    return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "downgrade_via_portal", c.lg));
-  }
   try {
     const priceId = paddlePriceIdFor(plan, billingInterval);
     await paddle.subscriptions.update(c.subId, {
       items: [{ priceId, quantity: 1 }],
-      prorationBillingMode: "prorated_immediately",
+      prorationBillingMode: direction === "upgrade" ? "prorated_immediately" : "prorated_next_billing_period",
     });
     await reconcile(c.email);
     return Promise.resolve(
-      setServerResponse(API_STATUS_CODE.OK, "plan_changed", c.lg, {
-        direction: "upgrade",
+      setServerResponse(API_STATUS_CODE.OK, direction === "upgrade" ? "plan_changed" : "plan_change_scheduled", c.lg, {
+        direction,
         plan,
         interval: billingInterval,
       })
@@ -275,9 +290,8 @@ const applyChange = async (plan, interval, authData) => {
   }
 };
 
-/** No in-app pending schedule for Paddle (downgrades go via portal) — clear + ok. */
+/** Paddle has no in-app pending schedule (downgrades apply immediately) — no-op ok. */
 const cancelScheduledChange = async (authData) => {
-  await setAccountPlan(authData.email, { pending_plan: null, pending_interval: null, pending_effective_at: null }).catch(() => {});
   return Promise.resolve(setServerResponse(API_STATUS_CODE.OK, "plan_change_cancelled", authData.lg, { ok: true }));
 };
 
@@ -374,7 +388,19 @@ const handleWebhook = async (rawBody, signature) => {
   try {
     if (event?.eventType && event.eventType.startsWith("subscription.")) {
       const sub = event.data;
-      const email = sub?.customData?.accountEmail || null;
+      // Attribute the event to an account: the checkout stamps customData.
+      // accountEmail (copied onto the subscription); fall back to the owning
+      // account by the Paddle subscription/customer id we've stored.
+      let email = sub?.customData?.accountEmail || null;
+      if (!email && (sub?.id || sub?.customerId)) {
+        const [rows] = await pool.query(
+          "SELECT email FROM billing_accounts WHERE paddle_subscription_id = ? OR paddle_customer_id = ? LIMIT 1",
+          [sub?.id || null, sub?.customerId || null]
+        );
+        email = rows[0]?.email || null;
+      }
+      // reconcile() re-reads the live subscription and upserts — naturally
+      // idempotent, so at-least-once delivery / retries are safe.
       if (email) await reconcile(email);
     }
   } catch (err) {
