@@ -130,6 +130,27 @@ const reconcile = async (email) => {
     }
     return;
   }
+
+  // Scheduled (pending) downgrade in flight: the Paddle item was already switched to
+  // the lower plan (with do_not_bill, so billing continues on the current period and
+  // the next renewal auto-bills the lower price), but the customer keeps their
+  // current (higher) plan in-app until the paid period ends. Until then, DON'T mirror
+  // Paddle's lower plan onto the account — only refresh status/period/ids and keep
+  // the pending markers. Once the effective date passes, fall through and apply it.
+  const pendingActive =
+    acct?.pending_plan &&
+    acct?.pending_effective_at &&
+    new Date(acct.pending_effective_at) > new Date();
+  if (pendingActive) {
+    await setAccountPlan(email, {
+      subscription_status: sub.status,
+      current_period_end: acct.current_period_end || sub.currentPeriodEnd,
+      paddle_subscription_id: sub.subscriptionId,
+      paddle_customer_id: sub.customerId,
+    });
+    return;
+  }
+
   await setAccountPlan(email, {
     plan_name: sub.planName,
     subscription_status: sub.status,
@@ -137,7 +158,8 @@ const reconcile = async (email) => {
     current_period_end: sub.currentPeriodEnd,
     paddle_subscription_id: sub.subscriptionId,
     paddle_customer_id: sub.customerId,
-    // Paddle handles scheduled downgrades in its portal, so no pending_* here.
+    // A scheduled downgrade has now taken effect (Paddle already shows the lower
+    // plan) — clear the pending markers.
     pending_plan: null,
     pending_interval: null,
     pending_effective_at: null,
@@ -192,7 +214,14 @@ const loadForChange = async (authData) => {
   if (!acct?.paddle_subscription_id || acct.subscription_status === "comped") {
     throw setServerResponse(API_STATUS_CODE.BAD_REQUEST, "no_active_subscription", lg);
   }
-  return { email, lg, subId: acct.paddle_subscription_id, curPlan: acct.plan_name || "free", curInterval: acct.billing_interval || "month" };
+  return {
+    email,
+    lg,
+    subId: acct.paddle_subscription_id,
+    curPlan: acct.plan_name || "free",
+    curInterval: acct.billing_interval || "month",
+    periodEnd: acct.current_period_end || null,
+  };
 };
 
 /**
@@ -215,8 +244,11 @@ const previewAmountDueNow = (preview) => {
 
 /**
  * Preview a change. UPGRADE → the exact prorated charge now (prorated_immediately).
- * DOWNGRADE → applied at renewal with `prorated_next_billing_period` (no charge
- * now, unused time credited to the next bill), so `amountDueNow` is 0.
+ * DOWNGRADE → takes effect at the END of the current paid period: no charge now,
+ * no refund, the customer keeps their current (higher) plan until `periodEnd`, then
+ * the lower plan applies. So `amountDueNow` is 0 and `effectiveAt` is the period end.
+ * (We do NOT call Paddle's preview for a downgrade — `prorated_next_billing_period`
+ * rejects interval changes outright, and there's no charge to preview anyway.)
  */
 const previewChange = async (plan, interval, authData) => {
   try {
@@ -226,11 +258,22 @@ const previewChange = async (plan, interval, authData) => {
     if (direction === "same") {
       return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "already_on_plan", c.lg));
     }
+    if (direction === "downgrade") {
+      return Promise.resolve(
+        setServerResponse(API_STATUS_CODE.OK, "plan_change_previewed", c.lg, {
+          direction,
+          amountDueNow: 0,
+          currency: "USD",
+          effectiveAt: c.periodEnd || null,
+          immediate: false,
+        })
+      );
+    }
+    // Upgrade — charged now, prorated. Preview the exact tax-inclusive figure.
     const priceId = paddlePriceIdFor(plan, billingInterval);
-    const prorationBillingMode = direction === "upgrade" ? "prorated_immediately" : "prorated_next_billing_period";
     const preview = await paddle.subscriptions.previewUpdate(c.subId, {
       items: [{ priceId, quantity: 1 }],
-      prorationBillingMode,
+      prorationBillingMode: "prorated_immediately",
     });
     const { amount, currency } = previewAmountDueNow(preview);
     return Promise.resolve(
@@ -238,9 +281,8 @@ const previewChange = async (plan, interval, authData) => {
         direction,
         amountDueNow: amount,
         currency,
-        // A downgrade takes effect at the next renewal (nextBilledAt); upgrades now.
-        effectiveAt: direction === "downgrade" ? preview.nextBilledAt || null : null,
-        immediate: direction === "upgrade",
+        effectiveAt: null,
+        immediate: true,
       })
     );
   } catch (error) {
@@ -251,11 +293,22 @@ const previewChange = async (plan, interval, authData) => {
 };
 
 /**
- * Apply a change. UPGRADE → `prorated_immediately` (charges the prorated diff now;
- * `on_payment_failure` defaults to `prevent_change`, so the plan only switches if
- * the charge succeeds). DOWNGRADE → `prorated_next_billing_period` (switches now,
- * no charge, unused time credited to the next bill — Paddle can't defer an item
- * change to period end, so this is the money-safe in-app pattern).
+ * Apply a change.
+ *  - UPGRADE → `prorated_immediately` (charges the prorated diff now; `on_payment_
+ *    failure` defaults to `prevent_change`, so the plan only switches if the charge
+ *    succeeds). Takes effect immediately.
+ *  - DOWNGRADE (same billing interval) → the customer keeps their current (higher)
+ *    plan until the END of the paid period, then the lower plan applies — no charge,
+ *    no refund. Paddle has no scheduled plan change, so we switch the Paddle item
+ *    now with `do_not_bill` (verified: no charge/refund, billing date preserved, so
+ *    the next renewal auto-bills the lower price) but keep the account's in-app plan
+ *    at the current tier until `periodEnd` via the pending_* markers. `reconcile`
+ *    holds the higher plan until the effective date, then flips to the lower one.
+ *  - DOWNGRADE that also shortens the interval (yearly → monthly) → rejected here:
+ *    Paddle can't preserve a paid year across an interval change (do_not_bill resets
+ *    the period; pinning next_billed_at is ignored) and can't defer it, so it can't
+ *    be applied without either forfeiting the paid year or a surprise renewal charge.
+ *    The client hides this CTA; the guard is the server-side backstop.
  */
 const applyChange = async (plan, interval, authData) => {
   let c;
@@ -270,18 +323,41 @@ const applyChange = async (plan, interval, authData) => {
   if (direction === "same") {
     return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "already_on_plan", c.lg));
   }
+  const intervalChanged = billingInterval !== c.curInterval;
+  if (direction === "downgrade" && intervalChanged) {
+    return Promise.reject(
+      setServerResponse(API_STATUS_CODE.BAD_REQUEST, "downgrade_interval_unsupported", c.lg)
+    );
+  }
   try {
     const priceId = paddlePriceIdFor(plan, billingInterval);
+    if (direction === "upgrade") {
+      await paddle.subscriptions.update(c.subId, {
+        items: [{ priceId, quantity: 1 }],
+        prorationBillingMode: "prorated_immediately",
+      });
+      await reconcile(c.email);
+      return Promise.resolve(
+        setServerResponse(API_STATUS_CODE.OK, "plan_changed", c.lg, { direction, plan, interval: billingInterval })
+      );
+    }
+    // Same-interval downgrade → switch Paddle now (no charge/refund, period kept),
+    // but keep the current (higher) plan in-app until the paid period ends.
     await paddle.subscriptions.update(c.subId, {
       items: [{ priceId, quantity: 1 }],
-      prorationBillingMode: direction === "upgrade" ? "prorated_immediately" : "prorated_next_billing_period",
+      prorationBillingMode: "do_not_bill",
     });
-    await reconcile(c.email);
+    await setAccountPlan(c.email, {
+      pending_plan: plan,
+      pending_interval: billingInterval,
+      pending_effective_at: c.periodEnd,
+    });
     return Promise.resolve(
-      setServerResponse(API_STATUS_CODE.OK, direction === "upgrade" ? "plan_changed" : "plan_change_scheduled", c.lg, {
+      setServerResponse(API_STATUS_CODE.OK, "plan_change_scheduled", c.lg, {
         direction,
         plan,
         interval: billingInterval,
+        effectiveAt: c.periodEnd || null,
       })
     );
   } catch (error) {
@@ -290,9 +366,41 @@ const applyChange = async (plan, interval, authData) => {
   }
 };
 
-/** Paddle has no in-app pending schedule (downgrades apply immediately) — no-op ok. */
+/**
+ * Cancel a scheduled (pending) downgrade before it takes effect: switch the Paddle
+ * item back to the current in-app (higher) plan with `do_not_bill` and clear the
+ * pending markers. No-op if there's no pending change.
+ */
 const cancelScheduledChange = async (authData) => {
-  return Promise.resolve(setServerResponse(API_STATUS_CODE.OK, "plan_change_cancelled", authData.lg, { ok: true }));
+  let c;
+  try {
+    c = await loadForChange(authData);
+  } catch (error) {
+    if (error?.statusCode) return Promise.reject(error);
+    return Promise.reject(setServerResponse(API_STATUS_CODE.INTERNAL_SERVER_ERROR, "plan_change_failed", authData.lg));
+  }
+  const acct = await getAccount(c.email);
+  if (!acct?.pending_plan) {
+    return Promise.resolve(setServerResponse(API_STATUS_CODE.OK, "plan_change_cancelled", c.lg, { ok: true }));
+  }
+  try {
+    const priceId = paddlePriceIdFor(c.curPlan, c.curInterval);
+    if (priceId) {
+      await paddle.subscriptions.update(c.subId, {
+        items: [{ priceId, quantity: 1 }],
+        prorationBillingMode: "do_not_bill",
+      });
+    }
+    await setAccountPlan(c.email, {
+      pending_plan: null,
+      pending_interval: null,
+      pending_effective_at: null,
+    });
+    return Promise.resolve(setServerResponse(API_STATUS_CODE.OK, "plan_change_cancelled", c.lg, { ok: true }));
+  } catch (error) {
+    console.error("paddle cancelScheduledChange error:", error.message);
+    return Promise.reject(setServerResponse(API_STATUS_CODE.INTERNAL_SERVER_ERROR, "plan_change_failed", c.lg));
+  }
 };
 
 /** Cancel at period end (scheduledChange 'cancel'). */
