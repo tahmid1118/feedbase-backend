@@ -23,6 +23,7 @@ const shape = (row) => {
     label: row.label || null,
     endsAt: row.ends_at || null,
     stripeCouponId: row.stripe_coupon_id || null,
+    paddleDiscountId: row.paddle_discount_id || null,
   };
 };
 
@@ -40,8 +41,9 @@ const getActiveOffers = async () => {
     const o = shape(r);
     byPlan[o.plan] = byPlan[o.plan] || {};
     if (byPlan[o.plan][o.interval]) continue; // keep the most recent
-    const { stripeCouponId, ...pub } = o;
+    const { stripeCouponId, paddleDiscountId, ...pub } = o;
     void stripeCouponId;
+    void paddleDiscountId;
     byPlan[o.plan][o.interval] = pub;
   }
   return byPlan;

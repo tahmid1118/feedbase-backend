@@ -2,6 +2,7 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { setAccountPlan, cancelActiveSubscription } = require("../../common/accountBilling");
+const { isPaddleActive } = require("../../common/billingProvider");
 
 /**
  * Redeem a promo code for the authenticated ACCOUNT (owner only). A free-plan
@@ -94,13 +95,17 @@ const redeemPromo = async (code, authData) => {
       );
     }
 
-    // percent_off: the client applies this at Checkout.
+    // percent_off: the client passes this back into checkout, where the ACTIVE
+    // provider applies it (Paddle discount id, or Stripe promotion code id).
+    const promotionCode = isPaddleActive()
+      ? promo.paddle_discount_id
+      : promo.stripe_promotion_code_id;
     return Promise.resolve(
       setServerResponse(API_STATUS_CODE.OK, "promo_code_valid", lg, {
         type: "percent_off",
         percentOff: promo.percent_off,
         appliesToPlan: promo.applies_to_plan,
-        promotionCode: promo.stripe_promotion_code_id,
+        promotionCode,
       })
     );
   } catch (error) {

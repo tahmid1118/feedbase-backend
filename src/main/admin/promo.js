@@ -2,6 +2,8 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { stripe, isStripeConfigured } = require("../../common/stripe");
+const { isPaddleActive } = require("../../common/billingProvider");
+const { createPaddlePromoDiscount, archivePaddleDiscount } = require("../../common/discounts");
 
 const CODE_RE = /^[A-Z0-9_-]{3,64}$/;
 const DURATIONS = ["once", "repeating", "forever"];
@@ -56,6 +58,7 @@ const createPromoCode = async (data, adminId, lg) => {
     let planGrant = null;
     let stripeCouponId = null;
     let stripePromotionCodeId = null;
+    let paddleDiscountId = null;
 
     if (type === "percent_off") {
       percentOff = Math.max(1, Math.min(100, Number(data?.percentOff) || 0));
@@ -65,25 +68,39 @@ const createPromoCode = async (data, adminId, lg) => {
       appliesToPlan = ["any", "pro", "business"].includes(data?.appliesToPlan)
         ? data.appliesToPlan
         : "any";
-      if (!isStripeConfigured()) {
-        return Promise.reject(
-          setServerResponse(API_STATUS_CODE.INTERNAL_SERVER_ERROR, "stripe_not_configured", lg)
-        );
+      // Back the code with a discount on the ACTIVE provider. It's applied at
+      // checkout by id (redeemed in-app), never typed into the provider's overlay.
+      if (isPaddleActive()) {
+        paddleDiscountId = await createPaddlePromoDiscount({
+          code,
+          percentOff,
+          duration,
+          durationMonths,
+          maxRedemptions,
+          expiresAt,
+          appliesToPlan,
+        });
+      } else {
+        if (!isStripeConfigured()) {
+          return Promise.reject(
+            setServerResponse(API_STATUS_CODE.INTERNAL_SERVER_ERROR, "stripe_not_configured", lg)
+          );
+        }
+        const coupon = await stripe.coupons.create({
+          percent_off: percentOff,
+          duration,
+          ...(duration === "repeating" ? { duration_in_months: durationMonths } : {}),
+          name: `Promo ${code}`,
+        });
+        const promo = await stripe.promotionCodes.create({
+          coupon: coupon.id,
+          code,
+          ...(maxRedemptions ? { max_redemptions: maxRedemptions } : {}),
+          ...(expiresAt ? { expires_at: Math.floor(expiresAt.getTime() / 1000) } : {}),
+        });
+        stripeCouponId = coupon.id;
+        stripePromotionCodeId = promo.id;
       }
-      const coupon = await stripe.coupons.create({
-        percent_off: percentOff,
-        duration,
-        ...(duration === "repeating" ? { duration_in_months: durationMonths } : {}),
-        name: `Promo ${code}`,
-      });
-      const promo = await stripe.promotionCodes.create({
-        coupon: coupon.id,
-        code,
-        ...(maxRedemptions ? { max_redemptions: maxRedemptions } : {}),
-        ...(expiresAt ? { expires_at: Math.floor(expiresAt.getTime() / 1000) } : {}),
-      });
-      stripeCouponId = coupon.id;
-      stripePromotionCodeId = promo.id;
     } else {
       planGrant = ["pro", "business"].includes(data?.planGrant) ? data.planGrant : null;
       if (!planGrant) {
@@ -95,12 +112,12 @@ const createPromoCode = async (data, adminId, lg) => {
       `INSERT INTO promo_codes
          (code, type, applies_to_plan, percent_off, plan_grant, duration,
           duration_months, stripe_coupon_id, stripe_promotion_code_id,
-          max_redemptions, expires_at, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          paddle_discount_id, max_redemptions, expires_at, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         code, type, appliesToPlan, percentOff, planGrant, duration,
         durationMonths, stripeCouponId, stripePromotionCodeId,
-        maxRedemptions, expiresAt, adminId,
+        paddleDiscountId, maxRedemptions, expiresAt, adminId,
       ]
     );
     return Promise.resolve(
@@ -117,9 +134,15 @@ const createPromoCode = async (data, adminId, lg) => {
 /** Deactivate a promo code (also disables its Stripe promotion code). */
 const revokePromoCode = async (id, lg) => {
   try {
-    const [rows] = await pool.query("SELECT stripe_promotion_code_id FROM promo_codes WHERE id = ?", [id]);
+    const [rows] = await pool.query(
+      "SELECT stripe_promotion_code_id, paddle_discount_id FROM promo_codes WHERE id = ?",
+      [id]
+    );
     if (rows.length === 0) {
       return Promise.reject(setServerResponse(API_STATUS_CODE.NOT_FOUND, "promo_not_found", lg));
+    }
+    if (rows[0].paddle_discount_id) {
+      await archivePaddleDiscount(rows[0].paddle_discount_id);
     }
     if (rows[0].stripe_promotion_code_id && isStripeConfigured()) {
       try {

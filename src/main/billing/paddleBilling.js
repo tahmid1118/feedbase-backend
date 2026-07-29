@@ -29,6 +29,7 @@ const {
   setAccountPlan,
   resetAccountToFree,
 } = require("../../common/accountBilling");
+const { getActiveOfferForPlanInterval } = require("../../common/offers");
 
 const BILLING_ROLES = ["owner"];
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
@@ -166,8 +167,15 @@ const reconcile = async (email) => {
   });
 };
 
-/** Create a Paddle transaction for checkout; the client opens it as an overlay. */
-const createCheckout = async (plan, authData, _promotionCode, interval) => {
+/**
+ * Create a Paddle transaction for checkout; the client opens it as an overlay.
+ * A discount is auto-applied by id on the transaction (never a code typed into the
+ * overlay): a **redeemed promo code** (`promotionCode` = its `paddle_discount_id`,
+ * re-checked here against the code's plan restriction) takes precedence, else an
+ * **active offer** for this plan+interval. So the buyer is charged the discounted
+ * price exactly, matching what the Billing tab / pricing page advertise.
+ */
+const createCheckout = async (plan, authData, promotionCode, interval) => {
   const { role, email, lg } = authData;
   const billingInterval = interval === "year" ? "year" : "month";
   if (!BILLING_ROLES.includes(role)) {
@@ -180,12 +188,37 @@ const createCheckout = async (plan, authData, _promotionCode, interval) => {
   if (!PLANS[plan] || plan === "free" || !priceId) {
     return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "invalid_plan", lg));
   }
+
+  // Resolve the discount to apply (by id). A promo code's plan restriction is
+  // enforced HERE too — the client sends the discount id, so the server is the only
+  // trustworthy place to reject a code scoped to a different plan.
+  let discountId = null;
+  if (promotionCode) {
+    const [[promoRow]] = await pool.query(
+      "SELECT applies_to_plan FROM promo_codes WHERE paddle_discount_id = ? AND is_active = 1 LIMIT 1",
+      [promotionCode]
+    );
+    if (
+      promoRow &&
+      promoRow.applies_to_plan &&
+      promoRow.applies_to_plan !== "any" &&
+      promoRow.applies_to_plan !== plan
+    ) {
+      return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "promo_plan_mismatch", lg));
+    }
+    discountId = promotionCode;
+  } else {
+    const offer = await getActiveOfferForPlanInterval(plan, billingInterval);
+    if (offer?.paddleDiscountId) discountId = offer.paddleDiscountId;
+  }
+
   try {
     const customerId = await ensurePaddleCustomer(email);
     const txn = await paddle.transactions.create({
       items: [{ priceId, quantity: 1 }],
       customerId,
       customData: { accountEmail: email, plan, interval: billingInterval },
+      ...(discountId ? { discountId } : {}),
     });
     return Promise.resolve(
       setServerResponse(API_STATUS_CODE.OK, "checkout_session_created", lg, {

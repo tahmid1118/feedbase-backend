@@ -2,6 +2,8 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
 const { setServerResponse } = require("../../common/setServerResponse");
 const { stripe, isStripeConfigured } = require("../../common/stripe");
+const { isPaddleActive } = require("../../common/billingProvider");
+const { createPaddleOfferDiscount, archivePaddleDiscount } = require("../../common/discounts");
 const { listPrice } = require("../../consts/plans");
 
 const OFFER_PLANS = ["pro", "business"];
@@ -87,11 +89,20 @@ const createOffer = async (data, adminId, lg) => {
   const endsAt = toLocalDateTime(data?.endsAt, true);
 
   try {
+    // Back the offer with a discount on the ACTIVE provider, auto-applied at
+    // checkout so the customer pays the offer price exactly. Fixed amount-off (not
+    // percent) so a fractional offer price bills EXACTLY — e.g. $12.50 off a $15
+    // plan bills $12.50, not a rounded ~17%. Non-fatal: the offer still records.
     let stripeCouponId = null;
-    if (isStripeConfigured()) {
+    let paddleDiscountId = null;
+    if (isPaddleActive()) {
       try {
-        // Fixed amount-off (not percent) so a fractional offer price is charged
-        // EXACTLY — e.g. $12.50 off a $15 plan bills $12.50, not a rounded ~17%.
+        paddleDiscountId = await createPaddleOfferDiscount({ plan, interval, originalPrice, offerPrice });
+      } catch (e) {
+        console.error("offer paddle discount create failed (non-fatal):", e.message);
+      }
+    } else if (isStripeConfigured()) {
+      try {
         const amountOff = Math.round((originalPrice - offerPrice) * 100);
         const coupon = await stripe.coupons.create({
           amount_off: amountOff,
@@ -112,9 +123,9 @@ const createOffer = async (data, adminId, lg) => {
     );
 
     const [result] = await pool.query(
-      `INSERT INTO offers (plan, billing_interval, offer_price, label, starts_at, ends_at, stripe_coupon_id, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [plan, interval, offerPrice, label, startsAt, endsAt, stripeCouponId, adminId]
+      `INSERT INTO offers (plan, billing_interval, offer_price, label, starts_at, ends_at, stripe_coupon_id, paddle_discount_id, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [plan, interval, offerPrice, label, startsAt, endsAt, stripeCouponId, paddleDiscountId, adminId]
     );
     return Promise.resolve(
       setServerResponse(API_STATUS_CODE.CREATED, "offer_created", lg, { id: result.insertId })
@@ -130,9 +141,15 @@ const createOffer = async (data, adminId, lg) => {
 /** Deactivate an offer (also deletes its Stripe coupon). */
 const deactivateOffer = async (id, lg) => {
   try {
-    const [rows] = await pool.query("SELECT stripe_coupon_id FROM offers WHERE id = ?", [id]);
+    const [rows] = await pool.query(
+      "SELECT stripe_coupon_id, paddle_discount_id FROM offers WHERE id = ?",
+      [id]
+    );
     if (rows.length === 0) {
       return Promise.reject(setServerResponse(API_STATUS_CODE.NOT_FOUND, "offer_not_found", lg));
+    }
+    if (rows[0].paddle_discount_id) {
+      await archivePaddleDiscount(rows[0].paddle_discount_id);
     }
     if (rows[0].stripe_coupon_id && isStripeConfigured()) {
       try {
