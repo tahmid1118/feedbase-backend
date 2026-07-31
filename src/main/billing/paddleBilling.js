@@ -356,8 +356,11 @@ const applyChange = async (plan, interval, authData) => {
   if (direction === "same") {
     return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "already_on_plan", c.lg));
   }
+  // The only interval change we support in-app is same-tier monthly→yearly (an
+  // upgrade, prorated now). Reject any yearly→monthly move (can't preserve the paid
+  // year) and any downgrade that also changes interval — do one change at a time.
   const intervalChanged = billingInterval !== c.curInterval;
-  if (direction === "downgrade" && intervalChanged) {
+  if (intervalChanged && (direction === "downgrade" || c.curInterval === "year")) {
     return Promise.reject(
       setServerResponse(API_STATUS_CODE.BAD_REQUEST, "downgrade_interval_unsupported", c.lg)
     );
