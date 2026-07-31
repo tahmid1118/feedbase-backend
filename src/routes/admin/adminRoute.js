@@ -29,6 +29,7 @@ const {
   listPromoCodes,
   createPromoCode,
   revokePromoCode,
+  reactivatePromoCode,
 } = require("../../main/admin/promo");
 const {
   listOffers,
@@ -186,6 +187,10 @@ adminRouter.post("/promo-codes", (req, res) =>
 );
 adminRouter.put("/promo-codes/:id/revoke", (req, res) =>
   revokePromoCode(req.params.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+
+adminRouter.put("/promo-codes/:id/reactivate", (req, res) =>
+  reactivatePromoCode(req.params.id, req.body, req.admin.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
 );
 
 // Offers

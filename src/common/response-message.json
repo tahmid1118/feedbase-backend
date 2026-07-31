@@ -277,7 +277,9 @@
     "subscription_cancelled": "Subscription cancelled — it ends at the end of your billing period.",
     "subscription_resumed": "Subscription resumed — it will renew as usual.",
     "downgrade_via_portal": "To downgrade, open Manage billing.",
-    "discount_below_minimum": "This discount leaves a total below the minimum amount we can charge. Use a free-plan code to grant the plan at no cost, or lower the discount."
+    "discount_below_minimum": "This discount leaves a total below the minimum amount we can charge. Use a free-plan code to grant the plan at no cost, or lower the discount.",
+    "promo_reactivated": "Promo code reactivated",
+    "promo_already_active": "That promo code is already active"
   },
   "de": {
     "success": "Erfolg",
@@ -311,7 +313,9 @@
     "subscription_resumed": "Abo fortgesetzt – es wird wie gewohnt verlängert.",
     "downgrade_via_portal": "Zum Herabstufen bitte „Abrechnung verwalten“ verwenden.",
     "failed_to_create_checkout": "Checkout konnte nicht gestartet werden. Bitte versuche es erneut.",
-    "discount_below_minimum": "Nach diesem Rabatt liegt der Betrag unter dem Mindestbetrag, den wir abbuchen können. Nutze einen Gratis-Tarif-Code, um den Tarif kostenlos zu gewähren, oder verringere den Rabatt."
+    "discount_below_minimum": "Nach diesem Rabatt liegt der Betrag unter dem Mindestbetrag, den wir abbuchen können. Nutze einen Gratis-Tarif-Code, um den Tarif kostenlos zu gewähren, oder verringere den Rabatt.",
+    "promo_reactivated": "Promo-Code reaktiviert",
+    "promo_already_active": "Dieser Promo-Code ist bereits aktiv"
   },
   "fr": {
     "success": "Succès",
@@ -345,7 +349,9 @@
     "subscription_resumed": "Abonnement repris — il se renouvellera normalement.",
     "downgrade_via_portal": "Pour rétrograder, utilisez « Gérer la facturation ».",
     "failed_to_create_checkout": "Impossible de démarrer le paiement. Réessayez.",
-    "discount_below_minimum": "Après cette remise, le total est inférieur au montant minimum que nous pouvons débiter. Utilisez un code de forfait gratuit pour offrir le forfait, ou réduisez la remise."
+    "discount_below_minimum": "Après cette remise, le total est inférieur au montant minimum que nous pouvons débiter. Utilisez un code de forfait gratuit pour offrir le forfait, ou réduisez la remise.",
+    "promo_reactivated": "Code promo réactivé",
+    "promo_already_active": "Ce code promo est déjà actif"
   },
   "es": {
     "success": "Éxito",
@@ -379,7 +385,9 @@
     "subscription_resumed": "Suscripción reanudada: se renovará con normalidad.",
     "downgrade_via_portal": "Para bajar de plan, usa «Gestionar facturación».",
     "failed_to_create_checkout": "No se pudo iniciar el pago. Inténtalo de nuevo.",
-    "discount_below_minimum": "Con este descuento el total queda por debajo del importe mínimo que podemos cobrar. Usa un código de plan gratuito para conceder el plan sin coste, o reduce el descuento."
+    "discount_below_minimum": "Con este descuento el total queda por debajo del importe mínimo que podemos cobrar. Usa un código de plan gratuito para conceder el plan sin coste, o reduce el descuento.",
+    "promo_reactivated": "Código promocional reactivado",
+    "promo_already_active": "Ese código promocional ya está activo"
   },
   "it": {
     "success": "Successo",
@@ -413,7 +421,9 @@
     "subscription_resumed": "Abbonamento ripreso: si rinnoverà normalmente.",
     "downgrade_via_portal": "Per effettuare il downgrade, usa «Gestisci fatturazione».",
     "failed_to_create_checkout": "Impossibile avviare il pagamento. Riprova.",
-    "discount_below_minimum": "Con questo sconto il totale scende sotto l’importo minimo addebitabile. Usa un codice piano gratuito per concedere il piano senza costi, oppure riduci lo sconto."
+    "discount_below_minimum": "Con questo sconto il totale scende sotto l’importo minimo addebitabile. Usa un codice piano gratuito per concedere il piano senza costi, oppure riduci lo sconto.",
+    "promo_reactivated": "Codice promozionale riattivato",
+    "promo_already_active": "Quel codice promozionale è già attivo"
   },
   "pt": {
     "success": "Sucesso",
@@ -447,7 +457,9 @@
     "subscription_resumed": "Assinatura retomada — será renovada normalmente.",
     "downgrade_via_portal": "Para fazer downgrade, use «Gerenciar cobrança».",
     "failed_to_create_checkout": "Não foi possível iniciar o checkout. Tente novamente.",
-    "discount_below_minimum": "Com este desconto o total fica abaixo do valor mínimo que podemos cobrar. Use um código de plano gratuito para conceder o plano sem custo, ou reduza o desconto."
+    "discount_below_minimum": "Com este desconto o total fica abaixo do valor mínimo que podemos cobrar. Use um código de plano gratuito para conceder o plano sem custo, ou reduza o desconto.",
+    "promo_reactivated": "Código promocional reativado",
+    "promo_already_active": "Esse código promocional já está ativo"
   },
   "nl": {
     "success": "Succes",
@@ -481,7 +493,9 @@
     "subscription_resumed": "Abonnement hervat — het wordt normaal verlengd.",
     "downgrade_via_portal": "Gebruik 'Facturering beheren' om te downgraden.",
     "failed_to_create_checkout": "Kan afrekenen niet starten. Probeer opnieuw.",
-    "discount_below_minimum": "Na deze korting ligt het totaal onder het minimumbedrag dat we kunnen incasseren. Gebruik een gratis-plan-code om het plan kosteloos toe te kennen, of verlaag de korting."
+    "discount_below_minimum": "Na deze korting ligt het totaal onder het minimumbedrag dat we kunnen incasseren. Gebruik een gratis-plan-code om het plan kosteloos toe te kennen, of verlaag de korting.",
+    "promo_reactivated": "Promocode opnieuw geactiveerd",
+    "promo_already_active": "Die promocode is al actief"
   },
   "pl": {
     "success": "Sukces",
@@ -515,6 +529,8 @@
     "subscription_resumed": "Subskrypcja wznowiona — odnowi się normalnie.",
     "downgrade_via_portal": "Aby obniżyć plan, użyj „Zarządzaj płatnościami”.",
     "failed_to_create_checkout": "Nie udało się rozpocząć płatności. Spróbuj ponownie.",
-    "discount_below_minimum": "Po tej zniżce kwota jest niższa niż minimalna, którą możemy pobrać. Użyj kodu darmowego planu, aby przyznać plan bez opłat, albo zmniejsz zniżkę."
+    "discount_below_minimum": "Po tej zniżce kwota jest niższa niż minimalna, którą możemy pobrać. Użyj kodu darmowego planu, aby przyznać plan bez opłat, albo zmniejsz zniżkę.",
+    "promo_reactivated": "Kod promocyjny ponownie aktywowany",
+    "promo_already_active": "Ten kod promocyjny jest już aktywny"
   }
 }
