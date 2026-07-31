@@ -70,39 +70,41 @@ const normalizeSub = (sub) => {
   };
 };
 
-/** A new subscription is eligible for the offer for this long after it starts. */
-const OFFER_ATTACH_WINDOW_MS = 24 * 60 * 60 * 1000;
-
 /**
- * Carry the advertised offer onto a NEWLY created subscription.
+ * Put the live offer price on a subscription — for NEW and EXISTING customers.
  *
- * A discount applied to the checkout TRANSACTION only discounts that first
- * payment — Paddle does not copy it onto the subscription it creates, so the
- * checkout itself says "$5.60 now, then $10.00/month". Someone who bought at an
- * advertised "$5.60/mo" would silently jump to $10 at the first renewal, which is
- * a bait-and-switch we would deserve to be shouted at for.
+ * Two problems this solves:
  *
- * So after checkout we attach the matching offer discount to the subscription,
- * effective from the NEXT billing period (the current one was already charged at
- * the offer price, so applying it immediately would discount it twice).
+ * 1. A discount applied to the checkout TRANSACTION only discounts that first
+ *    payment. Paddle does not copy it onto the subscription it creates, so the
+ *    checkout reads "$5.60 now, then $10.00/month" and a customer who bought at
+ *    an advertised "$5.60/mo" would jump to $10 at the first renewal.
  *
- * Deliberately limited to subscriptions created within OFFER_ATTACH_WINDOW_MS:
- * reconcile runs for every account on every billing-status load, so without that
- * window, launching a new offer would retroactively cut the price of every
- * existing subscriber. An offer is the price advertised when you bought, not a
- * discount for everyone forever. An existing discount is never overridden.
+ * 2. While an offer is running it is the CURRENT PRICE OF THE PLAN, not a
+ *    new-customer-only deal. An existing monthly subscriber whose renewal falls
+ *    inside the offer window is billed the offer price too — charging a loyal
+ *    customer $10 while advertising $5.60 on the same page is indefensible.
+ *
+ * So any active subscription on a plan+interval with a live offer gets that
+ * discount, effective from the NEXT billing period (the current period is already
+ * paid — applying it immediately would discount it twice).
+ *
+ * The discount's own `maximumRecurringIntervals` (the offer's length in months)
+ * ends it, so this cannot become a permanent price cut. An existing discount is
+ * never overridden — a customer already on a promo code or an earlier offer keeps
+ * what they have rather than being silently re-termed.
  */
 const ensureOfferDiscount = async (sub) => {
   try {
     if (!sub || sub.discountId || !sub.planName || sub.planName === "free") return;
-    if (!sub.startedAt || Date.now() - sub.startedAt.getTime() > OFFER_ATTACH_WINDOW_MS) return;
+    if (!["active", "trialing", "past_due"].includes(sub.status)) return;
     const offer = await getActiveOfferForPlanInterval(sub.planName, sub.interval);
     if (!offer?.paddleDiscountId) return;
     await paddle.subscriptions.update(sub.subscriptionId, {
       discount: { id: offer.paddleDiscountId, effectiveFrom: "next_billing_period" },
     });
     console.log(
-      `attached offer discount ${offer.paddleDiscountId} to new subscription ${sub.subscriptionId} (${sub.planName}/${sub.interval}) so it renews at the advertised price`
+      `attached offer discount ${offer.paddleDiscountId} to subscription ${sub.subscriptionId} (${sub.planName}/${sub.interval}) — renewals during the offer bill at the offer price`
     );
   } catch (e) {
     // Non-fatal: the customer still got the discounted first payment.
