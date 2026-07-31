@@ -234,6 +234,9 @@ const server = app
     console.log(
       `🚀 Server running in ${NODE_ENV} mode at http://localhost:${APP_PORT}`
     );
+    // Applies scheduled plan changes Paddle can't defer itself (yearly → monthly).
+    // Cluster-safe: workers serialise on a MySQL advisory lock.
+    require("./src/common/billingScheduler").startBillingScheduler();
   })
   .on("error", (err) => {
     console.error("Server failed to start:", err);
@@ -265,6 +268,14 @@ async function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`${signal} received: shutting down gracefully`);
+
+  // Stop the billing sweep first — a tick starting mid-drain would query a pool
+  // that's about to close (and could hold the advisory lock past exit).
+  try {
+    require("./src/common/billingScheduler").stopBillingScheduler();
+  } catch {
+    /* never block shutdown */
+  }
 
   // Force-exit if a hung connection prevents a clean close.
   const forceExit = setTimeout(() => {

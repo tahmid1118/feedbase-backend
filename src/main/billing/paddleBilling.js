@@ -337,11 +337,16 @@ const previewChange = async (plan, interval, authData) => {
  *    the next renewal auto-bills the lower price) but keep the account's in-app plan
  *    at the current tier until `periodEnd` via the pending_* markers. `reconcile`
  *    holds the higher plan until the effective date, then flips to the lower one.
- *  - DOWNGRADE that also shortens the interval (yearly → monthly) → rejected here:
+ *  - DOWNGRADE that also shortens the interval (yearly → monthly) → **deferred**:
  *    Paddle can't preserve a paid year across an interval change (do_not_bill resets
- *    the period; pinning next_billed_at is ignored) and can't defer it, so it can't
- *    be applied without either forfeiting the paid year or a surprise renewal charge.
- *    The client hides this CTA; the guard is the server-side backstop.
+ *    the period; pinning next_billed_at is ignored) and has no scheduled plan change,
+ *    so we leave the Paddle item on the YEARLY price and only record the pending_*
+ *    markers. `applyDuePendingChanges` (run by the billing scheduler) performs the
+ *    swap near the period end with `prorated_immediately`, which charges the first
+ *    month and credits the unused sliver of the year — the customer keeps the full
+ *    year they paid for and is never billed another one.
+ *  - A downgrade that LENGTHENS the interval (monthly → yearly) is not offered:
+ *    change the tier first, then the interval.
  */
 const applyChange = async (plan, interval, authData) => {
   let c;
@@ -356,11 +361,10 @@ const applyChange = async (plan, interval, authData) => {
   if (direction === "same") {
     return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "already_on_plan", c.lg));
   }
-  // The only interval change we support in-app is same-tier monthly→yearly (an
-  // upgrade, prorated now). Reject any yearly→monthly move (can't preserve the paid
-  // year) and any downgrade that also changes interval — do one change at a time.
+  // A downgrade that LENGTHENS the interval (monthly → yearly) isn't offered — do
+  // the tier change first, then switch interval. Everything else is supported.
   const intervalChanged = billingInterval !== c.curInterval;
-  if (intervalChanged && (direction === "downgrade" || c.curInterval === "year")) {
+  if (direction === "downgrade" && intervalChanged && c.curInterval === "month") {
     return Promise.reject(
       setServerResponse(API_STATUS_CODE.BAD_REQUEST, "downgrade_interval_unsupported", c.lg)
     );
@@ -377,12 +381,19 @@ const applyChange = async (plan, interval, authData) => {
         setServerResponse(API_STATUS_CODE.OK, "plan_changed", c.lg, { direction, plan, interval: billingInterval })
       );
     }
-    // Same-interval downgrade → switch Paddle now (no charge/refund, period kept),
-    // but keep the current (higher) plan in-app until the paid period ends.
-    await paddle.subscriptions.update(c.subId, {
-      items: [{ priceId, quantity: 1 }],
-      prorationBillingMode: "do_not_bill",
-    });
+    // DOWNGRADE — the customer keeps their current plan until the paid period ends.
+    //  · Same interval: swap the Paddle item NOW with `do_not_bill` (no charge/
+    //    refund, billing date preserved), so the next renewal auto-bills the lower
+    //    price. The in-app plan is held at the higher tier by the pending_* markers.
+    //  · Interval change (yearly → monthly): do NOT touch Paddle — swapping now
+    //    would reset the billing period and destroy the paid year. The scheduler
+    //    (`applyDuePendingChanges`) performs the swap near the period end instead.
+    if (!intervalChanged) {
+      await paddle.subscriptions.update(c.subId, {
+        items: [{ priceId, quantity: 1 }],
+        prorationBillingMode: "do_not_bill",
+      });
+    }
     await setAccountPlan(c.email, {
       pending_plan: plan,
       pending_interval: billingInterval,
@@ -421,7 +432,13 @@ const cancelScheduledChange = async (authData) => {
   }
   try {
     const priceId = paddlePriceIdFor(c.curPlan, c.curInterval);
-    if (priceId) {
+    // Only touch Paddle if its item actually differs from the plan we're restoring.
+    // A *deferred* (yearly→monthly) pending change never swapped the Paddle item, so
+    // re-sending the same price would be a pointless update that RESETS the billing
+    // period — silently shortening a paid year.
+    const sub = await paddle.subscriptions.get(c.subId);
+    const livePriceId = sub.items?.[0]?.price?.id || null;
+    if (priceId && livePriceId !== priceId) {
       await paddle.subscriptions.update(c.subId, {
         items: [{ priceId, quantity: 1 }],
         prorationBillingMode: "do_not_bill",
@@ -553,12 +570,95 @@ const handleWebhook = async (rawBody, signature) => {
   return { received: true };
 };
 
+/**
+ * Apply scheduled plan changes that are due — the piece Paddle can't do natively.
+ * Run periodically by the billing scheduler (see `src/common/billingScheduler.js`).
+ *
+ * Only accounts whose Paddle item still DIFFERS from the pending target need work:
+ *  · A same-interval downgrade already swapped its item at request time (the item
+ *    matches the target), so it's skipped here — its renewal bills the lower price
+ *    on its own and `reconcile` flips the in-app plan once the date passes.
+ *  · A **yearly → monthly** downgrade deliberately left the Paddle item on the
+ *    yearly price so the paid year survived. That's what we apply here.
+ *
+ * Proration is chosen so nobody is over- or under-charged:
+ *  · interval unchanged → `do_not_bill` (no charge; the renewal bills the new price)
+ *  · interval changed   → `prorated_immediately`, which charges the first month of
+ *    the new plan and CREDITS the unused remainder of the year. Running slightly
+ *    early is therefore financially fair rather than a loss to either side — using
+ *    `do_not_bill` here would instead hand the customer a free month.
+ *
+ * `leadSeconds` makes the change eligible shortly BEFORE the renewal instant, so a
+ * missed tick doesn't let Paddle bill another full year first.
+ */
+const applyDuePendingChanges = async ({ leadSeconds = 6 * 3600 } = {}) => {
+  if (!isPaddleConfigured()) return { checked: 0, applied: 0 };
+  const [rows] = await pool.query(
+    `SELECT email, plan_name, billing_interval, pending_plan, pending_interval,
+            pending_effective_at, paddle_subscription_id
+       FROM billing_accounts
+      WHERE pending_plan IS NOT NULL
+        AND pending_effective_at IS NOT NULL
+        AND paddle_subscription_id IS NOT NULL
+        AND (subscription_status IS NULL OR subscription_status <> 'comped')
+        AND pending_effective_at <= DATE_ADD(NOW(), INTERVAL ? SECOND)`,
+    [leadSeconds]
+  );
+
+  let applied = 0;
+  for (const row of rows) {
+    try {
+      const targetInterval = row.pending_interval === "year" ? "year" : "month";
+      const targetPriceId = paddlePriceIdFor(row.pending_plan, targetInterval);
+      if (!targetPriceId) continue;
+
+      const sub = await paddle.subscriptions.get(row.paddle_subscription_id);
+      const livePriceId = sub.items?.[0]?.price?.id || null;
+      if (livePriceId === targetPriceId) continue; // already switched — nothing to do
+
+      // Safety net: if the renewal beat us (the period now ends well after the date
+      // we were aiming at), the customer has already been billed for another term.
+      // Re-target the change at the NEW period end rather than applying it now and
+      // charging them twice — and shout, because a tick was missed.
+      const periodEnd = sub.currentBillingPeriod?.endsAt
+        ? new Date(sub.currentBillingPeriod.endsAt)
+        : null;
+      const due = new Date(row.pending_effective_at);
+      if (periodEnd && periodEnd.getTime() - due.getTime() > 24 * 3600 * 1000) {
+        console.error(
+          `billing scheduler: MISSED the change window for ${row.email} — subscription renewed on the old plan. Re-targeting to ${periodEnd.toISOString()}.`
+        );
+        await setAccountPlan(row.email, { pending_effective_at: periodEnd });
+        continue;
+      }
+
+      const liveInterval = intervalByPaddlePriceId(livePriceId);
+      const prorationBillingMode =
+        liveInterval === targetInterval ? "do_not_bill" : "prorated_immediately";
+      await paddle.subscriptions.update(row.paddle_subscription_id, {
+        items: [{ priceId: targetPriceId, quantity: 1 }],
+        prorationBillingMode,
+      });
+      await reconcile(row.email);
+      applied += 1;
+      console.log(
+        `billing scheduler: applied ${row.plan_name}/${row.billing_interval} → ${row.pending_plan}/${targetInterval} for ${row.email} (${prorationBillingMode})`
+      );
+    } catch (e) {
+      // One bad account must not stop the sweep; it retries on the next tick.
+      console.error(`billing scheduler: failed for ${row.email}:`, e.message);
+    }
+  }
+  return { checked: rows.length, applied };
+};
+
 module.exports = {
   reconcile,
   fetchSubscription,
   createCheckout,
   previewChange,
   applyChange,
+  applyDuePendingChanges,
   cancelScheduledChange,
   cancelSubscription,
   resumeSubscription,
