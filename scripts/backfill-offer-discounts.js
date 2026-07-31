@@ -43,7 +43,10 @@ const FORCE = process.argv.includes("--force");
   }
 
   const [rows] = await pool.query(
-    `SELECT id, plan, billing_interval, offer_price, label, paddle_discount_id
+    // starts_at/ends_at are REQUIRED: they decide how many billing periods the
+    // discount recurs for. Without them a monthly offer silently becomes a
+    // forever discount, which is the expensive direction to get wrong.
+    `SELECT id, plan, billing_interval, offer_price, label, starts_at, ends_at, paddle_discount_id
        FROM offers
       WHERE is_active = 1
         AND (ends_at IS NULL OR ends_at >= NOW())`
