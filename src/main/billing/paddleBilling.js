@@ -228,6 +228,19 @@ const createCheckout = async (plan, authData, promotionCode, interval) => {
     );
   } catch (error) {
     console.error("paddle createCheckout error:", error.message);
+    /**
+     * A discount can be big enough that the remaining charge falls under the
+     * processor's minimum (Paddle: $0.70 on USD — so 99% off a $10 plan leaves
+     * $0.10 and the transaction is refused). That's a configuration problem the
+     * admin can fix, not a server fault, so say what's wrong instead of showing
+     * "Failed to start checkout". A near-total discount should be a free_plan
+     * comp code, which grants the plan without charging at all.
+     */
+    if (/minimum payment amount|balance is less than/i.test(error.message || "")) {
+      return Promise.reject(
+        setServerResponse(API_STATUS_CODE.BAD_REQUEST, "discount_below_minimum", lg)
+      );
+    }
     return Promise.reject(
       setServerResponse(API_STATUS_CODE.INTERNAL_SERVER_ERROR, "failed_to_create_checkout", lg)
     );

@@ -276,7 +276,8 @@
     "owner_comment_pro": "Replying to feedback as the workspace owner requires the Pro plan or higher. Please upgrade.",
     "subscription_cancelled": "Subscription cancelled — it ends at the end of your billing period.",
     "subscription_resumed": "Subscription resumed — it will renew as usual.",
-    "downgrade_via_portal": "To downgrade, open Manage billing."
+    "downgrade_via_portal": "To downgrade, open Manage billing.",
+    "discount_below_minimum": "This discount leaves a total below the minimum amount we can charge. Use a free-plan code to grant the plan at no cost, or lower the discount."
   },
   "de": {
     "success": "Erfolg",
@@ -309,7 +310,8 @@
     "subscription_cancelled": "Abo gekündigt – es endet am Ende deines Abrechnungszeitraums.",
     "subscription_resumed": "Abo fortgesetzt – es wird wie gewohnt verlängert.",
     "downgrade_via_portal": "Zum Herabstufen bitte „Abrechnung verwalten“ verwenden.",
-    "failed_to_create_checkout": "Checkout konnte nicht gestartet werden. Bitte versuche es erneut."
+    "failed_to_create_checkout": "Checkout konnte nicht gestartet werden. Bitte versuche es erneut.",
+    "discount_below_minimum": "Nach diesem Rabatt liegt der Betrag unter dem Mindestbetrag, den wir abbuchen können. Nutze einen Gratis-Tarif-Code, um den Tarif kostenlos zu gewähren, oder verringere den Rabatt."
   },
   "fr": {
     "success": "Succès",
@@ -342,7 +344,8 @@
     "subscription_cancelled": "Abonnement annulé — il se termine à la fin de votre période de facturation.",
     "subscription_resumed": "Abonnement repris — il se renouvellera normalement.",
     "downgrade_via_portal": "Pour rétrograder, utilisez « Gérer la facturation ».",
-    "failed_to_create_checkout": "Impossible de démarrer le paiement. Réessayez."
+    "failed_to_create_checkout": "Impossible de démarrer le paiement. Réessayez.",
+    "discount_below_minimum": "Après cette remise, le total est inférieur au montant minimum que nous pouvons débiter. Utilisez un code de forfait gratuit pour offrir le forfait, ou réduisez la remise."
   },
   "es": {
     "success": "Éxito",
@@ -375,7 +378,8 @@
     "subscription_cancelled": "Suscripción cancelada: finaliza al término de tu período de facturación.",
     "subscription_resumed": "Suscripción reanudada: se renovará con normalidad.",
     "downgrade_via_portal": "Para bajar de plan, usa «Gestionar facturación».",
-    "failed_to_create_checkout": "No se pudo iniciar el pago. Inténtalo de nuevo."
+    "failed_to_create_checkout": "No se pudo iniciar el pago. Inténtalo de nuevo.",
+    "discount_below_minimum": "Con este descuento el total queda por debajo del importe mínimo que podemos cobrar. Usa un código de plan gratuito para conceder el plan sin coste, o reduce el descuento."
   },
   "it": {
     "success": "Successo",
@@ -408,7 +412,8 @@
     "subscription_cancelled": "Abbonamento annullato: termina alla fine del periodo di fatturazione.",
     "subscription_resumed": "Abbonamento ripreso: si rinnoverà normalmente.",
     "downgrade_via_portal": "Per effettuare il downgrade, usa «Gestisci fatturazione».",
-    "failed_to_create_checkout": "Impossibile avviare il pagamento. Riprova."
+    "failed_to_create_checkout": "Impossibile avviare il pagamento. Riprova.",
+    "discount_below_minimum": "Con questo sconto il totale scende sotto l’importo minimo addebitabile. Usa un codice piano gratuito per concedere il piano senza costi, oppure riduci lo sconto."
   },
   "pt": {
     "success": "Sucesso",
@@ -441,7 +446,8 @@
     "subscription_cancelled": "Assinatura cancelada — termina no fim do seu período de faturamento.",
     "subscription_resumed": "Assinatura retomada — será renovada normalmente.",
     "downgrade_via_portal": "Para fazer downgrade, use «Gerenciar cobrança».",
-    "failed_to_create_checkout": "Não foi possível iniciar o checkout. Tente novamente."
+    "failed_to_create_checkout": "Não foi possível iniciar o checkout. Tente novamente.",
+    "discount_below_minimum": "Com este desconto o total fica abaixo do valor mínimo que podemos cobrar. Use um código de plano gratuito para conceder o plano sem custo, ou reduza o desconto."
   },
   "nl": {
     "success": "Succes",
@@ -474,7 +480,8 @@
     "subscription_cancelled": "Abonnement opgezegd — het eindigt aan het einde van je factureringsperiode.",
     "subscription_resumed": "Abonnement hervat — het wordt normaal verlengd.",
     "downgrade_via_portal": "Gebruik 'Facturering beheren' om te downgraden.",
-    "failed_to_create_checkout": "Kan afrekenen niet starten. Probeer opnieuw."
+    "failed_to_create_checkout": "Kan afrekenen niet starten. Probeer opnieuw.",
+    "discount_below_minimum": "Na deze korting ligt het totaal onder het minimumbedrag dat we kunnen incasseren. Gebruik een gratis-plan-code om het plan kosteloos toe te kennen, of verlaag de korting."
   },
   "pl": {
     "success": "Sukces",
@@ -507,6 +514,7 @@
     "subscription_cancelled": "Subskrypcja anulowana — kończy się z końcem okresu rozliczeniowego.",
     "subscription_resumed": "Subskrypcja wznowiona — odnowi się normalnie.",
     "downgrade_via_portal": "Aby obniżyć plan, użyj „Zarządzaj płatnościami”.",
-    "failed_to_create_checkout": "Nie udało się rozpocząć płatności. Spróbuj ponownie."
+    "failed_to_create_checkout": "Nie udało się rozpocząć płatności. Spróbuj ponownie.",
+    "discount_below_minimum": "Po tej zniżce kwota jest niższa niż minimalna, którą możemy pobrać. Użyj kodu darmowego planu, aby przyznać plan bez opłat, albo zmniejsz zniżkę."
   }
 }
