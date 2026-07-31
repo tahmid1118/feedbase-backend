@@ -65,7 +65,49 @@ const normalizeSub = (sub) => {
       ? new Date(sub.currentBillingPeriod.endsAt)
       : null,
     cancelAtPeriodEnd: sub.scheduledChange?.action === "cancel",
+    discountId: sub.discount?.id || null,
+    startedAt: sub.startedAt ? new Date(sub.startedAt) : null,
   };
+};
+
+/** A new subscription is eligible for the offer for this long after it starts. */
+const OFFER_ATTACH_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Carry the advertised offer onto a NEWLY created subscription.
+ *
+ * A discount applied to the checkout TRANSACTION only discounts that first
+ * payment — Paddle does not copy it onto the subscription it creates, so the
+ * checkout itself says "$5.60 now, then $10.00/month". Someone who bought at an
+ * advertised "$5.60/mo" would silently jump to $10 at the first renewal, which is
+ * a bait-and-switch we would deserve to be shouted at for.
+ *
+ * So after checkout we attach the matching offer discount to the subscription,
+ * effective from the NEXT billing period (the current one was already charged at
+ * the offer price, so applying it immediately would discount it twice).
+ *
+ * Deliberately limited to subscriptions created within OFFER_ATTACH_WINDOW_MS:
+ * reconcile runs for every account on every billing-status load, so without that
+ * window, launching a new offer would retroactively cut the price of every
+ * existing subscriber. An offer is the price advertised when you bought, not a
+ * discount for everyone forever. An existing discount is never overridden.
+ */
+const ensureOfferDiscount = async (sub) => {
+  try {
+    if (!sub || sub.discountId || !sub.planName || sub.planName === "free") return;
+    if (!sub.startedAt || Date.now() - sub.startedAt.getTime() > OFFER_ATTACH_WINDOW_MS) return;
+    const offer = await getActiveOfferForPlanInterval(sub.planName, sub.interval);
+    if (!offer?.paddleDiscountId) return;
+    await paddle.subscriptions.update(sub.subscriptionId, {
+      discount: { id: offer.paddleDiscountId, effectiveFrom: "next_billing_period" },
+    });
+    console.log(
+      `attached offer discount ${offer.paddleDiscountId} to new subscription ${sub.subscriptionId} (${sub.planName}/${sub.interval}) so it renews at the advertised price`
+    );
+  } catch (e) {
+    // Non-fatal: the customer still got the discounted first payment.
+    console.error("ensureOfferDiscount failed:", e.message);
+  }
 };
 
 /** Get-or-create the account's Paddle customer id (stored on billing_accounts). */
@@ -151,6 +193,10 @@ const reconcile = async (email) => {
     });
     return;
   }
+
+  // Post-checkout: make sure a just-bought subscription renews at the price it
+  // was advertised at (see ensureOfferDiscount).
+  await ensureOfferDiscount(sub);
 
   await setAccountPlan(email, {
     plan_name: sub.planName,
