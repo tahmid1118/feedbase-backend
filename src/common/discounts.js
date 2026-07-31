@@ -20,7 +20,7 @@ const { paddle, isPaddleConfigured } = require("./paddle");
 const { paddlePriceIdFor } = require("../consts/plans");
 
 /** Create the Paddle flat discount backing an offer. Returns the discount id. */
-const createPaddleOfferDiscount = async ({ plan, interval, originalPrice, offerPrice }) => {
+const createPaddleOfferDiscount = async ({ plan, interval, originalPrice, offerPrice, durationPeriods }) => {
   if (!isPaddleConfigured()) return null;
   const amountOff = Math.round((originalPrice - offerPrice) * 100); // lowest denomination
   const priceId = paddlePriceIdFor(plan, interval);
@@ -29,7 +29,11 @@ const createPaddleOfferDiscount = async ({ plan, interval, originalPrice, offerP
     type: "flat",
     amount: String(amountOff),
     currencyCode: "USD",
-    recur: true, // applies on every billing period (matches Stripe duration:forever)
+    recur: true,
+    // How many billing periods the buyer keeps this price for. A 3-month monthly
+    // offer stops after 3 charges; a yearly offer covers its one yearly period.
+    // Omitted (null) = forever, for an open-ended offer.
+    ...(durationPeriods ? { maximumRecurringIntervals: durationPeriods } : {}),
     enabledForCheckout: false, // auto-applied by id only
     ...(priceId ? { restrictTo: [priceId] } : {}),
   });

@@ -20,6 +20,32 @@ const { isPaddleActive } = require("./billingProvider");
 const isHonourable = (row) =>
   isPaddleActive() ? Boolean(row.paddle_discount_id) : Boolean(row.stripe_coupon_id);
 
+/**
+ * How many BILLING PERIODS a customer keeps the offer price for.
+ *
+ * The offer's window (starts_at → ends_at) is both how long the offer is on sale
+ * AND how long a buyer keeps it:
+ *  - MONTHLY: a 3-month offer gives 3 monthly periods at the offer price, then the
+ *    customer rolls onto the regular price. Whenever they buy inside the window,
+ *    they get the full 3 months.
+ *  - YEARLY: one billing period IS a year, so a yearly buyer gets the offer price
+ *    for that whole year and renews at the regular price after it — always 1.
+ *
+ * `null` means "recurs forever", used only for an open-ended offer with no end
+ * date. Returned to the client as well, so the card can say "for 3 months, then
+ * $10/mo" instead of implying the price is permanent.
+ */
+const offerDurationPeriods = (interval, startsAt, endsAt) => {
+  if (interval === "year") return 1;
+  if (!endsAt) return null; // open-ended monthly offer → keep it forever
+  const s = startsAt ? new Date(startsAt) : new Date();
+  const e = new Date(endsAt);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return null;
+  let months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+  if (e.getDate() < s.getDate()) months -= 1; // don't count a partial final month
+  return Math.max(1, months);
+};
+
 // An offer counts as active when the flag is on and "now" is within its window
 // (a null bound means open-ended on that side).
 const ACTIVE_WHERE =
@@ -40,6 +66,8 @@ const shape = (row) => {
     offerPrice,
     percentOff,
     label: row.label || null,
+    // How many billing periods the offer price lasts (null = forever).
+    durationPeriods: offerDurationPeriods(interval, row.starts_at, row.ends_at),
     endsAt: row.ends_at || null,
     stripeCouponId: row.stripe_coupon_id || null,
     paddleDiscountId: row.paddle_discount_id || null,
@@ -85,4 +113,4 @@ const getActiveOfferForPlanInterval = async (plan, interval) => {
   return rows[0] ? shape(rows[0]) : null;
 };
 
-module.exports = { getActiveOffers, getActiveOfferForPlanInterval };
+module.exports = { getActiveOffers, getActiveOfferForPlanInterval, offerDurationPeriods };

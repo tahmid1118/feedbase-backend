@@ -4,6 +4,7 @@ const { setServerResponse } = require("../../common/setServerResponse");
 const { stripe, isStripeConfigured } = require("../../common/stripe");
 const { isPaddleActive } = require("../../common/billingProvider");
 const { createPaddleOfferDiscount, archivePaddleDiscount } = require("../../common/discounts");
+const { offerDurationPeriods } = require("../../common/offers");
 const { listPrice } = require("../../consts/plans");
 
 const OFFER_PLANS = ["pro", "business"];
@@ -97,7 +98,11 @@ const createOffer = async (data, adminId, lg) => {
     let paddleDiscountId = null;
     if (isPaddleActive()) {
       try {
-        paddleDiscountId = await createPaddleOfferDiscount({ plan, interval, originalPrice, offerPrice });
+        paddleDiscountId = await createPaddleOfferDiscount({
+          plan, interval, originalPrice, offerPrice,
+          // The offer window decides how long a buyer keeps the price.
+          durationPeriods: offerDurationPeriods(interval, startsAt, endsAt),
+        });
       } catch (e) {
         console.error("offer paddle discount create failed (non-fatal):", e.message);
       }

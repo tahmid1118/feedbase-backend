@@ -30,6 +30,7 @@ const { pool } = require("../database/dbPool");
 const { listPrice } = require("../src/consts/plans");
 const { isPaddleActive } = require("../src/common/billingProvider");
 const { createPaddleOfferDiscount } = require("../src/common/discounts");
+const { offerDurationPeriods } = require("../src/common/offers");
 
 const DRY = process.argv.includes("--dry");
 const FORCE = process.argv.includes("--force");
@@ -75,7 +76,10 @@ const FORCE = process.argv.includes("--force");
       continue;
     }
     try {
-      const id = await createPaddleOfferDiscount({ plan: r.plan, interval, originalPrice, offerPrice });
+      const id = await createPaddleOfferDiscount({
+        plan: r.plan, interval, originalPrice, offerPrice,
+        durationPeriods: offerDurationPeriods(interval, r.starts_at, r.ends_at),
+      });
       await pool.query("UPDATE offers SET paddle_discount_id = ? WHERE id = ?", [id, r.id]);
       console.log(`OK    ${tag} — created ${id} (flat $${(originalPrice - offerPrice).toFixed(2)} off)`);
       created += 1;
