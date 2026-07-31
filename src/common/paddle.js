@@ -38,6 +38,34 @@ if (isPaddleConfigured()) {
   } else {
     console.log(`Paddle configured in ${mode.toUpperCase()} mode.`);
   }
+
+  /**
+   * Go-live footguns. Sandbox and production are separate universes: keys, price
+   * ids, discounts and webhook secrets from one do not exist in the other. Each of
+   * these mismatches fails at the worst possible moment — a customer clicking Buy —
+   * so surface them at boot instead.
+   */
+  const key = process.env.PADDLE_API_KEY || "";
+  if (mode === "production" && key.startsWith("pdl_sdbx_")) {
+    console.warn("⚠  PADDLE_ENV=production but PADDLE_API_KEY is a SANDBOX key (pdl_sdbx_…) — every Paddle call will fail.");
+  }
+  if (mode === "sandbox" && key.startsWith("pdl_live_")) {
+    console.warn("⚠  PADDLE_ENV=sandbox but PADDLE_API_KEY is a LIVE key (pdl_live_…) — every Paddle call will fail.");
+  }
+  const missingPrices = [
+    "PADDLE_PRICE_PRO",
+    "PADDLE_PRICE_PRO_YEARLY",
+    "PADDLE_PRICE_BUSINESS",
+    "PADDLE_PRICE_BUSINESS_YEARLY",
+  ].filter((k) => !process.env[k]);
+  if (missingPrices.length) {
+    console.warn(
+      `⚠  Missing Paddle price id(s): ${missingPrices.join(", ")} — checkout for those plans will fail. Run \`node scripts/paddle-setup.js\` in the ${mode.toUpperCase()} dashboard and paste the ids into .env.`
+    );
+  }
+  if (!process.env.PADDLE_WEBHOOK_SECRET) {
+    console.warn("⚠  PADDLE_WEBHOOK_SECRET is not set — webhook signatures cannot be verified, so subscription events will be rejected.");
+  }
 }
 
 module.exports = { paddle, isPaddleConfigured, paddleMode };
