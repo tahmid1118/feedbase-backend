@@ -40,17 +40,72 @@ const redeemPromo = async (code, authData) => {
     if (promo.max_redemptions && promo.times_redeemed >= promo.max_redemptions) {
       return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "promo_code_exhausted", lg));
     }
-    // One redemption per ACCOUNT (a comp is account-level now) — check across all
-    // of the account's workspaces by the redeeming user's email.
+    // Fast pre-check for a clean error message. This is NOT the guarantee — the
+    // UNIQUE (promo_code_id, account_email) index is (see claimRedemption).
     const [already] = await pool.query(
-      `SELECT r.id FROM promo_redemptions r
-         JOIN users u ON u.id = r.redeemed_by_user_id
-        WHERE r.promo_code_id = ? AND u.email = ? LIMIT 1`,
+      "SELECT id FROM promo_redemptions WHERE promo_code_id = ? AND account_email = ? LIMIT 1",
       [promo.id, email]
     );
     if (already.length > 0) {
       return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "promo_already_redeemed", lg));
     }
+
+    /**
+     * Claim a redemption ATOMICALLY, for BOTH code types.
+     *
+     * Previously only the free_plan branch recorded anything, so a percent_off
+     * code could be redeemed by the same account over and over and
+     * `max_redemptions` was never enforced for it at all.
+     *
+     * Two races are closed here:
+     *  - the global cap, by incrementing inside a conditional UPDATE (…AND
+     *    times_redeemed < max_redemptions) so only one of N concurrent callers
+     *    can take the last slot;
+     *  - the per-account rule, by the UNIQUE index, so a duplicate INSERT fails
+     *    (ER_DUP_ENTRY) instead of two requests both passing the SELECT above.
+     */
+    const claimRedemption = async (planGranted, expiresAt) => {
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+        const [upd] = await conn.query(
+          `UPDATE promo_codes
+              SET times_redeemed = times_redeemed + 1
+            WHERE id = ? AND is_active = 1
+              AND (expires_at IS NULL OR expires_at > NOW())
+              AND (max_redemptions IS NULL OR times_redeemed < max_redemptions)`,
+          [promo.id]
+        );
+        if (upd.affectedRows === 0) {
+          await conn.rollback();
+          return { ok: false, reason: "promo_code_exhausted" };
+        }
+        await conn.query(
+          `INSERT INTO promo_redemptions
+             (promo_code_id, tenant_id, redeemed_by_user_id, account_email, plan_granted, expires_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [promo.id, tenantId, userId, email, planGranted, expiresAt]
+        );
+        await conn.commit();
+        return { ok: true };
+      } catch (e) {
+        await conn.rollback();
+        if (e?.code === "ER_DUP_ENTRY") return { ok: false, reason: "promo_already_redeemed" };
+        throw e;
+      } finally {
+        conn.release();
+      }
+    };
+
+    /** Give the claim back if the work it paid for could not be completed. */
+    const releaseRedemption = async () => {
+      try {
+        await pool.query("DELETE FROM promo_redemptions WHERE promo_code_id = ? AND account_email = ?", [promo.id, email]);
+        await pool.query("UPDATE promo_codes SET times_redeemed = GREATEST(times_redeemed - 1, 0) WHERE id = ?", [promo.id]);
+      } catch (e) {
+        console.error("releaseRedemption failed (promo slot may stay consumed):", e.message);
+      }
+    };
 
     if (promo.type === "free_plan") {
       const periodEnd =
@@ -60,6 +115,14 @@ const redeemPromo = async (code, authData) => {
               Date.now() + (promo.duration_months || 1) * 30 * 24 * 60 * 60 * 1000
             );
 
+      // Claim the redemption BEFORE granting anything, so a race can't hand the
+      // plan to two accounts (or the same account twice) off one code.
+      const claim = await claimRedemption(promo.plan_grant, periodEnd);
+      if (!claim.ok) {
+        return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, claim.reason, lg));
+      }
+
+      try {
       // If the ACCOUNT has a live paid subscription on the active provider, cancel
       // it before comping — otherwise the provider keeps charging while the app
       // shows a comped plan (and reconcileAccount then skips comped accounts).
@@ -77,16 +140,11 @@ const redeemPromo = async (code, authData) => {
         pending_interval: null,
         pending_effective_at: null,
       });
-      await pool.query(
-        `INSERT INTO promo_redemptions
-           (promo_code_id, tenant_id, redeemed_by_user_id, plan_granted, expires_at)
-         VALUES (?, ?, ?, ?, ?)`,
-        [promo.id, tenantId, userId, promo.plan_grant, periodEnd]
-      );
-      await pool.query(
-        "UPDATE promo_codes SET times_redeemed = times_redeemed + 1 WHERE id = ?",
-        [promo.id]
-      );
+      } catch (e) {
+        // The grant failed, so don't consume the customer's one redemption.
+        await releaseRedemption();
+        throw e;
+      }
       return Promise.resolve(
         setServerResponse(API_STATUS_CODE.OK, "promo_code_redeemed", lg, {
           type: "free_plan",
@@ -97,6 +155,13 @@ const redeemPromo = async (code, authData) => {
 
     // percent_off: the client passes this back into checkout, where the ACTIVE
     // provider applies it (Paddle discount id, or Stripe promotion code id).
+    // This is recorded exactly like a comp — without it the same account could
+    // redeem the code endlessly and max_redemptions would never bite.
+    const pctClaim = await claimRedemption(null, null);
+    if (!pctClaim.ok) {
+      return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, pctClaim.reason, lg));
+    }
+
     const promotionCode = isPaddleActive()
       ? promo.paddle_discount_id
       : promo.stripe_promotion_code_id;

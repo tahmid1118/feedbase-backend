@@ -138,12 +138,18 @@ CREATE TABLE IF NOT EXISTS promo_redemptions (
   promo_code_id BIGINT UNSIGNED NOT NULL,
   tenant_id BIGINT UNSIGNED NOT NULL,
   redeemed_by_user_id BIGINT UNSIGNED NULL,
+  -- The ACCOUNT (email) that redeemed. Billing is per account, so this — not the
+  -- user row or the workspace — is what "one redemption per customer" means. The
+  -- UNIQUE index below makes that rule enforceable by the DB rather than by a
+  -- check-then-insert that two concurrent requests can both pass.
+  account_email VARCHAR(255) NULL,
   plan_granted VARCHAR(50) NULL,
   applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   expires_at DATETIME NULL,
   PRIMARY KEY (id),
   KEY idx_promo_redemptions_code (promo_code_id),
   KEY idx_promo_redemptions_tenant (tenant_id),
+  UNIQUE KEY uq_promo_account (promo_code_id, account_email),
   CONSTRAINT fk_promo_redemptions_code FOREIGN KEY (promo_code_id) REFERENCES promo_codes(id) ON DELETE CASCADE,
   CONSTRAINT fk_promo_redemptions_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
