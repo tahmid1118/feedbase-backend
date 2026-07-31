@@ -247,6 +247,28 @@ const createCheckout = async (plan, authData, promotionCode, interval) => {
   }
 };
 
+/**
+ * The discount to attach when moving a subscription to (plan, interval).
+ *
+ * Checkout applies the active offer, but a plan CHANGE used to send only the new
+ * price — so a customer who was shown "Pro yearly $4.48/mo" on the card was quoted
+ * and charged the $96 list price instead of the $53.76 offer. Advertising one
+ * price and charging another is the same defect we fixed on the pricing cards,
+ * just on a different code path.
+ *
+ * Our offer discounts are `restrictTo` a single price, so the discount that was on
+ * the old plan cannot apply to the new one; the target plan's own offer has to be
+ * attached explicitly.
+ */
+const offerDiscountFor = async (plan, interval) => {
+  const offer = await getActiveOfferForPlanInterval(plan, interval);
+  return offer?.paddleDiscountId || null;
+};
+
+/** Paddle's `discount` field for a subscription update, or {} when there's none. */
+const discountPatch = (discountId) =>
+  discountId ? { discount: { id: discountId, effectiveFrom: "immediately" } } : {};
+
 /** Shared guard: owner + Stripe/Paddle configured + a live subscription. */
 const loadForChange = async (authData) => {
   const { email, role, lg } = authData;
@@ -320,6 +342,7 @@ const previewChange = async (plan, interval, authData) => {
     const preview = await paddle.subscriptions.previewUpdate(c.subId, {
       items: [{ priceId, quantity: 1 }],
       prorationBillingMode: "prorated_immediately",
+      ...discountPatch(await offerDiscountFor(plan, billingInterval)),
     });
     const { amount, currency } = previewAmountDueNow(preview);
     return Promise.resolve(
@@ -388,6 +411,7 @@ const applyChange = async (plan, interval, authData) => {
       await paddle.subscriptions.update(c.subId, {
         items: [{ priceId, quantity: 1 }],
         prorationBillingMode: "prorated_immediately",
+        ...discountPatch(await offerDiscountFor(plan, billingInterval)),
       });
       await reconcile(c.email);
       return Promise.resolve(
@@ -405,6 +429,7 @@ const applyChange = async (plan, interval, authData) => {
       await paddle.subscriptions.update(c.subId, {
         items: [{ priceId, quantity: 1 }],
         prorationBillingMode: "do_not_bill",
+        ...discountPatch(await offerDiscountFor(plan, billingInterval)),
       });
     }
     await setAccountPlan(c.email, {
