@@ -15,6 +15,15 @@
  *
  *   node scripts/backfill-offer-discounts.js          # apply
  *   node scripts/backfill-offer-discounts.js --dry    # show what would happen
+ *   node scripts/backfill-offer-discounts.js --force  # re-create even if an id
+ *                                                     # is already stored
+ *
+ * AFTER SWITCHING PADDLE_ENV (sandbox -> production) YOU MUST USE --force. The
+ * rows still hold the *sandbox* discount ids, which don't exist in the live
+ * account, so a plain run would skip every offer and checkout would quietly bill
+ * list price. (`getActiveOffers` hides those offers rather than mis-advertising
+ * them, so the failure is safe — but the offer is silently gone until you run
+ * this.) The same applies to promo codes: re-create those in the Admin Panel.
  */
 require("dotenv").config();
 const { pool } = require("../database/dbPool");
@@ -23,6 +32,7 @@ const { isPaddleActive } = require("../src/common/billingProvider");
 const { createPaddleOfferDiscount } = require("../src/common/discounts");
 
 const DRY = process.argv.includes("--dry");
+const FORCE = process.argv.includes("--force");
 
 (async () => {
   if (!isPaddleActive()) {
@@ -48,8 +58,8 @@ const DRY = process.argv.includes("--dry");
   let skipped = 0;
   for (const r of rows) {
     const tag = `offer ${r.id} ${r.plan}/${r.billing_interval} $${Number(r.offer_price).toFixed(2)}`;
-    if (r.paddle_discount_id) {
-      console.log(`SKIP  ${tag} — already has ${r.paddle_discount_id}`);
+    if (r.paddle_discount_id && !FORCE) {
+      console.log(`SKIP  ${tag} — already has ${r.paddle_discount_id} (use --force to re-create, e.g. after switching PADDLE_ENV)`);
       skipped += 1;
       continue;
     }
