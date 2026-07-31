@@ -96,8 +96,31 @@ const normalizeSub = (sub) => {
  */
 const ensureOfferDiscount = async (sub) => {
   try {
-    if (!sub || sub.discountId || !sub.planName || sub.planName === "free") return;
+    if (!sub || !sub.planName || sub.planName === "free") return;
     if (!["active", "trialing", "past_due"].includes(sub.status)) return;
+
+    // An existing discount is normally left alone — a customer on a promo code or
+    // an earlier offer keeps their terms. The exception is a discount that CANNOT
+    // apply to the plan they're now on: ours are `restrictTo` a single price, so
+    // after a plan change the old plan's discount lingers, inert. It charges them
+    // correctly (it simply never applies), but it would otherwise block them from
+    // ever receiving a later offer for their current plan.
+    if (sub.discountId) {
+      const currentPriceId = paddlePriceIdFor(sub.planName, sub.interval);
+      let applies = true;
+      try {
+        const d = await paddle.discounts.get(sub.discountId);
+        const restrict = d.restrictTo || [];
+        applies = restrict.length === 0 || (currentPriceId && restrict.includes(currentPriceId));
+      } catch {
+        return; // can't prove it's inert — leave it alone
+      }
+      if (applies) return;
+      console.log(
+        `subscription ${sub.subscriptionId} holds discount ${sub.discountId}, which cannot apply to ${sub.planName}/${sub.interval} — replacing it if an offer exists`
+      );
+    }
+
     const offer = await getActiveOfferForPlanInterval(sub.planName, sub.interval);
     if (!offer?.paddleDiscountId) return;
     await paddle.subscriptions.update(sub.subscriptionId, {
@@ -235,6 +258,26 @@ const createCheckout = async (plan, authData, promotionCode, interval) => {
   const priceId = paddlePriceIdFor(plan, billingInterval);
   if (!PLANS[plan] || plan === "free" || !priceId) {
     return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "invalid_plan", lg));
+  }
+
+  /**
+   * Refuse a second subscription for an account that already has a live one.
+   *
+   * Checkout is only offered to free accounts in the UI, but this is an API — and
+   * the failure mode is the worst kind: two Paddle subscriptions on one account,
+   * both billing, with the app tracking only the newest. It's also the shape of a
+   * cancel-then-resubscribe: cancelling sets `cancel_at_period_end`, so the
+   * subscription stays ACTIVE until the period ends and buying again in that
+   * window would double-charge. Resume, or wait for the period to end.
+   */
+  const existing = await getAccount(email);
+  if (
+    existing?.paddle_subscription_id &&
+    ["active", "trialing", "past_due"].includes(existing.subscription_status || "")
+  ) {
+    return Promise.reject(
+      setServerResponse(API_STATUS_CODE.BAD_REQUEST, "subscription_already_active", lg)
+    );
   }
 
   // Resolve the discount to apply (by id). A promo code's plan restriction is
