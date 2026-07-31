@@ -445,9 +445,19 @@ const applyChange = async (plan, interval, authData) => {
   if (direction === "same") {
     return Promise.reject(setServerResponse(API_STATUS_CODE.BAD_REQUEST, "already_on_plan", c.lg));
   }
-  // A downgrade that LENGTHENS the interval (monthly → yearly) isn't offered — do
-  // the tier change first, then switch interval. Everything else is supported.
+  // No interval change is offered in-app, in either direction:
+  //  - yearly → monthly: the customer keeps the year they paid for; monthly is
+  //    available once that year ends and they're no longer subscribed. (The
+  //    deferred machinery for this exists — see applyDuePendingChanges — but the
+  //    product deliberately doesn't offer it, and the client hides the CTA.)
+  //  - monthly → yearly as part of a tier downgrade: change the tier first.
+  // Same-tier monthly → yearly remains an UPGRADE and is unaffected by this.
   const intervalChanged = billingInterval !== c.curInterval;
+  if (intervalChanged && c.curInterval === "year") {
+    return Promise.reject(
+      setServerResponse(API_STATUS_CODE.BAD_REQUEST, "downgrade_interval_unsupported", c.lg)
+    );
+  }
   if (direction === "downgrade" && intervalChanged && c.curInterval === "month") {
     return Promise.reject(
       setServerResponse(API_STATUS_CODE.BAD_REQUEST, "downgrade_interval_unsupported", c.lg)
