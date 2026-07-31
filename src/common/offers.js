@@ -1,5 +1,24 @@
 const { pool } = require("../../database/dbPool");
 const { listPrice } = require("../consts/plans");
+const { isPaddleActive } = require("./billingProvider");
+
+/**
+ * Can this offer actually be CHARGED on the active provider?
+ *
+ * An offer is two separate things: a row we render a price from, and a provider
+ * discount that makes checkout bill that price. Creating the discount is
+ * best-effort (a provider outage must not lose the offer), and discounts do not
+ * exist across environments — a sandbox discount is meaningless once live. So the
+ * two can drift, and when they do we would advertise a price we cannot honour:
+ * the card says $5.60/mo and Paddle charges $10. That is a chargeback and a
+ * consumer-protection problem, not a cosmetic bug.
+ *
+ * The invariant is therefore: NEVER SHOW AN OFFER WE CANNOT CHARGE. An offer with
+ * no usable discount is simply hidden, so the customer sees the list price and is
+ * billed the list price — consistent, if less generous.
+ */
+const isHonourable = (row) =>
+  isPaddleActive() ? Boolean(row.paddle_discount_id) : Boolean(row.stripe_coupon_id);
 
 // An offer counts as active when the flag is on and "now" is within its window
 // (a null bound means open-ended on that side).
@@ -38,6 +57,13 @@ const getActiveOffers = async () => {
   );
   const byPlan = {};
   for (const r of rows) {
+    // Only advertise what checkout can actually apply (see isHonourable).
+    if (!isHonourable(r)) {
+      console.warn(
+        `offer ${r.id} (${r.plan}/${r.billing_interval}) has no discount on the active provider — hiding it so we don't advertise a price we can't charge. Re-create it in the Admin Panel.`
+      );
+      continue;
+    }
     const o = shape(r);
     byPlan[o.plan] = byPlan[o.plan] || {};
     if (byPlan[o.plan][o.interval]) continue; // keep the most recent
