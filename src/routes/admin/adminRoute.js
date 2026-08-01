@@ -18,6 +18,7 @@ const {
   updateUser,
   resetUserPassword,
   deleteUser,
+  getUserDeletionSummary,
 } = require("../../main/admin/adminUsers");
 const {
   listAdmins,
@@ -160,6 +161,9 @@ adminRouter.put("/users/:id", (req, res) =>
 );
 adminRouter.put("/users/:id/password", (req, res) =>
   resetUserPassword(req.params.id, req.body?.password, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+adminRouter.get("/users/:id/deletion-summary", (req, res) =>
+  getUserDeletionSummary(req.params.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
 );
 adminRouter.delete("/users/:id", (req, res) =>
   deleteUser(req.params.id, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
