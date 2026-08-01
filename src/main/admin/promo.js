@@ -352,4 +352,67 @@ const reactivatePromoCode = async (id, data = {}, adminId, lg) => {
   }
 };
 
-module.exports = { listPromoCodes, createPromoCode, revokePromoCode, reactivatePromoCode };
+/**
+ * Permanently delete a promo code.
+ *
+ * Different from revoking: revoke keeps the row (and its redemption history) and
+ * just switches it off, which is what you want for a code customers may still
+ * quote at you. Delete is for codes that should never have existed — a typo, a
+ * test code — and it CASCADES to `promo_redemptions`, destroying the record of
+ * who redeemed it.
+ *
+ * That history is the only trace linking a customer to a comp or discount they
+ * were given, so the count is returned for the UI to show before confirming, and
+ * again afterwards. Deleting does NOT revoke anything already granted: a comped
+ * account keeps its plan (that lives on `billing_accounts`), and a subscription
+ * already carrying the discount keeps it until the provider discount expires.
+ */
+const deletePromoCode = async (id, lg) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT code, paddle_discount_id, stripe_promotion_code_id FROM promo_codes WHERE id = ?",
+      [id]
+    );
+    if (rows.length === 0) {
+      return Promise.reject(setServerResponse(API_STATUS_CODE.NOT_FOUND, "promo_not_found", lg));
+    }
+    const [[{ n: redemptions }]] = await pool.query(
+      "SELECT COUNT(*) AS n FROM promo_redemptions WHERE promo_code_id = ?",
+      [id]
+    );
+
+    // Retire the provider discount first — deleting our row would otherwise leave
+    // an active discount in Paddle that nothing references but that still applies
+    // if its id is known.
+    if (rows[0].paddle_discount_id) {
+      await archivePaddleDiscount(rows[0].paddle_discount_id);
+    }
+    if (rows[0].stripe_promotion_code_id && isStripeConfigured()) {
+      try {
+        await stripe.promotionCodes.update(rows[0].stripe_promotion_code_id, { active: false });
+      } catch (e) {
+        console.error("stripe promo disable failed (non-fatal):", e.message);
+      }
+    }
+
+    // promo_redemptions has ON DELETE CASCADE, so this takes the history with it.
+    await pool.query("DELETE FROM promo_codes WHERE id = ?", [id]);
+    console.log(`deleted promo code ${rows[0].code} (id=${id}) and ${redemptions} redemption record(s)`);
+    return Promise.resolve(
+      setServerResponse(API_STATUS_CODE.OK, "promo_deleted", lg, { id: Number(id), redemptions })
+    );
+  } catch (error) {
+    console.error("deletePromoCode error:", error);
+    return Promise.reject(
+      setServerResponse(API_STATUS_CODE.INTERNAL_SERVER_ERROR, "internal_server_error", lg)
+    );
+  }
+};
+
+module.exports = {
+  listPromoCodes,
+  createPromoCode,
+  revokePromoCode,
+  reactivatePromoCode,
+  deletePromoCode,
+};
