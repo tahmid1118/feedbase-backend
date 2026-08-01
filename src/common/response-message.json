@@ -274,7 +274,6 @@
     "downgrade_interval_unsupported": "Switching from yearly to monthly billing can't be done in-app. Cancel at your period end and resubscribe monthly when your current period ends.",
     "plan_change_cancelled": "Scheduled change cancelled.",
     "plan_change_failed": "Couldn't change the plan. Please try again.",
-    "owner_comment_pro": "Replying to feedback as the workspace owner requires the Pro plan or higher. Please upgrade.",
     "subscription_cancelled": "Subscription cancelled — it ends at the end of your billing period.",
     "subscription_resumed": "Subscription resumed — it will renew as usual.",
     "downgrade_via_portal": "To downgrade, open Manage billing.",
@@ -282,7 +281,6 @@
     "promo_reactivated": "Promo code reactivated",
     "promo_already_active": "That promo code is already active",
     "subscription_already_active": "You already have an active subscription. Resume or change your plan instead of subscribing again.",
-    "owner_post_pro": "Posting on your own board requires the Pro plan or higher. Please upgrade.",
     "promo_percent_below_minimum": "That discount leaves less than the $0.70 minimum we can charge. Use at most {{maxPercent}}%, or create a free-plan code to grant the plan at no cost.",
     "promo_deleted": "Promo code deleted"
   },
@@ -313,7 +311,6 @@
     "downgrade_interval_unsupported": "Ein Wechsel von jährlicher zu monatlicher Abrechnung ist in der App nicht möglich. Kündigen Sie zum Periodenende und abonnieren Sie danach monatlich neu.",
     "plan_change_cancelled": "Geplante Änderung abgebrochen.",
     "plan_change_failed": "Tarif konnte nicht geändert werden. Bitte erneut versuchen.",
-    "owner_comment_pro": "Auf Feedback als Workspace-Inhaber zu antworten erfordert den Pro-Tarif oder höher. Bitte upgraden.",
     "subscription_cancelled": "Abo gekündigt – es endet am Ende deines Abrechnungszeitraums.",
     "subscription_resumed": "Abo fortgesetzt – es wird wie gewohnt verlängert.",
     "downgrade_via_portal": "Zum Herabstufen bitte „Abrechnung verwalten“ verwenden.",
@@ -322,7 +319,6 @@
     "promo_reactivated": "Promo-Code reaktiviert",
     "promo_already_active": "Dieser Promo-Code ist bereits aktiv",
     "subscription_already_active": "Du hast bereits ein aktives Abo. Setze es fort oder ändere deinen Tarif, statt erneut zu abonnieren.",
-    "owner_post_pro": "Beiträge auf dem eigenen Board erfordern den Pro-Tarif oder höher. Bitte upgraden.",
     "promo_percent_below_minimum": "Dieser Rabatt unterschreitet den Mindestbetrag von 0,70 $. Nutze höchstens {{maxPercent}} % oder erstelle einen Gratis-Tarif-Code.",
     "promo_deleted": "Promo-Code gelöscht"
   },
@@ -353,7 +349,6 @@
     "downgrade_interval_unsupported": "Le passage d'une facturation annuelle à mensuelle n'est pas possible dans l'application. Résiliez à la fin de votre période, puis réabonnez-vous en mensuel une fois la période terminée.",
     "plan_change_cancelled": "Changement programmé annulé.",
     "plan_change_failed": "Impossible de changer de forfait. Veuillez réessayer.",
-    "owner_comment_pro": "Répondre aux retours en tant que propriétaire de l'espace de travail nécessite le forfait Pro ou supérieur. Veuillez mettre à niveau.",
     "subscription_cancelled": "Abonnement annulé — il se termine à la fin de votre période de facturation.",
     "subscription_resumed": "Abonnement repris — il se renouvellera normalement.",
     "downgrade_via_portal": "Pour rétrograder, utilisez « Gérer la facturation ».",
@@ -362,7 +357,6 @@
     "promo_reactivated": "Code promo réactivé",
     "promo_already_active": "Ce code promo est déjà actif",
     "subscription_already_active": "Vous avez déjà un abonnement actif. Reprenez-le ou changez de forfait au lieu de vous réabonner.",
-    "owner_post_pro": "Publier sur votre propre tableau nécessite le forfait Pro ou supérieur. Veuillez mettre à niveau.",
     "promo_percent_below_minimum": "Cette remise laisse moins que le minimum de 0,70 $. Utilisez au plus {{maxPercent}} %, ou créez un code de forfait gratuit.",
     "promo_deleted": "Code promo supprimé"
   },
@@ -393,7 +387,6 @@
     "downgrade_interval_unsupported": "El cambio de facturación anual a mensual no puede hacerse en la aplicación. Cancela al final de tu periodo y vuelve a suscribirte en mensual cuando termine tu periodo actual.",
     "plan_change_cancelled": "Cambio programado cancelado.",
     "plan_change_failed": "No se pudo cambiar el plan. Inténtalo de nuevo.",
-    "owner_comment_pro": "Responder a los comentarios como propietario del espacio de trabajo requiere el plan Pro o superior. Actualiza tu plan.",
     "subscription_cancelled": "Suscripción cancelada: finaliza al término de tu período de facturación.",
     "subscription_resumed": "Suscripción reanudada: se renovará con normalidad.",
     "downgrade_via_portal": "Para bajar de plan, usa «Gestionar facturación».",
@@ -402,7 +395,6 @@
     "promo_reactivated": "Código promocional reactivado",
     "promo_already_active": "Ese código promocional ya está activo",
     "subscription_already_active": "Ya tienes una suscripción activa. Reanúdala o cambia de plan en lugar de volver a suscribirte.",
-    "owner_post_pro": "Publicar en tu propio tablero requiere el plan Pro o superior. Por favor, mejora tu plan.",
     "promo_percent_below_minimum": "Ese descuento deja menos del mínimo de 0,70 $. Usa como máximo {{maxPercent}} %, o crea un código de plan gratuito.",
     "promo_deleted": "Código promocional eliminado"
   },
@@ -433,7 +425,6 @@
     "downgrade_interval_unsupported": "Il passaggio dalla fatturazione annuale a quella mensile non è possibile nell'app. Annulla alla fine del periodo e riattiva l'abbonamento mensile al termine del periodo attuale.",
     "plan_change_cancelled": "Modifica pianificata annullata.",
     "plan_change_failed": "Impossibile modificare il piano. Riprova.",
-    "owner_comment_pro": "Rispondere ai feedback come proprietario dello spazio di lavoro richiede il piano Pro o superiore. Esegui l'upgrade.",
     "subscription_cancelled": "Abbonamento annullato: termina alla fine del periodo di fatturazione.",
     "subscription_resumed": "Abbonamento ripreso: si rinnoverà normalmente.",
     "downgrade_via_portal": "Per effettuare il downgrade, usa «Gestisci fatturazione».",
@@ -442,7 +433,6 @@
     "promo_reactivated": "Codice promozionale riattivato",
     "promo_already_active": "Quel codice promozionale è già attivo",
     "subscription_already_active": "Hai già un abbonamento attivo. Riprendilo o cambia piano invece di sottoscriverne un altro.",
-    "owner_post_pro": "Pubblicare sulla propria bacheca richiede il piano Pro o superiore. Esegui l’upgrade.",
     "promo_percent_below_minimum": "Quello sconto lascia meno del minimo di 0,70 $. Usa al massimo {{maxPercent}} % oppure crea un codice piano gratuito.",
     "promo_deleted": "Codice promozionale eliminato"
   },
@@ -473,7 +463,6 @@
     "downgrade_interval_unsupported": "A mudança de faturação anual para mensal não pode ser feita na aplicação. Cancele no fim do seu período e volte a subscrever mensalmente quando o período atual terminar.",
     "plan_change_cancelled": "Alteração agendada cancelada.",
     "plan_change_failed": "Não foi possível alterar o plano. Tente novamente.",
-    "owner_comment_pro": "Responder a feedback como proprietário do espaço de trabalho requer o plano Pro ou superior. Faça upgrade.",
     "subscription_cancelled": "Assinatura cancelada — termina no fim do seu período de faturamento.",
     "subscription_resumed": "Assinatura retomada — será renovada normalmente.",
     "downgrade_via_portal": "Para fazer downgrade, use «Gerenciar cobrança».",
@@ -482,7 +471,6 @@
     "promo_reactivated": "Código promocional reativado",
     "promo_already_active": "Esse código promocional já está ativo",
     "subscription_already_active": "Já tem uma subscrição ativa. Retome-a ou mude de plano em vez de subscrever novamente.",
-    "owner_post_pro": "Publicar no seu próprio quadro requer o plano Pro ou superior. Faça upgrade.",
     "promo_percent_below_minimum": "Esse desconto deixa menos do que o mínimo de 0,70 $. Use no máximo {{maxPercent}} % ou crie um código de plano gratuito.",
     "promo_deleted": "Código promocional eliminado"
   },
@@ -513,7 +501,6 @@
     "downgrade_interval_unsupported": "Overschakelen van jaarlijkse naar maandelijkse facturering kan niet in de app. Zeg op tegen het einde van je periode en neem opnieuw een maandabonnement wanneer je huidige periode afloopt.",
     "plan_change_cancelled": "Geplande wijziging geannuleerd.",
     "plan_change_failed": "Kon het abonnement niet wijzigen. Probeer het opnieuw.",
-    "owner_comment_pro": "Reageren op feedback als eigenaar van de werkruimte vereist het Pro-abonnement of hoger. Upgrade alstublieft.",
     "subscription_cancelled": "Abonnement opgezegd — het eindigt aan het einde van je factureringsperiode.",
     "subscription_resumed": "Abonnement hervat — het wordt normaal verlengd.",
     "downgrade_via_portal": "Gebruik 'Facturering beheren' om te downgraden.",
@@ -522,7 +509,6 @@
     "promo_reactivated": "Promocode opnieuw geactiveerd",
     "promo_already_active": "Die promocode is al actief",
     "subscription_already_active": "Je hebt al een actief abonnement. Hervat het of wijzig je plan in plaats van opnieuw te abonneren.",
-    "owner_post_pro": "Plaatsen op je eigen bord vereist het Pro-abonnement of hoger. Upgrade a.u.b.",
     "promo_percent_below_minimum": "Die korting laat minder over dan het minimum van $ 0,70. Gebruik maximaal {{maxPercent}} % of maak een gratis-plan-code.",
     "promo_deleted": "Promocode verwijderd"
   },
@@ -553,7 +539,6 @@
     "downgrade_interval_unsupported": "Zmiana rozliczenia z rocznego na miesięczne nie jest możliwa w aplikacji. Anuluj na koniec okresu i wykup abonament miesięczny po zakończeniu bieżącego okresu.",
     "plan_change_cancelled": "Anulowano zaplanowaną zmianę.",
     "plan_change_failed": "Nie udało się zmienić planu. Spróbuj ponownie.",
-    "owner_comment_pro": "Odpowiadanie na opinie jako właściciel obszaru roboczego wymaga planu Pro lub wyższego. Ulepsz plan.",
     "subscription_cancelled": "Subskrypcja anulowana — kończy się z końcem okresu rozliczeniowego.",
     "subscription_resumed": "Subskrypcja wznowiona — odnowi się normalnie.",
     "downgrade_via_portal": "Aby obniżyć plan, użyj „Zarządzaj płatnościami”.",
@@ -562,7 +547,6 @@
     "promo_reactivated": "Kod promocyjny ponownie aktywowany",
     "promo_already_active": "Ten kod promocyjny jest już aktywny",
     "subscription_already_active": "Masz już aktywną subskrypcję. Wznów ją lub zmień plan zamiast subskrybować ponownie.",
-    "owner_post_pro": "Publikowanie na własnej tablicy wymaga planu Pro lub wyższego. Ulepsz plan.",
     "promo_percent_below_minimum": "Ta zniżka pozostawia mniej niż minimum 0,70 $. Użyj maksymalnie {{maxPercent}}% albo utwórz kod darmowego planu.",
     "promo_deleted": "Kod promocyjny usunięty"
   }
