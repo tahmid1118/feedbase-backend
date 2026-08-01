@@ -8,7 +8,9 @@
  * even if two requests race past the same SELECT at the same instant.
  *
  * Existing rows are backfilled from the redeeming user's email.
- * Idempotent. Mirrored in feedboard_db.sql.
+ * Idempotent. Mirrored in database/schema.sql — keep the two in step: a fresh
+ * install is built from that file alone, so a column that lives only here is a
+ * database the running code cannot use.
  *
  *   node scripts/add-promo-redemption-uniqueness.js
  */

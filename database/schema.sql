@@ -142,10 +142,18 @@ CREATE TABLE IF NOT EXISTS promo_redemptions (
   promo_code_id BIGINT UNSIGNED NOT NULL,
   tenant_id BIGINT UNSIGNED NOT NULL,
   redeemed_by_user_id BIGINT UNSIGNED NULL,
+  -- Billing is per ACCOUNT (email), not per user row or workspace, so the
+  -- once-per-account rule keys on this. redeemPromo.js reads and writes it on
+  -- every redemption — a schema without it makes redemption fail outright.
+  account_email VARCHAR(255) NULL,
   plan_granted VARCHAR(50) NULL,
   applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   expires_at DATETIME NULL,
   PRIMARY KEY (id),
+  -- The DATABASE is the guarantee that a code is redeemed once per account: two
+  -- requests racing past the SELECT pre-check both reach the INSERT, and the
+  -- loser fails with ER_DUP_ENTRY -> promo_already_redeemed.
+  UNIQUE KEY uq_promo_account (promo_code_id, account_email),
   KEY idx_promo_redemptions_code (promo_code_id),
   KEY idx_promo_redemptions_tenant (tenant_id),
   CONSTRAINT fk_promo_redemptions_code FOREIGN KEY (promo_code_id) REFERENCES promo_codes(id) ON DELETE CASCADE,
