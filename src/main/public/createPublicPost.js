@@ -4,6 +4,8 @@ const { setServerResponse } = require("../../common/setServerResponse");
 const { notifyOwnerOfNewPost } = require("./notifyOwnerOfNewPost");
 const { attachToPost } = require("../attachments/attachments");
 const { notifyTeam } = require("../../common/notifications");
+const { getTenantPlan } = require("../../common/planGuard");
+const { getPlanLimits } = require("../../consts/plans");
 
 const POST_TYPES = ["feedback", "feature_request", "bug_report"];
 const TYPE_LABEL = {
@@ -25,7 +27,30 @@ const truncate = (s, n) => {
  * @param {object} data { title, description, postType, submitterName, submitterEmail }
  * @param {string} lg
  */
+/**
+ * Posting on your OWN board as the owner is a Pro+ capability, exactly like
+ * replying as the owner (`owner_comment_pro`). On Free the board is for the
+ * workspace's users; the owner joins the conversation on a paid plan.
+ *
+ * Only the board's own owner is gated — a member, a guest, or a logged-in user on
+ * someone else's board is never affected.
+ */
+const ownerPostBlocked = async (authUser, tenantId) => {
+  const isBoardOwner =
+    authUser?.id &&
+    authUser.role === "owner" &&
+    Number(authUser.tenantId) === Number(tenantId);
+  if (!isBoardOwner) return false;
+  const limits = getPlanLimits(await getTenantPlan(tenantId));
+  return !limits.ownerBadge;
+};
+
 const createPublicPost = async (tenantId, data, authUser, lg) => {
+  if (await ownerPostBlocked(authUser, tenantId)) {
+    return Promise.reject(
+      setServerResponse(API_STATUS_CODE.PAYMENT_REQUIRED, "owner_post_pro", lg)
+    );
+  }
   const title = (data?.title || "").trim();
   const description = (data?.description || "").trim();
   const postType = POST_TYPES.includes(data?.postType)

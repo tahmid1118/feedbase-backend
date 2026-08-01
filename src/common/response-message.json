@@ -280,7 +280,9 @@
     "discount_below_minimum": "This discount leaves a total below the minimum amount we can charge. Use a free-plan code to grant the plan at no cost, or lower the discount.",
     "promo_reactivated": "Promo code reactivated",
     "promo_already_active": "That promo code is already active",
-    "subscription_already_active": "You already have an active subscription. Resume or change your plan instead of subscribing again."
+    "subscription_already_active": "You already have an active subscription. Resume or change your plan instead of subscribing again.",
+    "owner_post_pro": "Posting on your own board requires the Pro plan or higher. Please upgrade.",
+    "promo_percent_below_minimum": "That discount leaves less than the $0.70 minimum we can charge. Use at most {{maxPercent}}%, or create a free-plan code to grant the plan at no cost."
   },
   "de": {
     "success": "Erfolg",
@@ -317,7 +319,9 @@
     "discount_below_minimum": "Nach diesem Rabatt liegt der Betrag unter dem Mindestbetrag, den wir abbuchen können. Nutze einen Gratis-Tarif-Code, um den Tarif kostenlos zu gewähren, oder verringere den Rabatt.",
     "promo_reactivated": "Promo-Code reaktiviert",
     "promo_already_active": "Dieser Promo-Code ist bereits aktiv",
-    "subscription_already_active": "Du hast bereits ein aktives Abo. Setze es fort oder ändere deinen Tarif, statt erneut zu abonnieren."
+    "subscription_already_active": "Du hast bereits ein aktives Abo. Setze es fort oder ändere deinen Tarif, statt erneut zu abonnieren.",
+    "owner_post_pro": "Beiträge auf dem eigenen Board erfordern den Pro-Tarif oder höher. Bitte upgraden.",
+    "promo_percent_below_minimum": "Dieser Rabatt unterschreitet den Mindestbetrag von 0,70 $. Nutze höchstens {{maxPercent}} % oder erstelle einen Gratis-Tarif-Code."
   },
   "fr": {
     "success": "Succès",
@@ -354,7 +358,9 @@
     "discount_below_minimum": "Après cette remise, le total est inférieur au montant minimum que nous pouvons débiter. Utilisez un code de forfait gratuit pour offrir le forfait, ou réduisez la remise.",
     "promo_reactivated": "Code promo réactivé",
     "promo_already_active": "Ce code promo est déjà actif",
-    "subscription_already_active": "Vous avez déjà un abonnement actif. Reprenez-le ou changez de forfait au lieu de vous réabonner."
+    "subscription_already_active": "Vous avez déjà un abonnement actif. Reprenez-le ou changez de forfait au lieu de vous réabonner.",
+    "owner_post_pro": "Publier sur votre propre tableau nécessite le forfait Pro ou supérieur. Veuillez mettre à niveau.",
+    "promo_percent_below_minimum": "Cette remise laisse moins que le minimum de 0,70 $. Utilisez au plus {{maxPercent}} %, ou créez un code de forfait gratuit."
   },
   "es": {
     "success": "Éxito",
@@ -391,7 +397,9 @@
     "discount_below_minimum": "Con este descuento el total queda por debajo del importe mínimo que podemos cobrar. Usa un código de plan gratuito para conceder el plan sin coste, o reduce el descuento.",
     "promo_reactivated": "Código promocional reactivado",
     "promo_already_active": "Ese código promocional ya está activo",
-    "subscription_already_active": "Ya tienes una suscripción activa. Reanúdala o cambia de plan en lugar de volver a suscribirte."
+    "subscription_already_active": "Ya tienes una suscripción activa. Reanúdala o cambia de plan en lugar de volver a suscribirte.",
+    "owner_post_pro": "Publicar en tu propio tablero requiere el plan Pro o superior. Por favor, mejora tu plan.",
+    "promo_percent_below_minimum": "Ese descuento deja menos del mínimo de 0,70 $. Usa como máximo {{maxPercent}} %, o crea un código de plan gratuito."
   },
   "it": {
     "success": "Successo",
@@ -428,7 +436,9 @@
     "discount_below_minimum": "Con questo sconto il totale scende sotto l’importo minimo addebitabile. Usa un codice piano gratuito per concedere il piano senza costi, oppure riduci lo sconto.",
     "promo_reactivated": "Codice promozionale riattivato",
     "promo_already_active": "Quel codice promozionale è già attivo",
-    "subscription_already_active": "Hai già un abbonamento attivo. Riprendilo o cambia piano invece di sottoscriverne un altro."
+    "subscription_already_active": "Hai già un abbonamento attivo. Riprendilo o cambia piano invece di sottoscriverne un altro.",
+    "owner_post_pro": "Pubblicare sulla propria bacheca richiede il piano Pro o superiore. Esegui l’upgrade.",
+    "promo_percent_below_minimum": "Quello sconto lascia meno del minimo di 0,70 $. Usa al massimo {{maxPercent}} % oppure crea un codice piano gratuito."
   },
   "pt": {
     "success": "Sucesso",
@@ -465,7 +475,9 @@
     "discount_below_minimum": "Com este desconto o total fica abaixo do valor mínimo que podemos cobrar. Use um código de plano gratuito para conceder o plano sem custo, ou reduza o desconto.",
     "promo_reactivated": "Código promocional reativado",
     "promo_already_active": "Esse código promocional já está ativo",
-    "subscription_already_active": "Já tem uma subscrição ativa. Retome-a ou mude de plano em vez de subscrever novamente."
+    "subscription_already_active": "Já tem uma subscrição ativa. Retome-a ou mude de plano em vez de subscrever novamente.",
+    "owner_post_pro": "Publicar no seu próprio quadro requer o plano Pro ou superior. Faça upgrade.",
+    "promo_percent_below_minimum": "Esse desconto deixa menos do que o mínimo de 0,70 $. Use no máximo {{maxPercent}} % ou crie um código de plano gratuito."
   },
   "nl": {
     "success": "Succes",
@@ -502,7 +514,9 @@
     "discount_below_minimum": "Na deze korting ligt het totaal onder het minimumbedrag dat we kunnen incasseren. Gebruik een gratis-plan-code om het plan kosteloos toe te kennen, of verlaag de korting.",
     "promo_reactivated": "Promocode opnieuw geactiveerd",
     "promo_already_active": "Die promocode is al actief",
-    "subscription_already_active": "Je hebt al een actief abonnement. Hervat het of wijzig je plan in plaats van opnieuw te abonneren."
+    "subscription_already_active": "Je hebt al een actief abonnement. Hervat het of wijzig je plan in plaats van opnieuw te abonneren.",
+    "owner_post_pro": "Plaatsen op je eigen bord vereist het Pro-abonnement of hoger. Upgrade a.u.b.",
+    "promo_percent_below_minimum": "Die korting laat minder over dan het minimum van $ 0,70. Gebruik maximaal {{maxPercent}} % of maak een gratis-plan-code."
   },
   "pl": {
     "success": "Sukces",
@@ -539,6 +553,8 @@
     "discount_below_minimum": "Po tej zniżce kwota jest niższa niż minimalna, którą możemy pobrać. Użyj kodu darmowego planu, aby przyznać plan bez opłat, albo zmniejsz zniżkę.",
     "promo_reactivated": "Kod promocyjny ponownie aktywowany",
     "promo_already_active": "Ten kod promocyjny jest już aktywny",
-    "subscription_already_active": "Masz już aktywną subskrypcję. Wznów ją lub zmień plan zamiast subskrybować ponownie."
+    "subscription_already_active": "Masz już aktywną subskrypcję. Wznów ją lub zmień plan zamiast subskrybować ponownie.",
+    "owner_post_pro": "Publikowanie na własnej tablicy wymaga planu Pro lub wyższego. Ulepsz plan.",
+    "promo_percent_below_minimum": "Ta zniżka pozostawia mniej niż minimum 0,70 $. Użyj maksymalnie {{maxPercent}}% albo utwórz kod darmowego planu."
   }
 }

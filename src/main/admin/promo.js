@@ -4,9 +4,51 @@ const { setServerResponse } = require("../../common/setServerResponse");
 const { stripe, isStripeConfigured } = require("../../common/stripe");
 const { isPaddleActive } = require("../../common/billingProvider");
 const { createPaddlePromoDiscount, archivePaddleDiscount } = require("../../common/discounts");
+const { listPrice } = require("../../consts/plans");
 
 const CODE_RE = /^[A-Z0-9_-]{3,64}$/;
 const DURATIONS = ["once", "repeating", "forever"];
+
+/**
+ * Paddle refuses a transaction whose total falls below its minimum chargeable
+ * amount (USD $0.70), so a percent-off code that deep just fails at checkout with
+ * "Transaction balance is less than what we can charge" — after the customer has
+ * clicked Buy. Reject it at creation instead, where the admin can act on it.
+ *
+ * A near-total discount should be a `free_plan` comp code: that grants the plan
+ * outright with no charge, so no minimum applies.
+ */
+const MIN_CHARGE_USD = 0.7;
+
+/** The cheapest price this code could be applied to, or null if unrestricted. */
+const lowestApplicablePrice = (appliesToPlan) => {
+  const plans = appliesToPlan && appliesToPlan !== "any" ? [appliesToPlan] : ["pro", "business"];
+  const prices = [];
+  for (const p of plans) for (const iv of ["month", "year"]) {
+    const v = listPrice(p, iv);
+    if (v > 0) prices.push(v);
+  }
+  return prices.length ? Math.min(...prices) : null;
+};
+
+/**
+ * `true` when this percentage would leave a charge under the processor minimum on
+ * the cheapest plan it can apply to.
+ */
+const belowMinimumCharge = (percentOff, appliesToPlan) => {
+  const lowest = lowestApplicablePrice(appliesToPlan);
+  if (!lowest) return false;
+  // Round to cents the way a real charge would be.
+  const remaining = Math.round(lowest * (1 - percentOff / 100) * 100) / 100;
+  return remaining < MIN_CHARGE_USD;
+};
+
+/** Highest whole percentage that still clears the minimum on `appliesToPlan`. */
+const maxUsablePercent = (appliesToPlan) => {
+  const lowest = lowestApplicablePrice(appliesToPlan);
+  if (!lowest) return 100;
+  return Math.max(1, Math.floor((1 - MIN_CHARGE_USD / lowest) * 100));
+};
 
 /** List all promo codes (admin view). */
 const listPromoCodes = async (lg) => {
@@ -68,6 +110,13 @@ const createPromoCode = async (data, adminId, lg) => {
       appliesToPlan = ["any", "pro", "business"].includes(data?.appliesToPlan)
         ? data.appliesToPlan
         : "any";
+      if (belowMinimumCharge(percentOff, appliesToPlan)) {
+        return Promise.reject(
+          setServerResponse(API_STATUS_CODE.BAD_REQUEST, "promo_percent_below_minimum", lg, {
+            maxPercent: maxUsablePercent(appliesToPlan),
+          })
+        );
+      }
       // Back the code with a discount on the ACTIVE provider. It's applied at
       // checkout by id (redeemed in-app), never typed into the provider's overlay.
       if (isPaddleActive()) {
@@ -222,6 +271,13 @@ const reactivatePromoCode = async (id, data = {}, adminId, lg) => {
       appliesToPlan = ["any", "pro", "business"].includes(data.appliesToPlan)
         ? data.appliesToPlan
         : promo.applies_to_plan || "any";
+      if (belowMinimumCharge(percentOff, appliesToPlan)) {
+        return Promise.reject(
+          setServerResponse(API_STATUS_CODE.BAD_REQUEST, "promo_percent_below_minimum", lg, {
+            maxPercent: maxUsablePercent(appliesToPlan),
+          })
+        );
+      }
 
       if (isPaddleActive()) {
         paddleDiscountId = await createPaddlePromoDiscount({
