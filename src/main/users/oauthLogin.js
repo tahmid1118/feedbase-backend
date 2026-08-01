@@ -5,18 +5,10 @@ const { setServerResponse } = require('../../common/setServerResponse');
 const { placeholderImagePath } = require("../../consts/staticValues");
 const { startSession } = require('../../common/sessions');
 
-const VALID_PROVIDERS = ['google', 'github', 'microsoft'];
+const VALID_PROVIDERS = ['google', 'facebook', 'github', 'microsoft'];
 
-const resolveTenantId = (tenantId) => {
-  if (tenantId === undefined || tenantId === null || tenantId === '') {
-    return 1;
-  }
-  const parsed = Number(tenantId);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return 1;
-  }
-  return parsed;
-};
+const USER_FIELDS =
+  'id, tenant_id, full_name, email, role, avatar_url, is_platform_admin';
 
 const generateToken = (userInfo, sid) => {
   return jwt.sign(
@@ -32,28 +24,64 @@ const generateToken = (userInfo, sid) => {
   );
 };
 
+/**
+ * Pick the row to sign this account in as.
+ *
+ * An account is an email that may hold a `users` row per workspace, plus
+ * possibly a workspace-LESS row left from before onboarding. Prefer a row that
+ * HAS a workspace: signing the platform admin (who holds both) into their
+ * NULL-tenant row would bounce them to onboarding even though they own a board.
+ * The workspace switcher takes over from there.
+ */
+const findAccountRow = async (email) => {
+  const [rows] = await pool.query(
+    `SELECT ${USER_FIELDS} FROM users
+      WHERE email = ? AND is_active = 1
+      ORDER BY (tenant_id IS NULL), id
+      LIMIT 1`,
+    [email]
+  );
+  return rows[0] || null;
+};
+
 const getUserById = async (userId) => {
   const [rows] = await pool.query(
-    'SELECT id, tenant_id, full_name, email, role, avatar_url FROM users WHERE id = ? AND is_active = 1 LIMIT 1',
+    `SELECT ${USER_FIELDS} FROM users WHERE id = ? AND is_active = 1 LIMIT 1`,
     [userId]
   );
   return rows[0] || null;
 };
 
 /**
- * @description Authenticate a user via an OAuth provider. The frontend performs the
- * provider handshake and passes the verified provider identity here. The user is
- * matched by an existing oauth link, then by email within the tenant, otherwise a
- * new user is provisioned. A JWT is returned in the same shape as password login.
+ * @description Sign in (or sign up) with a social provider. The frontend runs
+ * the provider handshake — NextAuth verifies the ID token, state and nonce — and
+ * posts the resulting identity here, so this endpoint never handles the user's
+ * provider credentials.
+ *
+ * Two rules make an assertion from the frontend safe to accept:
+ *
+ *  1. `emailVerified` MUST be true. We match an existing account BY EMAIL, so an
+ *     unverified provider address is an account-takeover route: anyone able to
+ *     put an arbitrary address on a provider profile could claim a FeedBoard
+ *     account they don't own. Google reports this for the `email` scope; some
+ *     providers don't, and those must not be enabled without another check.
+ *  2. The provider's SUBJECT ID is the identity, not the email. Once linked, a
+ *     person who changes the address on their provider account still signs in to
+ *     the same FeedBoard account instead of silently forking a second one.
+ *
+ * A first-time user is provisioned with NO workspace (`tenant_id` NULL) and NO
+ * password, exactly like an email signup — the frontend then routes them to
+ * onboarding to create their first workspace. It must never fall back to a
+ * tenant id: an earlier version defaulted to `1`, which would have dropped every
+ * new social signup into whichever workspace happened to be first.
  */
 const oauthLogin = async (userData, lg, req) => {
   const language = userData?.lg || lg || 'en';
   const provider = (userData?.provider || '').toLowerCase();
   const providerUserId = userData?.providerUserId;
-  const email = userData?.email;
-  const fullName = userData?.fullName || email;
+  const email = String(userData?.email || '').trim().toLowerCase();
+  const fullName = (userData?.fullName || '').trim() || email;
   const avatarUrl = userData?.avatarUrl || placeholderImagePath;
-  const tenantId = resolveTenantId(userData?.tenantId);
 
   if (!VALID_PROVIDERS.includes(provider)) {
     return Promise.reject(
@@ -65,42 +93,34 @@ const oauthLogin = async (userData, lg, req) => {
       setServerResponse(API_STATUS_CODE.BAD_REQUEST, 'oauth_provider_is_required', language)
     );
   }
+  if (userData?.emailVerified !== true && userData?.emailVerified !== 'true') {
+    return Promise.reject(
+      setServerResponse(API_STATUS_CODE.BAD_REQUEST, 'oauth_email_unverified', language)
+    );
+  }
 
   try {
-    // 1) Existing oauth link.
+    // 1) Known provider identity → the account it was linked to. The STORED
+    //    email wins over the one just presented, so changing the address on the
+    //    provider side doesn't fork a second FeedBoard account.
     const [linkRows] = await pool.query(
-      'SELECT user_id FROM oauth_accounts WHERE tenant_id = ? AND provider = ? AND provider_user_id = ? LIMIT 1',
-      [tenantId, provider, providerUserId]
+      'SELECT email FROM oauth_accounts WHERE provider = ? AND provider_user_id = ? LIMIT 1',
+      [provider, providerUserId]
     );
+    const accountEmail = linkRows[0]?.email || email;
 
-    let userInfo;
-    if (linkRows.length > 0) {
-      userInfo = await getUserById(linkRows[0].user_id);
-    }
+    let userInfo = await findAccountRow(accountEmail);
 
-    // 2) Match by email within tenant, creating the user if needed, then link.
+    // 2) No account yet → provision one, workspace-less and password-less. The
+    //    frontend sends them to onboarding, which claims this row as the owner
+    //    of the workspace they create.
     if (!userInfo) {
-      const [userRows] = await pool.query(
-        'SELECT id, tenant_id, full_name, email, role, avatar_url FROM users WHERE email = ? AND tenant_id = ? LIMIT 1',
-        [email, tenantId]
+      const [insert] = await pool.query(
+        `INSERT INTO users (tenant_id, email, password_hash, full_name, role, avatar_url, is_active)
+         VALUES (NULL, ?, NULL, ?, 'user', ?, 1)`,
+        [accountEmail, fullName, avatarUrl]
       );
-
-      if (userRows.length > 0) {
-        userInfo = userRows[0];
-      } else {
-        const [insertResult] = await pool.query(
-          `INSERT INTO users (tenant_id, email, password_hash, full_name, role, avatar_url, is_active)
-           VALUES (?, ?, NULL, ?, 'user', ?, 1)`,
-          [tenantId, email, fullName, avatarUrl]
-        );
-        userInfo = await getUserById(insertResult.insertId);
-      }
-
-      // Link the oauth identity (ignore if already linked by a race).
-      await pool.query(
-        'INSERT IGNORE INTO oauth_accounts (tenant_id, user_id, provider, provider_user_id) VALUES (?, ?, ?, ?)',
-        [tenantId, userInfo.id, provider, providerUserId]
-      );
+      userInfo = await getUserById(insert.insertId);
     }
 
     if (!userInfo) {
@@ -109,8 +129,20 @@ const oauthLogin = async (userData, lg, req) => {
       );
     }
 
-    // One device at a time (Free/Pro) — same gate as password login.
-    const session = await startSession(userInfo, req);
+    // 3) Remember the link. INSERT IGNORE so a concurrent first login that won
+    //    the race is not an error.
+    if (linkRows.length === 0) {
+      await pool.query(
+        'INSERT IGNORE INTO oauth_accounts (email, provider, provider_user_id) VALUES (?, ?, ?)',
+        [accountEmail, provider, providerUserId]
+      );
+    }
+
+    // 4) One device at a time (Free/Pro) — the same gate as password login, so
+    //    social sign-in cannot be used to sidestep it. `force` is the confirmed
+    //    takeover after a 409.
+    const force = userData?.force === true || userData?.force === 'true';
+    const session = await startSession(userInfo, req, { force });
     if (session.blocked) {
       return Promise.reject(
         setServerResponse(API_STATUS_CODE.CONFLICT, 'already_logged_in_elsewhere', language)
@@ -128,6 +160,7 @@ const oauthLogin = async (userData, lg, req) => {
       email: userInfo.email,
       role: userInfo.role,
       imageUrl: userInfo.avatar_url,
+      isPlatformAdmin: userInfo.is_platform_admin === 1,
     };
 
     return Promise.resolve(

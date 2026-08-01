@@ -57,8 +57,10 @@ userRouter.post("/login", languageValidator, async (req, res) => {
 });
 
 /**
- * @description OAuth login (google/github/microsoft). The frontend completes the
- * provider handshake and posts the verified identity here.
+ * @description Social sign-in / sign-up (google, facebook, github, microsoft).
+ * The frontend completes the provider handshake and posts the verified identity
+ * here. Requires `emailVerified: true` — see oauthLogin.js for why that is the
+ * line between a convenience and an account-takeover route.
  */
 userRouter.post("/oauth/login", languageValidator, async (req, res) => {
   const { userData = {}, lg } = req.body;

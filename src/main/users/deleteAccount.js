@@ -27,9 +27,16 @@ const getAccountDeletionSummary = async (authData) => {
       [email]
     );
 
+    // Social-only accounts have no password, so the dialog must not ask for one.
+    const [pw] = await pool.query(
+      "SELECT 1 FROM users WHERE email = ? AND password_hash IS NOT NULL LIMIT 1",
+      [email]
+    );
+
     return Promise.resolve(
       setServerResponse(API_STATUS_CODE.OK, "data_fetched_successfully", lg, {
         email,
+        hasPassword: pw.length > 0,
         ownedWorkspaces: rows
           .filter((r) => r.role === "owner")
           .map((r) => ({
@@ -54,12 +61,6 @@ const getAccountDeletionSummary = async (authData) => {
 const deleteAccount = async (password, authData) => {
   const { id: currentUserId, email, lg } = authData;
 
-  if (!password) {
-    return Promise.reject(
-      setServerResponse(API_STATUS_CODE.BAD_REQUEST, "password_required", lg)
-    );
-  }
-
   try {
     // Re-authenticate: a hijacked session must not be able to nuke the account.
     const [me] = await pool.query(
@@ -71,11 +72,25 @@ const deleteAccount = async (password, authData) => {
         setServerResponse(API_STATUS_CODE.NOT_FOUND, "user_not_found", lg)
       );
     }
-    const ok = await bcrypt.compare(password, me[0].password_hash || "");
-    if (!ok) {
-      return Promise.reject(
-        setServerResponse(API_STATUS_CODE.BAD_REQUEST, "incorrect_password", lg)
-      );
+
+    // An account created through social sign-in has NO password, so there is
+    // nothing to re-verify — demanding one would make it undeletable. The typed
+    // confirmation word in the dialog is the barrier for those accounts. Anyone
+    // who wants the password step back can set one via "Forgot password", which
+    // works for password-less accounts precisely so this isn't a one-way door.
+    const hasPassword = Boolean(me[0].password_hash);
+    if (hasPassword) {
+      if (!password) {
+        return Promise.reject(
+          setServerResponse(API_STATUS_CODE.BAD_REQUEST, "password_required", lg)
+        );
+      }
+      const ok = await bcrypt.compare(password, me[0].password_hash);
+      if (!ok) {
+        return Promise.reject(
+          setServerResponse(API_STATUS_CODE.BAD_REQUEST, "incorrect_password", lg)
+        );
+      }
     }
 
     // A platform admin deleting their own account would take /admin-login with

@@ -55,8 +55,14 @@ const requestPasswordReset = async (email, lg, req) => {
   }
 
   try {
+    // Deliberately NOT filtered on `password_hash IS NOT NULL`. An account
+    // created through social sign-in has no password, and this flow is how it
+    // SETS one — otherwise "Continue with Google" would be a one-way door, and
+    // losing access to the Google account would mean losing the workspace. The
+    // link still goes only to the address on the account, so setting a first
+    // password is exactly as safe as replacing an existing one.
     const [[account]] = await pool.query(
-      "SELECT email FROM users WHERE email = ? AND is_active = 1 AND password_hash IS NOT NULL LIMIT 1",
+      "SELECT email FROM users WHERE email = ? AND is_active = 1 LIMIT 1",
       [normalized]
     );
 

@@ -247,18 +247,25 @@ CREATE TABLE IF NOT EXISTS user_sessions (
   KEY idx_user_sessions_email (email, revoked_at, last_seen_at)
 ) ENGINE=InnoDB;
 
+-- Social sign-in links ("Continue with Google").
+--
+-- Keyed by EMAIL, like user_sessions / password_resets / billing_accounts, and
+-- deliberately WITHOUT a FK to users: a link is created at first sign-in, when
+-- the account has no workspace and therefore no meaningful tenant, and it must
+-- outlive any individual membership row. `purgeAccount` clears it by email.
+--
+-- The UNIQUE key is (provider, provider_user_id), not the email: the provider's
+-- subject id is the stable identity, so someone who changes the address on their
+-- Google account still signs in to the same FeedBoard account.
 CREATE TABLE IF NOT EXISTS oauth_accounts (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  tenant_id BIGINT UNSIGNED NOT NULL,
-  user_id BIGINT UNSIGNED NOT NULL,
-  provider ENUM('google', 'github', 'microsoft') NOT NULL,
+  email VARCHAR(190) NOT NULL,
+  provider ENUM('google', 'facebook', 'github', 'microsoft') NOT NULL,
   provider_user_id VARCHAR(191) NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_oauth_provider_user (tenant_id, provider, provider_user_id),
-  KEY idx_oauth_user (tenant_id, user_id),
-  CONSTRAINT fk_oauth_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
-  CONSTRAINT fk_oauth_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  UNIQUE KEY uq_oauth_provider_user (provider, provider_user_id),
+  KEY idx_oauth_email (email)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS posts (

@@ -183,6 +183,7 @@
     "oauth_login_successful": "OAuth login successful",
     "oauth_provider_is_required": "OAuth provider and provider user id are required",
     "invalid_oauth_provider": "Invalid OAuth provider",
+    "oauth_email_unverified": "Your provider has not verified this email address, so we can't sign you in with it. Verify it with your provider, or sign in with your password.",
     "failed_to_process_oauth_login": "Failed to process OAuth login",
     "posts_retrieved_successfully": "Posts retrieved successfully",
     "failed_to_get_posts": "Failed to retrieve posts",

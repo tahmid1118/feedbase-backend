@@ -173,6 +173,10 @@ const purgeAccount = async (email, { allowPlatformAdmin = false } = {}) => {
     await conn.query("DELETE FROM user_sessions WHERE email = ?", [email]);
     await conn.query("DELETE FROM password_resets WHERE email = ?", [email]);
     await conn.query("DELETE FROM invitations WHERE email = ?", [email]);
+    // Social sign-in links are account-keyed with no FK to users, so nothing
+    // cascades them — without this, re-signing up with the same Google account
+    // would resurrect a link to an account that no longer exists.
+    await conn.query("DELETE FROM oauth_accounts WHERE email = ?", [email]);
 
     await conn.commit();
 
