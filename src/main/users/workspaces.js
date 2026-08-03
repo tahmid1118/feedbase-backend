@@ -40,7 +40,7 @@ const getWorkspaces = async (authData) => {
   try {
     const [rows] = await pool.query(
       `SELECT u.id AS user_id, u.role, t.id AS tenant_id, t.name, t.subdomain,
-              t.branding_primary_color
+              t.branding_primary_color, t.branding_logo_url
        FROM users u
        JOIN tenants t ON u.tenant_id = t.id
        WHERE u.email = ? AND u.is_active = 1 AND t.is_active = 1
