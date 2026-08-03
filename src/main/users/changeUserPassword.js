@@ -28,7 +28,12 @@ const getUserInfo = async (authData) => {
   }
 };
 
-const updateUserPasswordQuery = async (userId, hashPassword, updatedAt) => {
+// By email, not id: an account has one users row per workspace, all sharing
+// one password_hash (same invariant passwordReset.js updates by). Scoping
+// this to the single row named by authData.id would leave a Google-only
+// user's OTHER workspace rows still NULL after they set their first
+// password, so credentials login would work on one workspace and not another.
+const updateUserPasswordQuery = async (email, hashPassword, updatedAt) => {
   const _query = `
         UPDATE
             users
@@ -36,13 +41,13 @@ const updateUserPasswordQuery = async (userId, hashPassword, updatedAt) => {
             password_hash = ?,
             updated_at = ?
         WHERE
-            id = ?;
+            email = ?;
     `;
   try {
     const [result] = await pool.query(_query, [
       hashPassword,
       updatedAt,
-      userId,
+      email,
     ]);
     return result.affectedRows > 0 ? true : false;
   } catch (error) {
@@ -56,7 +61,7 @@ const changeUserPassword = async (oldPassword, newPassword, authData) => {
   const updatedAt = format(new Date(), "yyyy-MM-dd HH:mm:ss");
   const language = authData.lg || 'en';
   try {
-    if (_.isEmpty(oldPassword) || _.isEmpty(newPassword)) {
+    if (_.isEmpty(newPassword)) {
       return Promise.reject(
         setServerResponse(
           API_STATUS_CODE.BAD_REQUEST,
@@ -75,23 +80,36 @@ const changeUserPassword = async (oldPassword, newPassword, authData) => {
         )
       );
     }
-    const isPasswordCorrect = await bcrypt.compare(
-      oldPassword,
-      userInfo.password_hash
-    );
-    if (isPasswordCorrect === true) {
-      hashPassword = await bcrypt.hash(newPassword, 10);
-    } else {
-      return Promise.reject(
-        setServerResponse(
-          API_STATUS_CODE.BAD_REQUEST,
-          'password_mismatched',
-          language
-        )
+    // A Google-only account has no password_hash yet -- this call sets the
+    // FIRST one, so there is nothing to verify against and oldPassword is
+    // ignored. An account that already has a password must still prove it.
+    if (userInfo.password_hash) {
+      if (_.isEmpty(oldPassword)) {
+        return Promise.reject(
+          setServerResponse(
+            API_STATUS_CODE.BAD_REQUEST,
+            'old_password_and_new_password_is_required',
+            language
+          )
+        );
+      }
+      const isPasswordCorrect = await bcrypt.compare(
+        oldPassword,
+        userInfo.password_hash
       );
+      if (isPasswordCorrect !== true) {
+        return Promise.reject(
+          setServerResponse(
+            API_STATUS_CODE.BAD_REQUEST,
+            'password_mismatched',
+            language
+          )
+        );
+      }
     }
+    hashPassword = await bcrypt.hash(newPassword, 10);
     const isUpdated = await updateUserPasswordQuery(
-      authData.id,
+      authData.email,
       hashPassword,
       updatedAt
     );

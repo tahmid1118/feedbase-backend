@@ -11,7 +11,8 @@ const getUserPersonalData = async (authData) => {
         email,
         contact_no,
         role,
-        avatar_url
+        avatar_url,
+        (password_hash IS NOT NULL) AS has_password
     FROM
         users
     WHERE
