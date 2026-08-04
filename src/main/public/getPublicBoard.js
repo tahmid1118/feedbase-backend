@@ -45,11 +45,10 @@ const getPublicBoard = async (tenantId, paginationData, filters, lg) => {
     .trim()
     .slice(0, MAX_SEARCH_LENGTH);
 
-  // Rejected feedback is an internal disposition — never shown publicly.
-  let whereClause = " WHERE p.tenant_id = ? AND p.status <> 'rejected'";
+  let whereClause = " WHERE p.tenant_id = ?";
   const whereParams = [tenantId];
 
-  if (filters?.status && filters.status !== "rejected") {
+  if (filters?.status) {
     whereClause += " AND p.status = ?";
     whereParams.push(filters.status);
   }

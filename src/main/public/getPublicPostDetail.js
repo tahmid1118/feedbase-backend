@@ -21,7 +21,7 @@ const getPublicPostDetail = async (tenantId, postId, lg) => {
            (SELECT COUNT(*) FROM comments WHERE post_id = p.id) AS comment_count
     FROM posts p
     LEFT JOIN users u ON p.author_id = u.id
-    WHERE p.id = ? AND p.tenant_id = ? AND p.status <> 'rejected'
+    WHERE p.id = ? AND p.tenant_id = ?
   `;
 
   const _tagQuery = `

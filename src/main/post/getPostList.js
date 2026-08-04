@@ -28,7 +28,8 @@ const getPostList = async (paginationData, filters, authData) => {
   const whereParams = [tenantId];
 
   // A specific status tab filters to it; the "All" tab (no status) shows every
-  // post INCLUDING rejected. (Rejected is still hidden from the PUBLIC board.)
+  // post INCLUDING rejected. (The public board shows rejected posts too, see
+  // getPublicBoard.js.)
   if (filters?.status) { whereClause += ' AND p.status = ?'; whereParams.push(filters.status); }
   if (filters?.postType) { whereClause += ' AND p.post_type = ?'; whereParams.push(filters.postType); }
   if (filters?.isPinned !== undefined && filters?.isPinned !== null && filters?.isPinned !== '') {
