@@ -18,10 +18,11 @@ const getPublicPostDetail = async (tenantId, postId, lg) => {
            u.avatar_url AS author_avatar,
            EXISTS (SELECT 1 FROM users a WHERE a.email = u.email AND a.is_platform_admin = 1 AND a.is_active = 1) AS author_is_admin,
            (SELECT COUNT(*) FROM votes WHERE post_id = p.id) AS vote_count,
-           (SELECT COUNT(*) FROM comments WHERE post_id = p.id) AS comment_count
+           (SELECT COUNT(*) FROM comments
+             WHERE post_id = p.id AND moderation_state <> 'spam') AS comment_count
     FROM posts p
     LEFT JOIN users u ON p.author_id = u.id
-    WHERE p.id = ? AND p.tenant_id = ?
+    WHERE p.id = ? AND p.tenant_id = ? AND p.moderation_state <> 'spam'
   `;
 
   const _tagQuery = `
@@ -46,7 +47,7 @@ const getPublicPostDetail = async (tenantId, postId, lg) => {
     FROM comments c
     LEFT JOIN users u ON c.author_id = u.id
     LEFT JOIN tenants bt ON bt.id = c.tenant_id
-    WHERE c.tenant_id = ? AND c.post_id = ?
+    WHERE c.tenant_id = ? AND c.post_id = ? AND c.moderation_state <> 'spam'
     ORDER BY c.created_at ASC
   `;
 

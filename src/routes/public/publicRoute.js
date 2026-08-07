@@ -3,6 +3,7 @@ const publicRouter = express.Router();
 const {
   publicWriteLimiter,
 } = require("../../middlewares/security/rateLimiters");
+const { issueFormToken } = require("../../common/formToken");
 
 const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require("../../consts/errorStatus");
@@ -135,6 +136,23 @@ publicRouter.get("/offers", async (_req, res) => {
 });
 
 /**
+ * @description Mint a short-lived signed form token. The portal board page
+ * fetches one and hands it to the submit/comment forms, which send it back on
+ * write; the server uses it as evidence the submission came from a real page
+ * view rather than a script hitting the API (src/common/formToken.js).
+ *
+ * Unauthenticated and cheap by design — it is not a secret, and issuing one
+ * grants nothing on its own. A bot CAN fetch a token and wait; the point is that
+ * doing so costs a round-trip and a delay, which is what makes flooding
+ * uneconomic. This is one signal among several, never a gate on its own.
+ *
+ * GET /public/form-token
+ */
+publicRouter.get("/form-token", (_req, res) =>
+  res.status(200).send({ status: "success", data: { token: issueFormToken() } })
+);
+
+/**
  * @description Public feedback board for a tenant.
  * POST /public/:subdomain/posts  { paginationData, filters }
  */
@@ -157,7 +175,7 @@ publicRouter.post(
   attachPublicTenant,
   optionalAuth,
   async (req, res) => {
-    createPublicPost(req.publicTenant.id, req.body, req.auth || null, req.lg)
+    createPublicPost(req.publicTenant.id, req.body, req.auth || null, req.lg, req)
       .then((data) => send(res, data))
       .catch((error) => send(res, error));
   }
@@ -236,7 +254,8 @@ publicRouter.post(
       req.publicTenant.id,
       req.params.postId,
       req.body?.guestId,
-      req.lg
+      req.lg,
+      req
     )
       .then((data) => send(res, data))
       .catch((error) => send(res, error));
@@ -258,7 +277,8 @@ publicRouter.post(
       req.params.postId,
       req.body,
       req.auth || null,
-      req.lg
+      req.lg,
+      req
     )
       .then((data) => send(res, data))
       .catch((error) => send(res, error));

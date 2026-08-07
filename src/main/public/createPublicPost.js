@@ -4,6 +4,8 @@ const { setServerResponse } = require("../../common/setServerResponse");
 const { notifyOwnerOfNewPost } = require("./notifyOwnerOfNewPost");
 const { attachToPost } = require("../attachments/attachments");
 const { notifyTeam } = require("../../common/notifications");
+const { evaluatePublicWrite } = require("../../common/publicWriteGuard");
+const { normalizeForCompare } = require("../../common/spamScore");
 
 const POST_TYPES = ["feedback", "feature_request", "bug_report"];
 const TYPE_LABEL = {
@@ -35,7 +37,7 @@ const truncate = (s, n) => {
  * "Name (Owner)" badge is Pro+ (`ownerBadge`) and the name-withheld "Owner" is
  * Business (`ownerPrivacy`). A Free owner posts plainly as themselves.
  */
-const createPublicPost = async (tenantId, data, authUser, lg) => {
+const createPublicPost = async (tenantId, data, authUser, lg, req) => {
   const title = (data?.title || "").trim();
   const description = (data?.description || "").trim();
   const postType = POST_TYPES.includes(data?.postType)
@@ -77,10 +79,71 @@ const createPublicPost = async (tenantId, data, authUser, lg) => {
     );
   }
 
+  // ---- Spam evaluation (guests only; see publicWriteGuard) -----------------
+  //
+  // Count recent near-identical submissions on this board. Normalized compare so
+  // trivial edits (case, punctuation, spacing) don't evade it. Bounded to 24h and
+  // to the same tenant, and best-effort — a failure here must not block a post.
+  let duplicateCount = 0;
+  if (!authorId) {
+    try {
+      const normalized = normalizeForCompare(`${title} ${description}`);
+      if (normalized) {
+        const [dupes] = await pool.query(
+          `SELECT COUNT(*) AS n FROM posts
+            WHERE tenant_id = ?
+              AND author_id IS NULL
+              AND created_at > (NOW() - INTERVAL 24 HOUR)
+              AND LOWER(CONCAT(title, ' ', description)) LIKE ?`,
+          [tenantId, `%${normalized.slice(0, 80)}%`]
+        );
+        duplicateCount = Number(dupes?.[0]?.n) || 0;
+      }
+    } catch {
+      /* best effort — an unavailable dupe check just scores 0 */
+    }
+  }
+
+  const guard = await evaluatePublicWrite({
+    tenantId,
+    req,
+    data,
+    title,
+    body: description,
+    email: submitterEmail,
+    duplicateCount,
+    isAuthenticated: Boolean(authorId),
+  });
+
+  // Honeypot tripped. Report success and store nothing — an error would tell the
+  // bot its submission was detected and let it iterate until it isn't.
+  if (guard.discard) {
+    return Promise.resolve(
+      setServerResponse(
+        API_STATUS_CODE.CREATED,
+        "post_created_successfully",
+        lg,
+        { id: null }
+      )
+    );
+  }
+
+  if (guard.rateLimited) {
+    return Promise.reject(
+      setServerResponse(
+        API_STATUS_CODE.TOO_MANY_REQUESTS,
+        "too_many_requests",
+        lg
+      )
+    );
+  }
+
   const _query = `
     INSERT INTO posts
-      (tenant_id, author_id, submitter_name, submitter_email, guest_id, title, description, post_type, status, priority)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', 3)
+      (tenant_id, author_id, submitter_name, submitter_email, guest_id, voter_hash,
+       title, description, post_type, status, priority,
+       moderation_state, spam_score, spam_reasons)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', 3, ?, ?, ?)
   `;
 
   try {
@@ -90,36 +153,47 @@ const createPublicPost = async (tenantId, data, authUser, lg) => {
       submitterName,
       submitterEmail,
       guestId,
+      guard.voterHash,
       title,
       description,
       postType,
+      guard.moderationState,
+      guard.score,
+      guard.reasons.length ? JSON.stringify(guard.reasons) : null,
     ]);
+
+    // Quarantined content notifies nobody. Emailing an owner about every spam
+    // post would turn a spam flood into an inbox flood — which is worse, because
+    // it reaches them somewhere they can't moderate it.
+    const quarantined = guard.moderationState === "spam";
 
     // Link any attachments uploaded for this submission (Pro+; the upload
     // endpoint already plan-gated). Best-effort, scoped to this tenant.
     await attachToPost(pool, data?.attachmentIds, result.insertId, tenantId);
 
-    // Tell the workspace owner. Deliberately NOT awaited: a slow SMTP round-trip
-    // must not delay the visitor's submission, and a mail failure must not fail
-    // the post (the notifier swallows its own errors).
-    notifyOwnerOfNewPost(
-      tenantId,
-      result.insertId,
-      { title, description, postType, submitterName },
-      authUser
-    ).catch(() => {});
+    if (!quarantined) {
+      // Tell the workspace owner. Deliberately NOT awaited: a slow SMTP round-trip
+      // must not delay the visitor's submission, and a mail failure must not fail
+      // the post (the notifier swallows its own errors).
+      notifyOwnerOfNewPost(
+        tenantId,
+        result.insertId,
+        { title, description, postType, submitterName },
+        authUser
+      ).catch(() => {});
 
-    // In-app notification to the whole team (except the poster, if they're a
-    // member). Fire-and-forget, same as the email above.
-    const who = authUser?.fullName || submitterName || "Someone";
-    notifyTeam(tenantId, {
-      type: "new_feedback",
-      title: `New feedback: ${truncate(title, 80)}`,
-      message: `${who} submitted ${TYPE_LABEL[postType] || "feedback"}.`,
-      referenceType: "post",
-      referenceId: result.insertId,
-      excludeUserId: authorId,
-    }).catch(() => {});
+      // In-app notification to the whole team (except the poster, if they're a
+      // member). Fire-and-forget, same as the email above.
+      const who = authUser?.fullName || submitterName || "Someone";
+      notifyTeam(tenantId, {
+        type: "new_feedback",
+        title: `New feedback: ${truncate(title, 80)}`,
+        message: `${who} submitted ${TYPE_LABEL[postType] || "feedback"}.`,
+        referenceType: "post",
+        referenceId: result.insertId,
+        excludeUserId: authorId,
+      }).catch(() => {});
+    }
 
     return Promise.resolve(
       setServerResponse(

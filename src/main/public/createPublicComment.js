@@ -4,6 +4,8 @@ const { setServerResponse } = require("../../common/setServerResponse");
 const { notifyTeam } = require("../../common/notifications");
 const { getTenantPlan } = require("../../common/planGuard");
 const { getPlanLimits } = require("../../consts/plans");
+const { evaluatePublicWrite } = require("../../common/publicWriteGuard");
+const { normalizeForCompare } = require("../../common/spamScore");
 
 /**
  * Resolve the display IDENTITY for a board owner's comment.
@@ -48,7 +50,7 @@ const truncate = (s, n) => {
  * @param {object|null} authUser req.auth when logged in, else null
  * @param {string} lg
  */
-const createPublicComment = async (tenantId, postId, data, authUser, lg) => {
+const createPublicComment = async (tenantId, postId, data, authUser, lg, req) => {
   const body = (data?.body || "").trim();
   const authorId = authUser?.id || null;
   // Logged-in comments carry no guest name/email — the identity is the user.
@@ -78,10 +80,13 @@ const createPublicComment = async (tenantId, postId, data, authUser, lg) => {
 
   try {
     const [posts] = await pool.query(
-      "SELECT id, title FROM posts WHERE id = ? AND tenant_id = ?",
+      "SELECT id, title, moderation_state FROM posts WHERE id = ? AND tenant_id = ?",
       [postId, tenantId]
     );
-    if (posts.length === 0) {
+    // A quarantined post is invisible publicly, so a request to comment on one
+    // did not come from the board — treat it as not found rather than confirming
+    // the id exists.
+    if (posts.length === 0 || posts[0].moderation_state === "spam") {
       return Promise.reject(
         setServerResponse(API_STATUS_CODE.NOT_FOUND, "post_not_found", lg)
       );
@@ -118,33 +123,108 @@ const createPublicComment = async (tenantId, postId, data, authUser, lg) => {
 
     const { asOwner } = await resolveOwner(data?.ownerMode, authUser, tenantId);
 
+    // ---- Spam evaluation (guests only) -------------------------------------
+    // Same comment body posted repeatedly on this board is the classic comment
+    // spam pattern. Best-effort, 24h window, this tenant only.
+    let duplicateCount = 0;
+    if (!authorId) {
+      try {
+        const normalized = normalizeForCompare(body);
+        if (normalized) {
+          const [dupes] = await pool.query(
+            `SELECT COUNT(*) AS n FROM comments
+              WHERE tenant_id = ?
+                AND author_id IS NULL
+                AND created_at > (NOW() - INTERVAL 24 HOUR)
+                AND LOWER(body) LIKE ?`,
+            [tenantId, `%${normalized.slice(0, 80)}%`]
+          );
+          duplicateCount = Number(dupes?.[0]?.n) || 0;
+        }
+      } catch {
+        /* best effort */
+      }
+    }
+
+    const guard = await evaluatePublicWrite({
+      tenantId,
+      req,
+      data,
+      body,
+      email: submitterEmail,
+      duplicateCount,
+      isAuthenticated: Boolean(authorId),
+    });
+
+    // Honeypot: fake success, store nothing. See publicWriteGuard.
+    if (guard.discard) {
+      return Promise.resolve(
+        setServerResponse(
+          API_STATUS_CODE.CREATED,
+          "comment_created_successfully",
+          lg,
+          { id: null }
+        )
+      );
+    }
+
+    if (guard.rateLimited) {
+      return Promise.reject(
+        setServerResponse(
+          API_STATUS_CODE.TOO_MANY_REQUESTS,
+          "too_many_requests",
+          lg
+        )
+      );
+    }
+
     const [result] = await pool.query(
       `INSERT INTO comments
-         (tenant_id, post_id, author_id, submitter_name, submitter_email, guest_id, as_owner, parent_comment_id, body)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [tenantId, postId, authorId, submitterName, submitterEmail, guestId, asOwner, rootParentId, body]
+         (tenant_id, post_id, author_id, submitter_name, submitter_email, guest_id, voter_hash,
+          as_owner, parent_comment_id, body, moderation_state, spam_score, spam_reasons)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        tenantId,
+        postId,
+        authorId,
+        submitterName,
+        submitterEmail,
+        guestId,
+        guard.voterHash,
+        asOwner,
+        rootParentId,
+        body,
+        guard.moderationState,
+        guard.score,
+        guard.reasons.length ? JSON.stringify(guard.reasons) : null,
+      ]
     );
 
-    // In-app notification to the team (except the commenter, if a member).
-    // Fire-and-forget — a notification failure must not fail the comment.
-    const who = authUser?.fullName || submitterName || "Someone";
-    notifyTeam(tenantId, {
-      type: "comment_reply",
-      // English fallback…
-      title: `New comment on “${truncate(postTitle, 70)}”`,
-      message: `${who}: “${truncate(body, 140)}”`,
-      // …plus the structured pieces, so the client renders it in the reader's
-      // language rather than the language it happened to be written in.
-      meta: {
-        key: "comment",
-        postTitle: truncate(postTitle, 70),
-        who,
-        body: truncate(body, 140),
-      },
-      referenceType: "post",
-      referenceId: postId,
-      excludeUserId: authorId,
-    }).catch(() => {});
+    // Quarantined comments notify nobody — see the same note in createPublicPost.
+    const quarantined = guard.moderationState === "spam";
+
+    if (!quarantined) {
+      // In-app notification to the team (except the commenter, if a member).
+      // Fire-and-forget — a notification failure must not fail the comment.
+      const who = authUser?.fullName || submitterName || "Someone";
+      notifyTeam(tenantId, {
+        type: "comment_reply",
+        // English fallback…
+        title: `New comment on “${truncate(postTitle, 70)}”`,
+        message: `${who}: “${truncate(body, 140)}”`,
+        // …plus the structured pieces, so the client renders it in the reader's
+        // language rather than the language it happened to be written in.
+        meta: {
+          key: "comment",
+          postTitle: truncate(postTitle, 70),
+          who,
+          body: truncate(body, 140),
+        },
+        referenceType: "post",
+        referenceId: postId,
+        excludeUserId: authorId,
+      }).catch(() => {});
+    }
 
     return Promise.resolve(
       setServerResponse(

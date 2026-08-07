@@ -1,6 +1,7 @@
 const { pool } = require('../../../database/dbPool');
 const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
+const { FLAG_THRESHOLD } = require('../../common/spamScore');
 
 // Dashboard board sort options (mirrors the public board's SORTS).
 // `vote_count` is the SELECT alias below.
@@ -26,6 +27,23 @@ const getPostList = async (paginationData, filters, authData) => {
   // Build the shared WHERE clause + params so the list and count queries stay in sync.
   let whereClause = ' WHERE p.tenant_id = ?';
   const whereParams = [tenantId];
+
+  // SPAM is an axis of its own, orthogonal to `status` (the open → planned →
+  // completed pipeline). The review queue asks for it explicitly; every other
+  // tab hides quarantined content so the team's normal board stays clean.
+  //
+  // The queue holds two different things:
+  //   - quarantined (moderation_state='spam') — hidden from the public board
+  //   - flagged (score >= FLAG_THRESHOLD but still published) — publicly visible,
+  //     surfaced here for a second opinion
+  // Showing both is the point: a flagged item needs review precisely BECAUSE
+  // nothing was done to it automatically.
+  if (filters?.moderation === 'spam') {
+    whereClause += " AND (p.moderation_state = 'spam' OR p.spam_score >= ?)";
+    whereParams.push(FLAG_THRESHOLD);
+  } else {
+    whereClause += " AND p.moderation_state <> 'spam'";
+  }
 
   // A specific status tab filters to it; the "All" tab (no status) shows every
   // post INCLUDING rejected. (The public board shows rejected posts too, see

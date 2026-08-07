@@ -1,5 +1,4 @@
 const crypto = require("crypto");
-const dns = require("dns").promises;
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { pool } = require("../../../database/dbPool");
@@ -10,8 +9,10 @@ const { getTenantPlan, getAccountWorkspaceUsage } = require("../../common/planGu
 const { getPlanLimits } = require("../../consts/plans");
 const { sendEmail, isMailConfigured } = require("../../common/mailer");
 const { invitationEmail } = require("../../common/emails/invitationEmail");
+// Lifted to src/common/emailQuality.js so the public board can reuse it —
+// same semantics, plus an MX cache. See that file.
+const { isDeliverableEmail } = require("../../common/emailQuality");
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const INVITE_TTL_DAYS = 7;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
@@ -21,24 +22,6 @@ const signToken = (user, sid) =>
     process.env.SECRET_ACCESS_TOKEN,
     { expiresIn: process.env.ACCESS_TOKEN_EXPIRE }
   );
-
-/**
- * Is this address plausibly real? Format first, then a best-effort MX lookup so
- * typos like "gmial.com" are caught. A DNS failure (offline/rate-limited) is NOT
- * treated as invalid — we only reject when the domain resolves with no mail
- * exchanger.
- */
-const isDeliverableEmail = async (email) => {
-  if (!EMAIL_RE.test(email)) return false;
-  const domain = email.split("@")[1];
-  try {
-    const mx = await dns.resolveMx(domain);
-    return Array.isArray(mx) && mx.length > 0;
-  } catch (e) {
-    if (e && (e.code === "ENOTFOUND" || e.code === "NXDOMAIN")) return false;
-    return true; // inconclusive — don't block
-  }
-};
 
 /** Invite someone to the authenticated owner's workspace. */
 const createInvitation = async (data, authData) => {

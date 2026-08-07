@@ -279,11 +279,24 @@ CREATE TABLE IF NOT EXISTS posts (
   priority TINYINT UNSIGNED NOT NULL DEFAULT 3,
   is_pinned TINYINT(1) NOT NULL DEFAULT 0,
   duplicate_of_post_id BIGINT UNSIGNED NULL,
+  -- Spam moderation. Deliberately SEPARATE from `status`: status is the pipeline
+  -- (open → planned → completed) and drives roadmap sync + the board tabs, while
+  -- spam is an orthogonal axis. Public reads show only 'published'.
+  moderation_state ENUM('published','pending','spam') NOT NULL DEFAULT 'published',
+  spam_score TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  -- JSON array of reason codes, so a false positive is explainable rather than a
+  -- mystery verdict when the owner reviews the queue.
+  spam_reasons TEXT NULL,
+  -- Salted HMAC of the submitter's IP (src/common/guestIdentity.js). The raw IP is
+  -- never stored. Unlike guest_id (client-supplied, display identity only) this is
+  -- server-derived, so it can be trusted for dedup and burst caps.
+  voter_hash VARCHAR(64) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_posts_tenant_status (tenant_id, status),
   KEY idx_posts_tenant_created (tenant_id, created_at),
+  KEY idx_posts_tenant_moderation (tenant_id, moderation_state),
   KEY idx_posts_duplicate (duplicate_of_post_id),
   CONSTRAINT fk_posts_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
   CONSTRAINT fk_posts_author FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE RESTRICT,
@@ -298,11 +311,17 @@ CREATE TABLE IF NOT EXISTS votes (
   -- persistent per-browser cookie value) instead. Exactly one is non-null.
   user_id BIGINT UNSIGNED NULL,
   guest_id VARCHAR(64) NULL,
+  -- Salted HMAC of the voter's IP. `guest_id` above is sent BY THE CLIENT, so a
+  -- bot rotating it defeated uq_votes_guest completely; this one is derived
+  -- server-side and is what actually bounds anonymous vote stuffing. Raw IP is
+  -- never stored. See src/common/guestIdentity.js.
+  voter_hash VARCHAR(64) NULL,
   vote_type ENUM('upvote') NOT NULL DEFAULT 'upvote',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_votes_unique (tenant_id, post_id, user_id),
   UNIQUE KEY uq_votes_guest (tenant_id, post_id, guest_id),
+  UNIQUE KEY uq_votes_voter_hash (tenant_id, post_id, voter_hash),
   KEY idx_votes_post (tenant_id, post_id),
   CONSTRAINT fk_votes_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
   CONSTRAINT fk_votes_post FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
@@ -327,10 +346,16 @@ CREATE TABLE IF NOT EXISTS comments (
   parent_comment_id BIGINT UNSIGNED NULL,
   body TEXT NOT NULL,
   is_edited TINYINT(1) NOT NULL DEFAULT 0,
+  -- Same spam-moderation axis as posts; public comment reads show only 'published'.
+  moderation_state ENUM('published','pending','spam') NOT NULL DEFAULT 'published',
+  spam_score TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  spam_reasons TEXT NULL,
+  voter_hash VARCHAR(64) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_comments_post (tenant_id, post_id, created_at),
+  KEY idx_comments_moderation (tenant_id, moderation_state),
   KEY idx_comments_parent (parent_comment_id),
   CONSTRAINT fk_comments_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
   CONSTRAINT fk_comments_post FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
@@ -558,6 +583,21 @@ CREATE TABLE IF NOT EXISTS support_messages (
   CONSTRAINT fk_support_messages_session FOREIGN KEY (session_id) REFERENCES support_sessions(id) ON DELETE CASCADE,
   CONSTRAINT fk_support_messages_user FOREIGN KEY (sender_user_id) REFERENCES users(id) ON DELETE SET NULL,
   CONSTRAINT fk_support_messages_admin FOREIGN KEY (sender_admin_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- Burst caps for UNAUTHENTICATED public writes (src/common/writeCounters.js).
+-- express-rate-limit's counters live in each process's memory, so under PM2
+-- cluster mode the real ceiling is N workers x the configured max, and it resets
+-- on every deploy. MySQL is shared, so counting here is accurate across workers.
+-- `scope_key` is an opaque string identifying what is being counted
+-- ("t:<tenantId>", "v:<voterHash>:<tenantId>", "d:<emailDomain>:<tenantId>").
+CREATE TABLE IF NOT EXISTS public_write_counters (
+  scope_key VARCHAR(100) NOT NULL,
+  window_start DATETIME NOT NULL,
+  count INT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (scope_key, window_start),
+  -- Supports the periodic prune of elapsed windows.
+  KEY idx_write_counters_window (window_start)
 ) ENGINE=InnoDB;
 
 -- -----------------------------------------------------

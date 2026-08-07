@@ -45,7 +45,10 @@ const getPublicBoard = async (tenantId, paginationData, filters, lg) => {
     .trim()
     .slice(0, MAX_SEARCH_LENGTH);
 
-  let whereClause = " WHERE p.tenant_id = ?";
+  // Spam-quarantined posts are never shown publicly. This is a separate axis
+  // from `status` (the open → planned → completed pipeline), so it is filtered
+  // unconditionally rather than being one of the status tabs.
+  let whereClause = " WHERE p.tenant_id = ? AND p.moderation_state <> 'spam'";
   const whereParams = [tenantId];
 
   if (filters?.status) {
@@ -128,8 +131,11 @@ const getPublicBoard = async (tenantId, paginationData, filters, lg) => {
           [tenantId, postIds]
         ),
         pool.query(
+          // Excludes quarantined comments so the card's count matches what a
+          // visitor actually sees when they open the post.
           `SELECT post_id, COUNT(*) AS comment_count
-           FROM comments WHERE tenant_id = ? AND post_id IN (?)
+           FROM comments
+           WHERE tenant_id = ? AND post_id IN (?) AND moderation_state <> 'spam'
            GROUP BY post_id`,
           [tenantId, postIds]
         ),

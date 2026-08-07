@@ -9,6 +9,7 @@ const { updatePost } = require("../../main/post/updatePost");
 const { deletePost } = require("../../main/post/deletePost");
 const { getPostList } = require("../../main/post/getPostList");
 const { updatePostStatus } = require("../../main/post/updatePostStatus");
+const { updatePostModeration } = require("../../main/post/updatePostModeration");
 const { notifyFeedbackImplemented } = require("../../main/post/notifyFeedbackImplemented");
 const { updatePostPin } = require("../../main/post/updatePostPin");
 const { setPostDuplicate } = require("../../main/post/setPostDuplicate");
@@ -187,6 +188,27 @@ postRouter.patch("/status/:id", authenticateToken, languageValidator, async (req
         status: status,
         message: message,
       });
+    });
+});
+
+/**
+ * @description Reclassify a post on the SPAM axis (the human override for the
+ * automatic scorer). `moderationState` is 'published' | 'pending' | 'spam';
+ * 'published' also clears the score so the item leaves the review queue.
+ * PATCH /posts/moderation/:id  { moderationState }
+ */
+postRouter.patch("/moderation/:id", authenticateToken, languageValidator, async (req, res) => {
+  const { id } = req.params;
+  const { moderationState, lg } = req.body;
+  const authData = { ...req.auth, lg };
+  updatePostModeration(id, moderationState, authData)
+    .then((data) => {
+      const { statusCode, status, message } = data;
+      return res.status(statusCode).send({ status, message });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
     });
 });
 
