@@ -10,6 +10,7 @@ const { deletePost } = require("../../main/post/deletePost");
 const { getPostList } = require("../../main/post/getPostList");
 const { updatePostStatus } = require("../../main/post/updatePostStatus");
 const { updatePostModeration } = require("../../main/post/updatePostModeration");
+const { purgeSpamPosts } = require("../../main/post/purgeSpam");
 const { notifyFeedbackImplemented } = require("../../main/post/notifyFeedbackImplemented");
 const { updatePostPin } = require("../../main/post/updatePostPin");
 const { setPostDuplicate } = require("../../main/post/setPostDuplicate");
@@ -205,6 +206,30 @@ postRouter.patch("/moderation/:id", authenticateToken, languageValidator, async 
     .then((data) => {
       const { statusCode, status, message } = data;
       return res.status(statusCode).send({ status, message });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
+    });
+});
+
+/**
+ * @description Permanently delete spam-QUARANTINED posts. Owner-only, and
+ * deliberately NOT plan-gated — clearing our own filter's output must not
+ * require an upgrade (unlike DELETE /posts/:id, which is Pro+).
+ *
+ * Body is either `{ ids: [1,2,3] }` or `{ olderThanDays: 30 }`. Only rows with
+ * `moderation_state = 'spam'` are ever touched: flagged-but-published feedback
+ * shares the review queue but is excluded in SQL, not just in the UI.
+ * POST /posts/spam/purge
+ */
+postRouter.post("/spam/purge", authenticateToken, languageValidator, async (req, res) => {
+  const { ids, olderThanDays, lg } = req.body || {};
+  const authData = { ...req.auth, lg };
+  purgeSpamPosts(authData, ids, olderThanDays)
+    .then((data) => {
+      const { statusCode, status, message, result } = data;
+      return res.status(statusCode).send({ status, message, data: result });
     })
     .catch((error) => {
       const { statusCode, status, message } = error;

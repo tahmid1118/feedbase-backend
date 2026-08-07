@@ -2,6 +2,7 @@ const { pool } = require('../../../database/dbPool');
 const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
 const { FLAG_THRESHOLD } = require('../../common/spamScore');
+const { maybePurgeExpiredSpam } = require('../../common/spamRetention');
 
 // Dashboard board sort options (mirrors the public board's SORTS).
 // `vote_count` is the SELECT alias below.
@@ -41,6 +42,9 @@ const getPostList = async (paginationData, filters, authData) => {
   if (filters?.moderation === 'spam') {
     whereClause += " AND (p.moderation_state = 'spam' OR p.spam_score >= ?)";
     whereParams.push(FLAG_THRESHOLD);
+    // Opening the queue is the natural moment to retire long-expired spam —
+    // no cron, no cluster coordination, and self-throttled to once an hour.
+    maybePurgeExpiredSpam();
   } else {
     whereClause += " AND p.moderation_state <> 'spam'";
   }

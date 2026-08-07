@@ -287,6 +287,11 @@ CREATE TABLE IF NOT EXISTS posts (
   -- JSON array of reason codes, so a false positive is explainable rather than a
   -- mystery verdict when the owner reviews the queue.
   spam_reasons TEXT NULL,
+  -- Moderator override ("Not spam"): ground truth for calibrating the scorer.
+  -- Publishing clears spam_score, so the score AT REVIEW TIME is preserved here
+  -- or it would be lost — see scripts/spam-report.js.
+  spam_reviewed_at DATETIME NULL,
+  spam_reviewed_score TINYINT UNSIGNED NULL,
   -- Salted HMAC of the submitter's IP (src/common/guestIdentity.js). The raw IP is
   -- never stored. Unlike guest_id (client-supplied, display identity only) this is
   -- server-derived, so it can be trusted for dedup and burst caps.
@@ -346,10 +351,14 @@ CREATE TABLE IF NOT EXISTS comments (
   parent_comment_id BIGINT UNSIGNED NULL,
   body TEXT NOT NULL,
   is_edited TINYINT(1) NOT NULL DEFAULT 0,
-  -- Same spam-moderation axis as posts; public comment reads show only 'published'.
+  -- Same spam-moderation axis as posts. PUBLIC reads hide 'spam'; the dashboard
+  -- deliberately still shows it (badged, with a restore action) so a false
+  -- positive is never suppressed invisibly.
   moderation_state ENUM('published','pending','spam') NOT NULL DEFAULT 'published',
   spam_score TINYINT UNSIGNED NOT NULL DEFAULT 0,
   spam_reasons TEXT NULL,
+  spam_reviewed_at DATETIME NULL,
+  spam_reviewed_score TINYINT UNSIGNED NULL,
   voter_hash VARCHAR(64) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

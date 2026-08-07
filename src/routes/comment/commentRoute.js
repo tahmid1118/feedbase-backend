@@ -6,6 +6,7 @@ const { createComment } = require("../../main/comment/createComment");
 const { updateComment } = require("../../main/comment/updateComment");
 const { deleteComment } = require("../../main/comment/deleteComment");
 const { getPostComments } = require("../../main/comment/getPostComments");
+const { updateCommentModeration } = require("../../main/comment/updateCommentModeration");
 
 /**
  * @description Create a new comment
@@ -52,6 +53,27 @@ commentRouter.put("/update/:id", authenticateToken, languageValidator, async (re
         status: status,
         message: message,
       });
+    });
+});
+
+/**
+ * @description Reclassify a comment on the spam axis (owner-only, not
+ * plan-gated). Without this a quarantined comment was hidden from the public
+ * board with no way back — see updateCommentModeration.js.
+ * PATCH /comments/moderation/:id  { moderationState }
+ */
+commentRouter.patch("/moderation/:id", authenticateToken, languageValidator, async (req, res) => {
+  const { id } = req.params;
+  const { moderationState, lg } = req.body;
+  const authData = { ...req.auth, lg };
+  updateCommentModeration(id, moderationState, authData)
+    .then((data) => {
+      const { statusCode, status, message } = data;
+      return res.status(statusCode).send({ status, message });
+    })
+    .catch((error) => {
+      const { statusCode, status, message } = error;
+      return res.status(statusCode).send({ status, message });
     });
 });
 
