@@ -15,6 +15,20 @@
 const MAIL_FROM = process.env.MAIL_FROM || "FeedBoard <onboarding@resend.dev>";
 const MAIL_REPLY_TO = process.env.MAIL_REPLY_TO || "tahmidshahriar.bd@gmail.com";
 
+/**
+ * Sender identity for mail that reads as a personal note from the team (e.g. an
+ * admin changing an account's plan) rather than an automated product email.
+ *
+ * Deliberately reuses `MAIL_FROM`'s exact address, only swapping the display
+ * name to "FeedBoard Support" — the address is the thing a provider actually
+ * has verified (SPF/DKIM/domain), so sending from a different address here
+ * would silently fail or land in spam. `MAIL_FROM_SUPPORT` is available to
+ * override independently (e.g. a real `support@` inbox) once one exists.
+ */
+const MAIL_FROM_SUPPORT =
+  process.env.MAIL_FROM_SUPPORT ||
+  MAIL_FROM.replace(/^[^<]*(?=<)/, "FeedBoard Support ").trim();
+
 const isResendConfigured = () => Boolean(process.env.RESEND_API_KEY);
 const isSmtpConfigured = () =>
   Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
@@ -22,7 +36,7 @@ const isSmtpConfigured = () =>
 /** True when a real provider is wired up (otherwise we only log). */
 const isMailConfigured = () => isResendConfigured() || isSmtpConfigured();
 
-async function sendViaResend({ to, subject, html, text }) {
+async function sendViaResend({ to, subject, html, text, from }) {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -30,7 +44,7 @@ async function sendViaResend({ to, subject, html, text }) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: MAIL_FROM,
+      from: from || MAIL_FROM,
       to: [to],
       reply_to: MAIL_REPLY_TO,
       subject,
@@ -45,7 +59,7 @@ async function sendViaResend({ to, subject, html, text }) {
   return res.json();
 }
 
-async function sendViaSmtp({ to, subject, html, text }) {
+async function sendViaSmtp({ to, subject, html, text, from }) {
   // Required lazily so the app boots without nodemailer being configured.
   const nodemailer = require("nodemailer");
   const transporter = nodemailer.createTransport({
@@ -55,7 +69,7 @@ async function sendViaSmtp({ to, subject, html, text }) {
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
   });
   return transporter.sendMail({
-    from: MAIL_FROM,
+    from: from || MAIL_FROM,
     to,
     replyTo: MAIL_REPLY_TO,
     subject,
@@ -84,14 +98,21 @@ const logEmail = (banner, { to, subject, text }) => {
   );
 };
 
-const sendEmail = async ({ to, subject, html, text }) => {
+/**
+ * @param {object} p
+ * @param {string} [p.from] Sender override, e.g. `MAIL_FROM_SUPPORT` for mail
+ *   that should read as a note from the team rather than the product default.
+ *   Must be an address the configured provider actually has verified — see the
+ *   comment on `MAIL_FROM_SUPPORT` above.
+ */
+const sendEmail = async ({ to, subject, html, text, from }) => {
   try {
     if (isResendConfigured()) {
-      await sendViaResend({ to, subject, html, text });
+      await sendViaResend({ to, subject, html, text, from });
       return { sent: true, provider: "resend" };
     }
     if (isSmtpConfigured()) {
-      await sendViaSmtp({ to, subject, html, text });
+      await sendViaSmtp({ to, subject, html, text, from });
       return { sent: true, provider: "smtp" };
     }
     logEmail("not sent — no mail provider configured", { to, subject, text });
@@ -105,4 +126,4 @@ const sendEmail = async ({ to, subject, html, text }) => {
   }
 };
 
-module.exports = { sendEmail, isMailConfigured };
+module.exports = { sendEmail, isMailConfigured, MAIL_FROM_SUPPORT };
