@@ -22,7 +22,8 @@ const resolvePublicTenant = async (identifier, lg) => {
 
   const _query = `
     SELECT id, name, slug, subdomain,
-           branding_logo_url, branding_primary_color, plan_name
+           branding_logo_url, branding_primary_color, plan_name,
+           require_auth_to_post
     FROM tenants
     WHERE is_active = 1 AND subdomain = ?
     LIMIT 1
@@ -49,13 +50,20 @@ const resolvePublicTenant = async (identifier, lg) => {
     }
 
     // Expose only plan-derived booleans — never the raw plan/billing.
-    const { plan_name, ...tenant } = rows[0];
+    const { plan_name, require_auth_to_post, ...tenant } = rows[0];
     const limits = getPlanLimits(plan_name);
     tenant.attachments_enabled = Boolean(limits.attachments);
     // Owner comment identity: badge = "Name (Owner)" (Pro+); privacy = "Owner"
     // only / anonymous (Business). Drive the portal composer's options.
     tenant.owner_badge_enabled = Boolean(limits.ownerBadge);
     tenant.owner_privacy_enabled = Boolean(limits.ownerPrivacy);
+    // EFFECTIVE requirement, not the raw stored preference — if the account
+    // has since lapsed from Pro+, the stored `1` stays (so re-upgrading
+    // restores the owner's choice) but enforcement (here and in
+    // createPublicPost.js) silently reverts to "anonymous allowed" rather than
+    // locking visitors out of a Free board.
+    tenant.require_signin_to_post =
+      Boolean(require_auth_to_post) && Boolean(limits.restrictAnonymousPosting);
 
     return Promise.resolve(
       setServerResponse(

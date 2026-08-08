@@ -2,6 +2,7 @@ const { pool } = require("../../../database/dbPool");
 const { API_STATUS_CODE } = require('../../consts/errorStatus');
 const { setServerResponse } = require('../../common/setServerResponse');
 const { invalidateTenantCache } = require('../public/resolvePublicTenant');
+const { planAllows } = require('../../common/planGuard');
 
 // Mirrors the create-workspace rules (src/main/users/workspaces.js).
 const RESERVED_SUBDOMAINS = new Set([
@@ -10,7 +11,14 @@ const RESERVED_SUBDOMAINS = new Set([
 const SUBDOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])?$/;
 
 const updateTenant = async (id, tenantData, lg) => {
-  const { name, brandingLogoUrl, brandingPrimaryColor, subdomain, isActive } = tenantData;
+  const {
+    name,
+    brandingLogoUrl,
+    brandingPrimaryColor,
+    subdomain,
+    isActive,
+    requireAuthToPost,
+  } = tenantData;
   // NOTE: plan_name is controlled exclusively by Stripe billing (checkout +
   // webhook) and is intentionally NOT updatable through this endpoint.
   // Custom domains are not a feature — `custom_domain` is never written here.
@@ -70,6 +78,19 @@ const updateTenant = async (id, tenantData, lg) => {
   if (brandingPrimaryColor !== undefined) {
     fields.push('branding_primary_color = ?');
     values.push(brandingPrimaryColor || null);
+  }
+  if (requireAuthToPost !== undefined) {
+    const want = Boolean(requireAuthToPost);
+    // Turning it OFF is always allowed, even on Free (a downgrade may have
+    // left it stuck on — the owner must still be able to undo that without
+    // paying to do so). Only turning it ON requires the capability.
+    if (want && !(await planAllows(id, 'restrictAnonymousPosting'))) {
+      return Promise.reject(
+        setServerResponse(API_STATUS_CODE.PAYMENT_REQUIRED, 'plan_limit_require_signin', lg)
+      );
+    }
+    fields.push('require_auth_to_post = ?');
+    values.push(want ? 1 : 0);
   }
   if (isActive !== undefined) {
     fields.push('is_active = ?');

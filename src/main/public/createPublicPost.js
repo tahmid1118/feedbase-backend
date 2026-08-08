@@ -6,6 +6,8 @@ const { attachToPost } = require("../attachments/attachments");
 const { notifyTeam } = require("../../common/notifications");
 const { evaluatePublicWrite } = require("../../common/publicWriteGuard");
 const { normalizeForCompare } = require("../../common/spamScore");
+const { getTenantPlan } = require("../../common/planGuard");
+const { getPlanLimits } = require("../../consts/plans");
 
 const POST_TYPES = ["feedback", "feature_request", "bug_report"];
 const TYPE_LABEL = {
@@ -55,6 +57,20 @@ const createPublicPost = async (tenantId, data, authUser, lg, req) => {
   const guestId = authorId
     ? null
     : (data?.guestId || "").toString().trim().slice(0, 64) || null;
+
+  // Pro+ setting: the owner may require a signed-in account instead of guest
+  // posting. `req.publicTenant.require_auth_to_post` is the STORED preference
+  // (attachPublicTenant already fetched it, so this costs no extra query); the
+  // plan is re-checked live here rather than trusted from that stored value,
+  // so a lapsed subscription can't keep locking real visitors out.
+  if (!authorId && req?.publicTenant?.require_auth_to_post) {
+    const limits = getPlanLimits(await getTenantPlan(tenantId));
+    if (limits.restrictAnonymousPosting) {
+      return Promise.reject(
+        setServerResponse(API_STATUS_CODE.UNAUTHORIZED, "signin_required_to_post", lg)
+      );
+    }
+  }
 
   if (!title) {
     return Promise.reject(

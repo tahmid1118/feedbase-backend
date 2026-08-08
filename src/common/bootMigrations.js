@@ -43,6 +43,7 @@ const LOCK_TIMEOUT_SECONDS = 120;
 const MIGRATIONS = [
   "add-spam-columns.js",
   "add-spam-review-columns.js",
+  "add-require-auth-to-post.js",
 ];
 
 const runScript = (file) =>

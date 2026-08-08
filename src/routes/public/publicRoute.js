@@ -57,7 +57,7 @@ async function attachPublicTenant(req, res, next) {
   try {
     const [rows] = await pool.query(
       `SELECT id, name, slug, subdomain,
-              branding_logo_url, branding_primary_color
+              branding_logo_url, branding_primary_color, require_auth_to_post
        FROM tenants
        WHERE is_active = 1 AND subdomain = ?
        LIMIT 1`,

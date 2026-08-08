@@ -19,6 +19,13 @@
  *       `getAccountTier` in planGuard). Free owns 1 / joins 1, Pro 3 / 3,
  *       Business unlimited. Enforced in `workspaces.js` (create) and
  *       `invitations.js` (accept).
+ *   - restrictAnonymousPosting: may the owner turn ON `tenants.require_auth_to_post`
+ *       (require a signed-in account to submit feedback, no guest posting).
+ *       Anonymous posting stays the DEFAULT on every plan, including Free —
+ *       this only gates the ABILITY to require sign-in, never the reverse.
+ *       Enforced in `updateTenant.js` (setting the toggle) and re-checked live
+ *       in `createPublicPost.js` (every submission), so a downgrade silently
+ *       reverts to "anonymous allowed" instead of blocking real feedback.
  */
 // `price` is the monthly list price (USD) — the display baseline that offers
 // discount from. Keep it in sync with the Stripe prices + `lib/plans.ts`.
@@ -42,6 +49,7 @@ const PLANS = {
       // ownerPrivacy = also hide the name ("Owner" + tick) or post anonymously.
       ownerBadge: false,
       ownerPrivacy: false,
+      restrictAnonymousPosting: false,
     },
   },
   pro: {
@@ -64,6 +72,7 @@ const PLANS = {
       multiDevice: false,
       ownerBadge: true,
       ownerPrivacy: false,
+      restrictAnonymousPosting: true,
     },
   },
   business: {
@@ -86,6 +95,7 @@ const PLANS = {
       multiDevice: true,
       ownerBadge: true,
       ownerPrivacy: true,
+      restrictAnonymousPosting: true,
     },
   },
 };

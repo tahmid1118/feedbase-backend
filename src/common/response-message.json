@@ -252,6 +252,8 @@
     "plan_limit_workspaces_own": "You have reached the number of workspaces your plan can create. Upgrade to Pro or Business to add more.",
     "plan_limit_workspaces_join": "You have reached the number of workspaces your plan can join. Upgrade to Pro or Business to join more.",
     "plan_limit_contact_submitter": "Contacting feedback submitters is a Pro feature. Upgrade to Pro or Business to use it.",
+    "plan_limit_require_signin": "Requiring sign-in to post feedback is a Pro feature. Upgrade to Pro or Business to use it.",
+    "signin_required_to_post": "This board requires an account to post feedback. Please sign in and try again.",
     "feedback_not_completed": "You can only notify the submitter once the feedback is marked completed.",
     "no_submitter_email": "This feedback has no email address to notify.",
     "submitter_notified": "The submitter has been notified",

@@ -35,6 +35,12 @@ CREATE TABLE IF NOT EXISTS tenants (
   pending_effective_at DATETIME NULL,
   branding_logo_url VARCHAR(500) NULL,
   branding_primary_color VARCHAR(20) NULL,
+  -- Pro+ setting: require feedback submitters to be signed in (no guest/
+  -- anonymous posting). Default 0 — anonymous posting is allowed on every
+  -- plan unless the owner turns this on. Enforcement re-checks the plan on
+  -- every write (createPublicPost.js), so a downgrade reverts to "allowed"
+  -- rather than blocking real feedback.
+  require_auth_to_post TINYINT(1) NOT NULL DEFAULT 0,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

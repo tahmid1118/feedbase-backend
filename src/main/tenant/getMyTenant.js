@@ -10,8 +10,8 @@ const getMyTenant = async (authData) => {
 
   const _query = `
     SELECT id, name, slug, subdomain, custom_domain, plan_name,
-           branding_logo_url, branding_primary_color, is_active,
-           created_at, updated_at
+           branding_logo_url, branding_primary_color, require_auth_to_post,
+           is_active, created_at, updated_at
     FROM tenants
     WHERE id = ?
   `;
