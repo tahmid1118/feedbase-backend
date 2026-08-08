@@ -95,6 +95,21 @@ User self-service handlers (personal data, profile/password update) key off the 
 
 > **Dedup is `voter_hash`, NOT `guest_id`.** `guestId` arrives in the request *body*, so the old `UNIQUE (tenant_id, post_id, guest_id)` stopped an honest browser and nothing else — a bot sending a fresh UUID per request voted without limit, making vote counts forgeable. `togglePublicVote` now matches on **`votes.voter_hash`** (a salted HMAC of `req.ip` from `src/common/guestIdentity.js`, backed by `UNIQUE (tenant_id, post_id, voter_hash)`); `guest_id` is still stored but decides nothing. **Never key a limit or dedup on a client-supplied value.** See *Spam protection* below.
 
+### Schema migrations run at BOOT (and why)
+
+**`src/common/bootMigrations.js` runs the migration scripts before the server opens its socket.** Adding a schema-dependent code change therefore no longer requires anyone to remember a manual step — put the script in that file's `MIGRATIONS` array and it ships with the code.
+
+**The incident this came from (8 Aug 2026).** The spam release added `WHERE p.moderation_state <> 'spam'` to `getPublicBoard`. The backend deployed; `scripts/add-spam-columns.js` didn't run. MySQL rejected every query (`Unknown column`), the handler swallowed it into its generic `failed_to_get_posts`, and **every public board on the platform returned nothing for hours**. It was found only because a customer's post appeared missing — and the admin panel still showed that post (`adminPosts.js` doesn't reference the new column), so a platform-wide outage looked like a single hidden row. The root cause was process: the migration requirement lived in a chat message and a docs line, and prose doesn't execute.
+
+Consequences to respect:
+- **Keep migrations additive** (`ADD COLUMN` / `ADD KEY` / `CREATE TABLE IF NOT EXISTS`) and **idempotent**. They now run on *every* boot; the moment one drops or rewrites data that stops being safe and it needs an explicit opt-out instead.
+- **A migration failure is fatal** — the process exits rather than serving. Deliberate: a container that won't boot is noticed; one that boots and quietly 500s is not.
+- **Cluster-safe** via the `feedboard_boot_migrations` advisory lock (same mechanism as `billingScheduler.js`). PM2 runs a worker per core, and without it they race the check-then-`ALTER` and lose to `Duplicate column name`. Losers *block* on the lock rather than skipping, so nobody serves against a half-migrated schema.
+- Escape hatch: `SKIP_BOOT_MIGRATIONS=true`.
+- Migration scripts must only log a change line (`added …`) when they actually change something — the boot log's "N change(s) applied" is the signal that a deploy needed a migration, and a script that always prints makes every restart look eventful.
+
+**`GET /health`** runs a real query against the most recently added columns and returns `503` when they're missing. A liveness check that only proves the process is up would have reported perfect health throughout that outage. Unauthenticated, indexed, `LIMIT 1` — safe to poll every 30s, and worth pointing uptime monitoring at.
+
 ### Spam protection (public board)
 
 Anonymous posting is the product's differentiator, so board integrity *is* the feature — but every layer must stay **invisible**: no CAPTCHA, no account, no extra field a human fills. `src/common/publicWriteGuard.js` (`evaluatePublicWrite`) is the single entry point; `createPublicPost` and `createPublicComment` both call it and act on `{ discard, rateLimited, voterHash, score, reasons, moderationState }`.
