@@ -200,6 +200,41 @@ app.use("/admin", adminRouter);
 app.use("/invitations", invitationRouter);
 app.use("/support", supportRouter);
 
+/**
+ * Health check for uptime monitoring.
+ *
+ * Deliberately exercises the SCHEMA, not just the process. A handler that
+ * returns `{ok:true}` unconditionally would have reported perfect health
+ * throughout the 8 Aug 2026 outage, when the process was fine and every public
+ * board was 500ing on a missing column.
+ *
+ * So it runs a query touching the columns most recently added — the ones a
+ * missed migration breaks first — and fails if they aren't there. Cheap
+ * (indexed, LIMIT 1, no scan) and safe to poll every 30s.
+ *
+ * Unauthenticated by design: a monitor shouldn't need a credential, and it
+ * leaks nothing but liveness.
+ *
+ * GET /health → 200 {status:"ok"} | 503 {status:"error", reason}
+ */
+app.get("/health", async (_req, res) => {
+  try {
+    await pool.query(
+      `SELECT id FROM posts
+        WHERE moderation_state <> 'spam' AND spam_score >= 0
+        LIMIT 1`
+    );
+    return res.status(200).json({ status: "ok" });
+  } catch (error) {
+    // Logged loudly: this is the signal that a deploy shipped without its
+    // migration, and it is worth being noisy about.
+    console.error("HEALTHCHECK FAILED:", error.message);
+    return res
+      .status(503)
+      .json({ status: "error", reason: "schema_or_database_unavailable" });
+  }
+});
+
 
 // --- Static Files ---
 const staticFilePath = path.join(__dirname, "uploads");
@@ -229,19 +264,46 @@ app.use((err, req, res, next) => {
 const APP_PORT = process.env.APP_PORT;
 const NODE_ENV = process.env.NODE_ENV || "development";
 
-const server = app
-  .listen(APP_PORT, () => {
+// Built rather than started here: the socket must not open until the schema is
+// known good (see the bootstrap below).
+const server = require("http").createServer(app);
+
+server.on("error", (err) => {
+  console.error("Server failed to start:", err);
+  process.exit(1);
+});
+
+/**
+ * Migrate, THEN serve.
+ *
+ * On 8 Aug 2026 a release shipped code referencing a column whose migration
+ * hadn't been run. Every public board 500'd for hours behind a generic error
+ * message. Running migrations here makes the code and the schema arrive
+ * together by construction instead of by remembering.
+ *
+ * A failure here is FATAL on purpose. Serving on a schema we couldn't verify is
+ * exactly what produced a silent platform-wide outage rather than a loud,
+ * obvious failed deploy — and PM2/Dokploy restarting a container that refuses
+ * to boot is far easier to notice than one that boots and quietly breaks.
+ */
+(async () => {
+  const ok = await require("./src/common/bootMigrations").runBootMigrations();
+  if (!ok) {
+    console.error(
+      "Refusing to start: database schema could not be verified or migrated."
+    );
+    process.exit(1);
+  }
+
+  server.listen(APP_PORT, () => {
     console.log(
       `🚀 Server running in ${NODE_ENV} mode at http://localhost:${APP_PORT}`
     );
     // Applies scheduled plan changes Paddle can't defer itself (yearly → monthly).
     // Cluster-safe: workers serialise on a MySQL advisory lock.
     require("./src/common/billingScheduler").startBillingScheduler();
-  })
-  .on("error", (err) => {
-    console.error("Server failed to start:", err);
-    process.exit(1);
   });
+})();
 
 /**
  * Socket-level timeouts. These bound how long a client may hold a connection

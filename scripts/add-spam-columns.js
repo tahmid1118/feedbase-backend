@@ -110,16 +110,28 @@ const MODERATION_COLUMNS = [
 
   // Burst counters. Keyed by an opaque scope string ("t:12:h", "v:<hash>:12:h",
   // "d:gmail.com:12:d") plus the window start, so one table serves every cap.
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS public_write_counters (
-      scope_key VARCHAR(100) NOT NULL,
-      window_start DATETIME NOT NULL,
-      count INT UNSIGNED NOT NULL DEFAULT 0,
-      PRIMARY KEY (scope_key, window_start),
-      KEY idx_write_counters_window (window_start)
-    ) ENGINE=InnoDB
-  `);
-  console.log("public_write_counters ready");
+  // Report only when it actually creates the table. This script runs on every
+  // boot now (src/common/bootMigrations.js), and an unconditional "ready" made
+  // a no-op restart log "1 change(s) applied" — false noise in the one line
+  // that tells you whether a deploy needed a migration.
+  const [existing] = await pool.query(
+    `SELECT 1 FROM information_schema.tables
+      WHERE table_schema = DATABASE() AND table_name = 'public_write_counters' LIMIT 1`
+  );
+  if (existing.length) {
+    console.log("public_write_counters already exists — skipping");
+  } else {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS public_write_counters (
+        scope_key VARCHAR(100) NOT NULL,
+        window_start DATETIME NOT NULL,
+        count INT UNSIGNED NOT NULL DEFAULT 0,
+        PRIMARY KEY (scope_key, window_start),
+        KEY idx_write_counters_window (window_start)
+      ) ENGINE=InnoDB
+    `);
+    console.log("added public_write_counters");
+  }
 
   await pool.end();
 })().catch((e) => {
