@@ -85,22 +85,55 @@ const getPostList = async (paginationData, filters, authData) => {
     const [rows] = await pool.query(_query, listParams);
     const [countResult] = await pool.query(_countQuery, whereParams);
 
-    // Attach tags to each post in a single round-trip.
-    let posts = rows.map((row) => ({ ...row, has_voted: row.has_voted === 1, tags: [] }));
+    // Attach tags and comment counts in one parallel round-trip each, not a
+    // correlated subquery per row.
+    let posts = rows.map((row) => ({
+      ...row,
+      has_voted: row.has_voted === 1,
+      tags: [],
+      comment_count: 0,
+    }));
     if (posts.length > 0) {
       const postIds = posts.map((p) => p.id);
-      const [tagRows] = await pool.query(
-        `SELECT pt.post_id, t.id, t.name, t.color_hex
-         FROM post_tags pt
-         JOIN tags t ON pt.tag_id = t.id
-         WHERE pt.tenant_id = ? AND pt.post_id IN (?)`,
-        [tenantId, postIds]
-      );
+      const [[tagRows], [commentRows]] = await Promise.all([
+        pool.query(
+          `SELECT pt.post_id, t.id, t.name, t.color_hex
+           FROM post_tags pt
+           JOIN tags t ON pt.tag_id = t.id
+           WHERE pt.tenant_id = ? AND pt.post_id IN (?)`,
+          [tenantId, postIds]
+        ),
+        // This query did not exist at all: the list never returned
+        // comment_count, so every dashboard card fell back to the client's
+        // `?? 0` and read "0 comments" whatever the real number was.
+        //
+        // Counts ALL comments, quarantined included — deliberately NOT the
+        // public board's `moderation_state <> 'spam'`. The team's thread shows
+        // quarantined comments (tinted, with a Not-spam restore), and
+        // getPostById counts them too, so this keeps the card equal to the
+        // detail page it opens. It can therefore read one higher than the
+        // public card for the same post; that difference is intended.
+        pool.query(
+          `SELECT post_id, COUNT(*) AS comment_count
+           FROM comments
+           WHERE tenant_id = ? AND post_id IN (?)
+           GROUP BY post_id`,
+          [tenantId, postIds]
+        ),
+      ]);
       const tagsByPost = tagRows.reduce((acc, t) => {
         (acc[t.post_id] = acc[t.post_id] || []).push({ id: t.id, name: t.name, color_hex: t.color_hex });
         return acc;
       }, {});
-      posts = posts.map((p) => ({ ...p, tags: tagsByPost[p.id] || [] }));
+      const commentsByPost = commentRows.reduce((acc, c) => {
+        acc[c.post_id] = Number(c.comment_count) || 0;
+        return acc;
+      }, {});
+      posts = posts.map((p) => ({
+        ...p,
+        tags: tagsByPost[p.id] || [],
+        comment_count: commentsByPost[p.id] || 0,
+      }));
     }
 
     return Promise.resolve(
