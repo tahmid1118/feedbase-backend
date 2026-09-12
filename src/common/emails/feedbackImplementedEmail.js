@@ -3,6 +3,8 @@
  * marks their feedback completed and chooses to notify them (Pro+ feature).
  * Table-based + inline styles — the only thing email clients render reliably.
  */
+const { EMAIL_HEAD } = require("./emailHead");
+
 const BRAND = "#c74959";
 const INK = "#1c0a0c";
 const WASH = "#fdf8f9";
@@ -53,38 +55,39 @@ const feedbackImplementedEmail = ({
 
   const html = `<!doctype html>
 <html>
-  <body style="margin:0;padding:0;background:${WASH};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${WASH};padding:32px 12px;">
+${EMAIL_HEAD}
+  <body class="fb-body" style="margin:0;padding:0;background:${WASH};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="fb-outer" style="background:${WASH};padding:32px 12px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid rgba(227,153,163,0.35);border-radius:16px;overflow:hidden;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="fb-card" style="max-width:520px;background:#ffffff;border:1px solid rgba(227,153,163,0.35);border-radius:16px;overflow:hidden;">
             <tr>
               <td style="background:linear-gradient(135deg,${INK} 0%,#7a2d38 55%,${BRAND} 100%);padding:24px 32px;">
-                <span style="color:#ffffff;font-size:18px;font-weight:700;">${ws}</span>
+                <span class="fb-wordmark" style="color:#ffffff;font-size:18px;font-weight:700;">${ws}</span>
               </td>
             </tr>
 
             <tr>
               <td style="padding:28px 32px;">
-                <p style="margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:${BRAND};font-weight:700;">
+                <p class="fb-accent" style="margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:${BRAND};font-weight:700;">
                   ✅ Implemented
                 </p>
-                <p style="margin:12px 0 0;font-size:16px;line-height:1.6;color:${INK};">
+                <p class="fb-heading" style="margin:12px 0 0;font-size:16px;line-height:1.6;color:${INK};">
                   Hi ${who}, good news — the feedback you shared has been
                   <strong>implemented</strong>:
                 </p>
 
                 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0 0;width:100%;">
                   <tr>
-                    <td style="padding:14px 16px;border-radius:12px;background:${WASH};border:1px solid rgba(227,153,163,0.3);">
-                      <p style="margin:0;font-size:17px;font-weight:700;line-height:1.35;color:${INK};">
+                    <td class="fb-panel" style="padding:14px 16px;border-radius:12px;background:${WASH};border:1px solid rgba(227,153,163,0.3);">
+                      <p class="fb-heading" style="margin:0;font-size:17px;font-weight:700;line-height:1.35;color:${INK};">
                         ${t}
                       </p>
                     </td>
                   </tr>
                 </table>
 
-                <p style="margin:18px 0 0;font-size:14px;line-height:1.6;color:rgba(28,10,12,0.7);">
+                <p class="fb-text" style="margin:18px 0 0;font-size:14px;line-height:1.6;color:rgba(28,10,12,0.7);">
                   Thank you for helping shape the product.
                 </p>
 
@@ -93,7 +96,7 @@ const feedbackImplementedEmail = ({
                     ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 0;">
                     <tr>
                       <td style="border-radius:10px;background:${BRAND};">
-                        <a href="${url}" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:10px;">
+                        <a href="${url}" class="fb-btn" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:10px;">
                           See it on the board
                         </a>
                       </td>
@@ -105,8 +108,8 @@ const feedbackImplementedEmail = ({
             </tr>
 
             <tr>
-              <td style="padding:16px 32px 24px;border-top:1px solid rgba(227,153,163,0.25);">
-                <p style="margin:0;font-size:12px;line-height:1.5;color:rgba(28,10,12,0.45);">
+              <td class="fb-divider" style="padding:16px 32px 24px;border-top:1px solid rgba(227,153,163,0.25);">
+                <p class="fb-muted" style="margin:0;font-size:12px;line-height:1.5;color:rgba(28,10,12,0.45);">
                   You're receiving this because you submitted feedback to <strong>${ws}</strong>.
                 </p>
               </td>

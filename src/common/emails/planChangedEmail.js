@@ -4,6 +4,8 @@
  * email clients render reliably. Sent from `MAIL_FROM_SUPPORT` (see mailer.js)
  * so it reads as a note from the team, not an automated billing receipt.
  */
+const { EMAIL_HEAD } = require("./emailHead");
+
 const BRAND = "#c74959";
 const INK = "#1c0a0c";
 const WASH = "#fdf8f9";
@@ -76,43 +78,44 @@ const planChangedEmail = ({
 
   const html = `<!doctype html>
 <html>
-  <body style="margin:0;padding:0;background:${WASH};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${WASH};padding:32px 12px;">
+${EMAIL_HEAD}
+  <body class="fb-body" style="margin:0;padding:0;background:${WASH};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="fb-outer" style="background:${WASH};padding:32px 12px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid rgba(227,153,163,0.35);border-radius:16px;overflow:hidden;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="fb-card" style="max-width:520px;background:#ffffff;border:1px solid rgba(227,153,163,0.35);border-radius:16px;overflow:hidden;">
             <tr>
               <td style="background:linear-gradient(135deg,${INK} 0%,#7a2d38 55%,${BRAND} 100%);padding:24px 32px;">
-                <span style="color:#ffffff;font-size:18px;font-weight:700;">FeedBoard Support</span>
+                <span class="fb-wordmark" style="color:#ffffff;font-size:18px;font-weight:700;">FeedBoard Support</span>
               </td>
             </tr>
 
             <tr>
               <td style="padding:28px 32px;">
-                <p style="margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:${BRAND};font-weight:700;">
+                <p class="fb-accent" style="margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:${BRAND};font-weight:700;">
                   Plan ${esc(verb)}
                 </p>
-                <p style="margin:12px 0 0;font-size:16px;line-height:1.6;color:${INK};">
+                <p class="fb-heading" style="margin:12px 0 0;font-size:16px;line-height:1.6;color:${INK};">
                   Hi ${who}, a member of the FeedBoard team has ${esc(verb)} the plan on
                   ${esc(workspaceLine)}:
                 </p>
 
                 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0 0;width:100%;">
                   <tr>
-                    <td style="padding:14px 16px;border-radius:12px;background:${WASH};border:1px solid rgba(227,153,163,0.3);">
-                      <p style="margin:0;font-size:17px;font-weight:700;line-height:1.35;color:${INK};">
-                        ${oldP} <span style="color:rgba(28,10,12,0.4);font-weight:400;">→</span> ${newP}
+                    <td class="fb-panel" style="padding:14px 16px;border-radius:12px;background:${WASH};border:1px solid rgba(227,153,163,0.3);">
+                      <p class="fb-heading" style="margin:0;font-size:17px;font-weight:700;line-height:1.35;color:${INK};">
+                        ${oldP} <span class="fb-muted" style="color:rgba(28,10,12,0.4);font-weight:400;">→</span> ${newP}
                       </p>
                       ${
                         durationNote
-                          ? `<p style="margin:6px 0 0;font-size:13px;color:rgba(28,10,12,0.6);">${esc(durationNote)}</p>`
+                          ? `<p class="fb-text" style="margin:6px 0 0;font-size:13px;color:rgba(28,10,12,0.6);">${esc(durationNote)}</p>`
                           : ""
                       }
                     </td>
                   </tr>
                 </table>
 
-                <p style="margin:18px 0 0;font-size:14px;line-height:1.6;color:rgba(28,10,12,0.7);">
+                <p class="fb-text" style="margin:18px 0 0;font-size:14px;line-height:1.6;color:rgba(28,10,12,0.7);">
                   If this is unexpected or you have any questions, just reply to
                   this email — it goes straight to our support team.
                 </p>
@@ -120,8 +123,8 @@ const planChangedEmail = ({
             </tr>
 
             <tr>
-              <td style="padding:16px 32px 24px;border-top:1px solid rgba(227,153,163,0.25);">
-                <p style="margin:0;font-size:12px;line-height:1.5;color:rgba(28,10,12,0.45);">
+              <td class="fb-divider" style="padding:16px 32px 24px;border-top:1px solid rgba(227,153,163,0.25);">
+                <p class="fb-muted" style="margin:0;font-size:12px;line-height:1.5;color:rgba(28,10,12,0.45);">
                   You're receiving this because you own an account on FeedBoard.
                 </p>
               </td>
