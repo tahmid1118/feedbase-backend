@@ -70,6 +70,8 @@
     "post_updated": "Post updated",
     "post_deleted": "Post deleted",
     "invalid_status": "Invalid status",
+    "feedback_cleared": "All feedback deleted",
+    "clear_confirm_mismatch": "Confirmation does not match the workspace subdomain",
     "comment_updated": "Comment updated",
     "comment_deleted": "Comment deleted",
     "insufficient_permissions": "You don't have permission to do that",

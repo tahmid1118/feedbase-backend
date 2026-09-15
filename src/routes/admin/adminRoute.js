@@ -45,6 +45,9 @@ const {
   deleteWorkspacePost,
 } = require("../../main/admin/adminPosts");
 const {
+  clearWorkspaceFeedback,
+} = require("../../main/admin/clearWorkspaceFeedback");
+const {
   listPostComments,
   deleteComment,
 } = require("../../main/admin/adminComments");
@@ -125,6 +128,12 @@ adminRouter.put("/workspaces/:id/posts/:postId/pin", (req, res) =>
 );
 adminRouter.delete("/workspaces/:id/posts/:postId", (req, res) =>
   deleteWorkspacePost(req.params.id, req.params.postId, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
+);
+
+// Clear EVERY post in a workspace. Body must carry { confirm: "<subdomain>" };
+// the handler re-checks it, so a mis-aimed call deletes nothing.
+adminRouter.delete("/workspaces/:id/posts", (req, res) =>
+  clearWorkspaceFeedback(req.params.id, req.body?.confirm, lgOf(req)).then((d) => send(res, d)).catch((e) => send(res, e))
 );
 
 // Moderate a post's comments
