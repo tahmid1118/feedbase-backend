@@ -48,6 +48,15 @@ const authenticateToken = async (req, res, next) => {
     process.env.SECRET_ACCESS_TOKEN,
     async (err, user) => {
       if (err) {
+        // An EXPIRED token is a finished session, not a malformed request: it
+        // is the one verify failure that happens to an honest, long-signed-in
+        // user. 401 routes it into the client's sign-out-and-redirect path
+        // (lib/api/client.ts), the same as a revoked session below; a 400
+        // would leave them sitting in a dashboard where every call fails with
+        // no way to understand why. Anything else really is a bad token.
+        if (err.name === "TokenExpiredError") {
+          return res.status(401).send("Session ended");
+        }
         console.error("JWT Verification Error:", err);
         return res.status(400).send("Invalid token");
       }
