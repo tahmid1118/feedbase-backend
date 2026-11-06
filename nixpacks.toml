@@ -18,9 +18,18 @@
 #   PM2_INSTANCES  — pin it. `instances: "max"` counts the HOST's cores, not the
 #                    container's CPU limit, so "max" over-forks on a shared box
 #                    (each worker is a full V8 heap). 2 is a sane start.
+#
+# 3. SECURITY: pin the nixpkgs revision. Without it Nixpacks installs "nodejs_22"
+#    from its own frozen snapshot, which shipped Node 22.11.0, months behind and
+#    vulnerable to the October 2026 Node.js security release (Brotli decoder RCE,
+#    CVE-2026-111497, actively exploited; fixed in 22.23.4). This nixos-unstable
+#    commit builds nodejs_22 = 22.23.4 (with its bundled npm). Keep it identical
+#    to the frontend's nixpacks.toml and bump both on every Node security
+#    release; verify after deploy with: docker exec <backend container> node -v
 
 [phases.setup]
 nixPkgs = ["nodejs_22"]
+nixpkgsArchive = "1d060086d60cb76a40cf37109f979d88a5bd6396"
 
 [start]
 cmd = "npm run start:container"
